@@ -45,8 +45,11 @@ function [k, marker_params, floating_states, objective_value, marker_residuals, 
 if nargin < 11
   options = struct();
 end
+if ~isfield(options,'search_floating')
+  options.search_floating = 'none';
+end
 
-if options.search_floating
+if ~strcmp(options.search_floating, 'none')
   % Find floating states first, based only on body that is closest to
   % floating body
   % NOTE: simultaneously optimizing for floating states and stiffnesses did
@@ -69,15 +72,23 @@ if options.search_floating
   end
   
   % find floating states
-  floating_search_options.search_floating = true;
+  floating_search_options.search_floating = options.search_floating;
   disp('Finding floating states...')
   [~, ~, floating_states] = motionCaptureJointCalibration(...
       p, @dummyCorrectionFunction, q_data, [],...
   bodies(closest_body_i), marker_functions(closest_body_i), num_marker_params(closest_body_i), motion_capture_data(closest_body_i), {1}, floating_search_options);
+%   scales_floating = cell(length(bodies), 1);
+%   scales_floating{1} = 100;
+%   for i = 2 : length(bodies)
+%     scales_floating{i} = 1;
+%   end
+%   [~, ~, floating_states] = motionCaptureJointCalibration(...
+%     p, @dummyCorrectionFunction, q_data, joint_indices,...
+%     bodies, marker_functions, num_marker_params, motion_capture_data, scales_floating, floating_search_options);
   
   q_data(floating_body.position_num, :) = floating_states;
 
-  options.search_floating = false;
+  options.search_floating = 'none';
 end
 
 B = p.getB();

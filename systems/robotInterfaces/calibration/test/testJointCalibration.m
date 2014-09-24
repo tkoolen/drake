@@ -17,7 +17,7 @@ q_measured = q_actual + q_noise_stddev * randn(size(q_actual));
 q_measured(q_indices, :) = q_measured(q_indices, :) - repmat(q_offset_actual, 1, num_poses);
 scales = {100, 1};
 
-options.search_floating = true;
+options.search_floating = 'full';
 [q_offset_estimated, marker_params, floating_states] = jointOffsetCalibration(r, q_measured, q_indices, ...
   bodies, marker_functions, cellfun(@(x) 3 * x, num_unmeasured_markers, 'UniformOutput', false), vicon_data, scales, options);
 
@@ -58,10 +58,8 @@ q_measured(q_indices, :) = q_measured(q_indices, :) - dq_actual;
 k_initial = abs(k_actual + k_initial_stddev * randn(nk, 1));
 scales = {1, 1};
 
-options.search_floating = true;
+options.search_floating = 'xyz_yaw';
 
-
-options.search_floating = true;
 [k_estimated, marker_params, floating_states] = jointStiffnessCalibration(r, q_measured, u_data, q_indices, ...
   bodies, marker_functions, cellfun(@(x) 3 * x, num_unmeasured_markers, 'UniformOutput', false), vicon_data, ...
   scales, k_initial, options);

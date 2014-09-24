@@ -54,32 +54,40 @@ if nargin < 10
   options = struct();
 end
 if ~isfield(options,'search_floating')
-  options.search_floating = true;
+  options.search_floating = 'none';
 end
 if ~isfield(options,'initial_guess')
   options.initial_guess = zeros(njoints, 1);
 end
 
 marker_function_num_params = cell2mat(marker_function_num_params);
-if options.search_floating
-  floating_body = p.getBody(2);
-  if floating_body.floating ~= 1
+floating_body = p.getBody(2);
+has_rpy_floating_body = floating_body.floating == 1;
+
+if strcmp(options.search_floating, 'none')
+  floating_indices = zeros(0, 1);
+  floating_params0 = zeros(0, nposes);
+else
+  if ~has_rpy_floating_body
     error('Calling this function with options.search_floating = true currently requires the first joint in the kinematic chain to be an rpy-parameterized floating joint.');
   end
-  floating_indices = floating_body.position_num;
-  floating_states0 = [zeros(3, nposes); ones(1, nposes); zeros(3, nposes)]; % zero rotation in quaternion
-else
-  floating_indices = zeros(0, 1);
-  floating_states0 = zeros(0, nposes);
+  if strcmp(options.search_floating, 'full')
+    floating_indices = floating_body.position_num;
+  elseif strcmp(options.search_floating, 'xyz_yaw')
+    floating_indices = floating_body.position_num([1:3 6]);
+  else
+    error(['search_floating option not recognized: ' options.search_floating]);
+  end
+  floating_params0 = q_data(floating_indices, :);
 end
 
 f = @(params) markerResiduals(p, q_correction_fun, q_data, joint_indices, floating_indices,...
   bodies, marker_functions, motion_capture_data, scales, ...
-  params(1:njoints), mat2cell(params(njoints + 1 : njoints + sum(marker_function_num_params)), marker_function_num_params), reshape(params(end - numel(floating_states0) + 1 : end), size(floating_states0)));
+  params(1:njoints), mat2cell(params(njoints + 1 : njoints + sum(marker_function_num_params)), marker_function_num_params), reshape(params(end - numel(floating_params0) + 1 : end), size(floating_params0)));
 
-fmin_options = optimset('Display','iter-detailed','GradObj','on'); %, 'DerivativeCheck','on','FinDiffType','central');
+fmin_options = optimset('Display','iter-detailed','GradObj','on', 'DerivativeCheck','on','FinDiffType','central');
 
-x0 = [options.initial_guess; zeros(sum(marker_function_num_params),1); floating_states0(:)];
+x0 = [options.initial_guess; zeros(sum(marker_function_num_params),1); floating_params0(:)];
 [X,FVAL,EXITFLAG] = fminunc(f,x0,fmin_options);
 
 q_correction_params = X(1:njoints);
@@ -90,20 +98,17 @@ for i = 1 : nbodies
   marker_param_start_row = marker_param_start_row + marker_function_num_params(i);
 end
 
-if options.search_floating
-  % transform back from quaternion parameterization to rpy
-  floating_params = reshape(X(end - numel(floating_states0) + 1 : end), size(floating_states0)); % [pos; quat] for
-  pos_rows = 1:3;
-  quat_rows = 4:7;
-  floating_states = zeros(length(floating_indices), nposes);
-  for i = 1 : nposes
-    pos = floating_params(pos_rows, i);
-    R = quat2rotmat(floating_params(quat_rows, i)); % includes normalization
-    rpy = rotmat2rpy(R);
-    floating_states(:, i) = [pos; rpy];
-  end
+if has_rpy_floating_body
+  floating_states = q_data(floating_body.position_num, :);
 else
-  floating_states = floating_states0;
+  floating_states = zeros(0, nposes);
+end
+
+if options.search_floating
+  floating_params = reshape(X(end - numel(floating_params0) + 1 : end), size(floating_params0)); % [pos; quat] for
+  floating_states(floating_indices, :) = floating_params;
+else
+  floating_states = floating_params0;
 end;
 
 objective_value = FVAL;
@@ -126,23 +131,26 @@ nposes = size(q_data, 2);
 % floating states are parameterized as floating_states(:, i) = [pos; quat];
 % need to normalize quaternion first:
 if ~isempty(floating_params)
-  q_floating_size = [length(floating_indices) nposes];
-  dq_floatingdfloating_params = sparse(prod(q_floating_size), numel(floating_params));
-
-  pos_rows = 1:3;
-  quat_rows = 4:7;
-  rpy_rows = 4:6;
-  for i = 1 : nposes
-    pos = floating_params(pos_rows, i);
-    [R, dRdquat] = quat2rotmat(floating_params(quat_rows, i)); % includes normalization
-    [rpy, drpydquat] = rotmat2rpy(R, dRdquat);
-    q_data(floating_indices, i) = [pos; rpy];
-    
-    pos_indices = sub2ind(size(floating_params), pos_rows, repmat(i, 1, length(pos_rows)));
-    quat_indices = sub2ind(size(floating_params), quat_rows, repmat(i, 1, length(quat_rows)));
-    dq_floatingdfloating_params = setSubMatrixGradient(dq_floatingdfloating_params, eye(3), pos_rows, i, q_floating_size, pos_indices);
-    dq_floatingdfloating_params = setSubMatrixGradient(dq_floatingdfloating_params, drpydquat, rpy_rows, i, q_floating_size, quat_indices);
-  end  
+  q_data(floating_indices, :) = floating_params;
+  dq_floatingdfloating_params = eye(numel(floating_params));
+  
+  % quat parameterization:
+%   q_floating_size = [length(floating_indices) nposes];
+%   dq_floatingdfloating_params = sparse(prod(q_floating_size), numel(floating_params));
+%   pos_rows = 1:3;
+%   quat_rows = 4:7;
+%   rpy_rows = 4:6;
+%   for i = 1 : nposes
+%     pos = floating_params(pos_rows, i);
+%     [R, dRdquat] = quat2rotmat(floating_params(quat_rows, i)); % includes normalization
+%     [rpy, drpydquat] = rotmat2rpy(R, dRdquat);
+%     q_data(floating_indices, i) = [pos; rpy];
+%     
+%     pos_indices = sub2ind(size(floating_params), pos_rows, repmat(i, 1, length(pos_rows)));
+%     quat_indices = sub2ind(size(floating_params), quat_rows, repmat(i, 1, length(quat_rows)));
+%     dq_floatingdfloating_params = setSubMatrixGradient(dq_floatingdfloating_params, eye(3), pos_rows, i, q_floating_size, pos_indices);
+%     dq_floatingdfloating_params = setSubMatrixGradient(dq_floatingdfloating_params, drpydquat, rpy_rows, i, q_floating_size, quat_indices);
+%   end
 end
 
 f = 0;
