@@ -85,10 +85,17 @@ f = @(params) markerResiduals(p, q_correction_fun, q_data, joint_indices, floati
   bodies, marker_functions, motion_capture_data, scales, ...
   params(1:njoints), mat2cell(params(njoints + 1 : njoints + sum(marker_function_num_params)), marker_function_num_params), reshape(params(end - numel(floating_params0) + 1 : end), size(floating_params0)));
 
-fmin_options = optimset('Display','iter-detailed','GradObj','on', 'DerivativeCheck','on','FinDiffType','central');
-
 x0 = [options.initial_guess; zeros(sum(marker_function_num_params),1); floating_params0(:)];
-[X,FVAL,EXITFLAG] = fminunc(f,x0,fmin_options);
+
+if ~isfield(options, 'correction_param_lb')
+  fmin_options = optimoptions('fminunc', 'Display','iter-detailed','GradObj','on'); %, 'DerivativeCheck','on','FinDiffType','central');
+  [X,FVAL,EXITFLAG] = fminunc(f,x0,fmin_options);
+else
+  fmin_options = optimoptions('fmincon', 'Display','iter-detailed','GradObj','on'); %, 'DerivativeCheck','on','FinDiffType','central');
+  lb = -inf(size(x0));
+  lb(1:njoints) = options.correction_param_lb;
+  [X,FVAL,EXITFLAG] = fmincon(f,x0,[],[],[],[],lb,[],[],fmin_options);
+end
 
 q_correction_params = X(1:njoints);
 marker_params = cell(nbodies, 1);

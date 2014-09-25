@@ -103,15 +103,13 @@ u_indices = u_indices(sort_indices);
 
 tau_data = B(joint_indices, u_indices) * u_data(u_indices, :);
 
-k_inv_sqrt_initial = 1 ./ sqrt(k_initial);
-options.initial_guess = k_inv_sqrt_initial;
-
+options.initial_guess = 1 ./ k_initial;
+options.correction_param_lb = 0;
 disp('Finding stiffnesses...')
-[k_inv_sqrt, marker_params, ~, objective_value, marker_residuals, info] = motionCaptureJointCalibration(...
+[k_inv, marker_params, ~, objective_value, marker_residuals, info] = motionCaptureJointCalibration(...
   p, @(q_data, k_inv_sqrt) stiffnessCorrectionFun(q_data, k_inv_sqrt, tau_data), q_data, joint_indices,...
   bodies, marker_functions, num_marker_params, motion_capture_data, scales, options);
-
-k = 1 ./ (k_inv_sqrt.^2);
+k = 1 ./ k_inv;
 
 end
 
@@ -120,13 +118,13 @@ q_data_mod = q_data;
 dq_data_mod = zeros(numel(q_data_mod), length(params));
 end
 
-function [q_data_mod, dq_data_mod] = stiffnessCorrectionFun(q_data, k_inv_sqrt, tau_data)
-k_inv = k_inv_sqrt.^2;
+function [q_data_mod, dq_data_mod] = stiffnessCorrectionFun(q_data, k_inv, tau_data)
+% k_inv = k_inv_sqrt.^2;
 K_inv = diag(k_inv);
-q_data_mod = q_data + K_inv * tau_data;
+q_data_mod = q_data - K_inv * tau_data;
 
 nk = length(k_inv);
-dk_inv = 2 * diag(k_inv_sqrt);
-dKInv = sparse(sub2ind(size(K_inv), 1:nk, 1:nk), 1:nk, ones(length(nk))) * dk_inv;
+% dk_inv = 2 * diag(k_inv_sqrt);
+dKInv = -sparse(sub2ind(size(K_inv), 1:nk, 1:nk), 1:nk, ones(length(nk))); % * dk_inv;
 dq_data_mod = matGradMultMat(K_inv, tau_data, dKInv, sparse(numel(tau_data), nk));
 end
