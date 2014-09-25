@@ -50,7 +50,7 @@ B = r.getB();
 [rows, u_indices] = find(B(q_indices, :) ~= 0);
 [~, sort_indices] = sort(rows);
 u_indices = u_indices(sort_indices);
-dq_actual = diag(1 ./ k_actual) * B(q_indices, u_indices) * u_data(u_indices, :);
+dq_actual = -diag(1 ./ k_actual) * B(q_indices, u_indices) * u_data(u_indices, :);
 
 q_measured = q_actual + q_noise_stddev * randn(size(q_actual));
 q_measured(q_indices, :) = q_measured(q_indices, :) - dq_actual;
