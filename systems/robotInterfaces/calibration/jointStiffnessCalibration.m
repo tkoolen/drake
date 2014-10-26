@@ -49,47 +49,47 @@ if ~isfield(options,'search_floating')
   options.search_floating = 'none';
 end
 
-if ~strcmp(options.search_floating, 'none')
-  % Find floating states first, based only on body that is closest to
-  % floating body
-  % NOTE: simultaneously optimizing for floating states and stiffnesses did
-  % not work.
-  
-  % find body closest to floating body in kinematic tree
-  floating_body_index = 2;
-  floating_body = p.getBody(floating_body_index);
-  if floating_body.floating == 0
-    error('first joint in kinematic tree needs to be a floating joint');
-  end
-  shortest_path_length = inf;
-  closest_body_i = -1;
-  for i = 1 : length(bodies)
-    [~, joint_path] = p.findKinematicPath(bodies{i}, floating_body_index);
-    if (length(joint_path)) < shortest_path_length
-      closest_body_i = i;
-      shortest_path_length = length(joint_path);
-    end
-  end
-  
-  % find floating states
-  floating_search_options.search_floating = options.search_floating;
-  disp('Finding floating states...')
-  [~, ~, floating_states] = motionCaptureJointCalibration(...
-      p, @dummyCorrectionFunction, q_data, [],...
-  bodies(closest_body_i), marker_functions(closest_body_i), num_marker_params(closest_body_i), motion_capture_data(closest_body_i), {1}, floating_search_options);
-%   scales_floating = cell(length(bodies), 1);
-%   scales_floating{1} = 100;
-%   for i = 2 : length(bodies)
-%     scales_floating{i} = 1;
+% if ~strcmp(options.search_floating, 'none')
+%   % Find floating states first, based only on body that is closest to
+%   % floating body
+%   % NOTE: simultaneously optimizing for floating states and stiffnesses did
+%   % not work.
+%   
+%   % find body closest to floating body in kinematic tree
+%   floating_body_index = 2;
+%   floating_body = p.getBody(floating_body_index);
+%   if floating_body.floating == 0
+%     error('first joint in kinematic tree needs to be a floating joint');
 %   end
+%   shortest_path_length = inf;
+%   closest_body_i = -1;
+%   for i = 1 : length(bodies)
+%     [~, joint_path] = p.findKinematicPath(bodies{i}, floating_body_index);
+%     if (length(joint_path)) < shortest_path_length
+%       closest_body_i = i;
+%       shortest_path_length = length(joint_path);
+%     end
+%   end
+%   
+%   % find floating states
+%   floating_search_options.search_floating = options.search_floating;
+%   disp('Finding floating states...')
 %   [~, ~, floating_states] = motionCaptureJointCalibration(...
-%     p, @dummyCorrectionFunction, q_data, joint_indices,...
-%     bodies, marker_functions, num_marker_params, motion_capture_data, scales_floating, floating_search_options);
-  
-  q_data(floating_body.position_num, :) = floating_states;
-
-  options.search_floating = 'none';
-end
+%       p, @dummyCorrectionFunction, q_data, [],...
+%   bodies(closest_body_i), marker_functions(closest_body_i), num_marker_params(closest_body_i), motion_capture_data(closest_body_i), {1}, floating_search_options);
+% %   scales_floating = cell(length(bodies), 1);
+% %   scales_floating{1} = 100;
+% %   for i = 2 : length(bodies)
+% %     scales_floating{i} = 1;
+% %   end
+% %   [~, ~, floating_states] = motionCaptureJointCalibration(...
+% %     p, @dummyCorrectionFunction, q_data, joint_indices,...
+% %     bodies, marker_functions, num_marker_params, motion_capture_data, scales_floating, floating_search_options);
+%   
+%   q_data(floating_body.position_num, :) = floating_states;
+% 
+%   options.search_floating = 'none';
+% end
 
 B = p.getB();
 B_calibrated_joints = B(joint_indices, :);
@@ -106,7 +106,7 @@ tau_data = B(joint_indices, u_indices) * u_data(u_indices, :);
 options.initial_guess = 1 ./ k_initial;
 options.correction_param_lb = 0;
 disp('Finding stiffnesses...')
-[k_inv, marker_params, ~, objective_value, marker_residuals, info] = motionCaptureJointCalibration(...
+[k_inv, marker_params, floating_states, objective_value, marker_residuals, info] = motionCaptureJointCalibration(...
   p, @(q_data, k_inv_sqrt) stiffnessCorrectionFun(q_data, k_inv_sqrt, tau_data), q_data, joint_indices,...
   bodies, marker_functions, num_marker_params, motion_capture_data, scales, options);
 k = 1 ./ k_inv;
