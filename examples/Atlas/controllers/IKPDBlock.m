@@ -10,6 +10,8 @@ classdef IKPDBlock < MIMODrakeSystem
     max_nrm_err;
     input_foot_contacts;
     use_ik; % if false, just does PD on q_nom input
+    singularity_threshold; % epsilon in Chiaverini94
+    singularity_lambda_max; % lambda_max in Chiaverini94
   end
   
   methods
@@ -77,6 +79,18 @@ classdef IKPDBlock < MIMODrakeSystem
         dt = 0.001;
       end
       obj = setSampleTime(obj,[dt;0]); % sets controller update rate
+      
+      if isfield(options,'singularity_lambda_max')
+        obj.singularity_lambda_max = singularity_lambda_max;
+      else
+        obj.singularity_lambda_max = 0.04;
+      end
+      
+      if isfield(options,'singularity_threshold')
+        obj.singularity_threshold = options.singularity_threshold;
+      else
+        obj.singularity_threshold = 0.04;
+      end
             
       % setup IK parameters
       cost = Point(r.getStateFrame,1);
@@ -151,9 +165,48 @@ classdef IKPDBlock < MIMODrakeSystem
           err_q = obj.max_nrm_err * err_q / nrmerr;
         end
       end
+      
+      vd = obj.Kp.*err_q - obj.Kd.*qd;
 
-      y = max(-100*ones(obj.nq,1),min(100*ones(obj.nq,1),obj.Kp.*err_q - obj.Kd.*qd));
+      % TASK SPACE CONTROL TEST
+      torso_ind = findLinkInd(obj.robot, 'utorso');
+      l_hand_ind = findLinkInd(obj.robot, 'l_hand');
+      
+      control_direction = [zeros(3, 1); ones(3, 1)];
+      Kp_taskspace = 150 * diag(control_direction);
+      Kd_taskspace = 15 * diag(control_direction);
+      vd = doTaskSpaceControl(obj, q, qd, err_q, torso_ind, l_hand_ind, 1, Kp_taskspace, Kd_taskspace, vd);
+      % END TASK SPACE CONTROL TEST
+      
+      y = max(-100*ones(obj.nq,1),min(100*ones(obj.nq,1),vd));
     end
   end
   
+end
+
+function vd = doTaskSpaceControl(obj, q, qd, err_q, base, body, expressed_in, Kp_taskspace, Kd_taskspace, vd)
+kinsol = doKinematics(obj.robot, q, false, false, qd); % TODO: use mex
+[J, v_indices] = geometricJacobian(obj.robot.getManipulator, kinsol, base, body, expressed_in);
+
+% use singularity handling approach from Chiaverini94 (using only the smallest singular value):
+sigma_min = svds(J, 1, 0);
+epsilon = obj.singularity_threshold;
+lambda_max = obj.singularity_lambda_max;
+if sigma_min >= epsilon
+  lambda_squared = 0;
+else
+  lambda_squared = 1 - (sigma_min / epsilon)^2 * lambda_max^2;
+end
+A = J' * J + lambda_squared * eye(6);
+pos_err_path = err_q(v_indices);
+vel_err_path = -qd(v_indices);
+
+% TODO: currently inefficient, but to support qd ~= v, should actually be:
+% [~,joint_path] = findKinematicPath(obj.robot.getManipulator, base, body);
+% q_indices = vertcat(obj.robot.getManipulator.body(joint_path).position_num);
+% qdot_to_v = obj.robot.getManipulator.qdotToV(q);
+% pos_err_path = qdot_to_v(v_indices, q_indices) * err_q(q_indices);
+% vel_err_path = -v(v_indices);
+
+vd(v_indices) = J * (Kp_taskspace * (A \ (J' * pos_err_path)) + Kd_taskspace * (A \ (J' * vel_err_path)));
 end
