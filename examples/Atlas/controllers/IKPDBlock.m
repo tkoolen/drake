@@ -172,10 +172,12 @@ classdef IKPDBlock < MIMODrakeSystem
       torso_ind = findLinkInd(obj.robot, 'utorso');
       l_hand_ind = findLinkInd(obj.robot, 'l_hand');
       
-      control_direction = [zeros(3, 1); ones(3, 1)];
+      control_direction = [zeros(3, 1); [1; 0; 0]];
       Kp_taskspace = 150 * diag(control_direction);
       Kd_taskspace = 15 * diag(control_direction);
-      vd = doTaskSpaceControl(obj, q, qd, err_q, torso_ind, l_hand_ind, 1, Kp_taskspace, Kd_taskspace, vd);
+      vd = doTaskSpaceControl(obj, q, qd, q + err_q, torso_ind, l_hand_ind, ...
+        1, eye(3), zeros(3, 1), ...
+        Kp_taskspace, Kd_taskspace, vd);
       % END TASK SPACE CONTROL TEST
       
       y = max(-100*ones(obj.nq,1),min(100*ones(obj.nq,1),vd));
@@ -184,29 +186,104 @@ classdef IKPDBlock < MIMODrakeSystem
   
 end
 
-function vd = doTaskSpaceControl(obj, q, qd, err_q, base, body, expressed_in, Kp_taskspace, Kd_taskspace, vd)
-kinsol = doKinematics(obj.robot, q, false, false, qd); % TODO: use mex
-[J, v_indices] = geometricJacobian(obj.robot.getManipulator, kinsol, base, body, expressed_in);
+% Updates desired accelerations for task space control of joints
+% between a given end effector and a base using a task space gain matrix.
+%
+% The task space gain matrix is expressed in a frame t (the task space
+% error frame), which is defined by a rotation matrix
+% R^{gain_orientation_frame}_x and translation vector p^{end_effector}_x.
+%
+% Usage examples:
+% 1) control of the position of the origin of the hand frame using the
+% joints between the torso and the hand, with gains that are oriented in
+% hand frame:
+% base = torso
+% end_effector = hand
+% gain_orientation_frame = end_effector, orientation = eye(3)
+% position = zeros(3, 1)
+%
+% 2) control of the position of a tooltip given in hand frame as p^{hand}_t
+% using the joints between the pelvis and the hand, with gains that have
+% are given in a frame specified by rotation matrix R^{world}_t with
+% respect to world frame:
+% base = pelvis
+% end_effector = hand
+% gain_orientation_frame = world, orientation = R^{world}_t
+% position = p^{hand}_t
+% 
+% Uses singularity handling approach from Chiaverini94.
+%
+% @param q joint configuration vector
+% @param v joint velocity vector
+% @param q_des desired joint configuration vector
+% @param base index of base link
+% @param end_effector index of end effector link
+% @param gain_orientation_frame in which the orientation of the task space
+% error frame is specified. 
+% @param orientation rotation matrix specifying the orientation of the task
+% space error frame with respect to the gain_orientation_frame
+% @param tool_position position of the origin of the task space error
+% frame, defined with respect to end effector frame
+% @param Kp_taskspace 6x6 proportional gain matrix expressed in task space
+% error frame t
+% @param Kd_taskspace 6x6 derivative gain matrix expressed in task space
+% error frame t (acts on error in twist of end_effector with respect to
+% base, expressed in task space error frame)
+% @param vd input joint acceleration vector
+%
+% @retval vd updated joint acceleration vector
+
+function vd = doTaskSpaceControl(obj, q, v, q_des, base, end_effector, ...
+  gain_orientation_frame, orientation, tool_position, ...
+  Kp_taskspace, Kd_taskspace, vd)
+
+% compute Jacobian that maps from joint velocity to twist of end_effector
+% with respect to base, expressed in task space error frame
+kinsol = doKinematics(obj.robot, q, false, false, v); % TODO: use mex
+x = forwardKin(obj.robot, kinsol, gain_orientation_frame, zeros(3, 1), 2);
+R = quat2rotmat(x(4:7)) * orientation; % rotation matrix specifying orientation of task space error frame with respect to world
+x = forwardKin(obj.robot, kinsol, end_effector, tool_position, 2); % position of origin of task space error frame with respect to world
+p = x(1:3);
+T_world_to_task_space_error_frame = [R', -R' * p; zeros(1, 3), 1];
+
+world = 1;
+[J, v_indices] = geometricJacobian(obj.robot.getManipulator, kinsol, base, end_effector, world); % geometric Jacobian expressed in world frame
+J = transformAdjoint(T_world_to_task_space_error_frame) * J; % transform Jacobian to task space error frame
+
+linearize = true;
+if linearize
+  % TODO: currently inefficient, but to support qd ~= v, should actually be:
+  % [~,joint_path] = findKinematicPath(obj.robot.getManipulator, base, body);
+  % q_indices = vertcat(obj.robot.getManipulator.body(joint_path).position_num);
+  % qdot_to_v = obj.robot.getManipulator.qdotToV(q);
+  % pose_err = J * qdot_to_v(v_indices, q_indices) * (q_des(v_indices) - q(v_indices));
+  pose_err = J * (q_des(v_indices) - q(v_indices));
+else
+  kinsol_des = doKinematics(obj.robot, q_des, false, true, v);
+  x_des = forwardKin(obj.robot, kinsol_des, end_effector, tool_position, 2);
+  p_err = x_des(1:3) - p;
+  quat_err = quatDiff(x(4:7), x_des(4:7));
+  axis_err = quat2axis(quat_err);
+  rotvec_err = axis_err(4) * axis_err(1:3);
+  pose_err = [R * rotvec_err; R * p_err];
+end
+twist_err = J * (-v(v_indices));
 
 % use singularity handling approach from Chiaverini94 (using only the smallest singular value):
-sigma_min = svds(J, 1, 0);
 epsilon = obj.singularity_threshold;
 lambda_max = obj.singularity_lambda_max;
+singular_values = svd(J);
+sigma_min = singular_values(end);
+
 if sigma_min >= epsilon
   lambda_squared = 0;
 else
   lambda_squared = 1 - (sigma_min / epsilon)^2 * lambda_max^2;
 end
 A = J' * J + lambda_squared * eye(6);
-pos_err_path = err_q(v_indices);
-vel_err_path = -qd(v_indices);
+vd(v_indices) = A \ (J' *(Kp_taskspace * pose_err + Kd_taskspace * twist_err));
 
-% TODO: currently inefficient, but to support qd ~= v, should actually be:
-% [~,joint_path] = findKinematicPath(obj.robot.getManipulator, base, body);
-% q_indices = vertcat(obj.robot.getManipulator.body(joint_path).position_num);
-% qdot_to_v = obj.robot.getManipulator.qdotToV(q);
-% pos_err_path = qdot_to_v(v_indices, q_indices) * err_q(q_indices);
-% vel_err_path = -v(v_indices);
+% non-singularity-robust version:
+% vd(v_indices) = inv(J) * Kp_taskspace * J * err_q(v_indices) - inv(J) * Kd_taskspace * J * v(v_indices);
 
-vd(v_indices) = J * (Kp_taskspace * (A \ (J' * pos_err_path)) + Kd_taskspace * (A \ (J' * vel_err_path)));
 end
