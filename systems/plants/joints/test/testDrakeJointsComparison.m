@@ -26,6 +26,8 @@ data_in.rpy_floating.v = randn(6, 1);
 data_in.quaternion_floating.q = [randn(3, 1); uniformlyRandomQuat()];
 data_in.quaternion_floating.v = randn(6, 1);
 
+data_in.dt = 1e-3;
+
 data_out = testDrakeJointsmex(data_in);
 
 data_in_matlab.prismatic_body.floating = 0;
@@ -46,34 +48,37 @@ data_in_matlab.quaternion_floating_body.floating = 2;
 
 fields = fieldnames(data_in);
 for i = 1 : length(fields)
-  body = data_in_matlab.([fields{i} '_body']);
-  data_out_i = data_out.(fields{i});
-  data_in_i = data_in.(fields{i});
-  
-  q = data_in_i.q;
-  v = data_in_i.v;
-  
-  joint_transform = jointTransform(body, q);
-  valuecheck(data_out_i.joint_transform, joint_transform);
-  
-  [motion_subspace, dmotion_subspace] = motionSubspace(body, q);
-  valuecheck(data_out_i.motion_subspace, motion_subspace);
-  valuecheck(data_out_i.dmotion_subspace, dmotion_subspace);
-  
-  [motion_subspace_dot_times_v, dmotion_subspace_dot_times_vdq, dmotion_subspace_dot_times_vdv] = motionSubspaceDotTimesV(body, q, v);
-  valuecheck(data_out_i.motion_subspace_dot_times_v, motion_subspace_dot_times_v);
-  valuecheck(data_out_i.dmotion_subspace_dot_times_vdq, dmotion_subspace_dot_times_vdq);
-  valuecheck(data_out_i.dmotion_subspace_dot_times_vdv, dmotion_subspace_dot_times_vdv);
-  
-  [qdot_to_v, dqdot_to_v] = jointQdot2v(body, q);
-  valuecheck(data_out_i.qdot_to_v, qdot_to_v);
-  valuecheck(data_out_i.dqdot_to_v, dqdot_to_v);
-  
-  [v_to_qdot, dv_to_qdot] = jointV2qdot(body, q);
-  valuecheck(data_out_i.v_to_qdot, v_to_qdot);
-  valuecheck(data_out_i.dv_to_qdot, dv_to_qdot);
-  
+  if ~strcmp(fields{i}, 'dt')
+    body = data_in_matlab.([fields{i} '_body']);
+    data_out_i = data_out.(fields{i});
+    data_in_i = data_in.(fields{i});
+    
+    q = data_in_i.q;
+    v = data_in_i.v;
+    dt = data_in.dt;
+    
+    joint_transform = jointTransform(body, q);
+    valuecheck(data_out_i.joint_transform, joint_transform);
+    
+    [motion_subspace, dmotion_subspace] = motionSubspace(body, q);
+    valuecheck(data_out_i.motion_subspace, motion_subspace);
+    valuecheck(data_out_i.dmotion_subspace, dmotion_subspace);
+    
+    [motion_subspace_dot_times_v, dmotion_subspace_dot_times_vdq, dmotion_subspace_dot_times_vdv] = motionSubspaceDotTimesV(body, q, v);
+    valuecheck(data_out_i.motion_subspace_dot_times_v, motion_subspace_dot_times_v);
+    valuecheck(data_out_i.dmotion_subspace_dot_times_vdq, dmotion_subspace_dot_times_vdq);
+    valuecheck(data_out_i.dmotion_subspace_dot_times_vdv, dmotion_subspace_dot_times_vdv);
+    
+    [qdot_to_v, dqdot_to_v] = jointQdot2v(body, q);
+    valuecheck(data_out_i.qdot_to_v, qdot_to_v);
+    valuecheck(data_out_i.dqdot_to_v, dqdot_to_v);
+    
+    [v_to_qdot, dv_to_qdot] = jointV2qdot(body, q);
+    valuecheck(data_out_i.v_to_qdot, v_to_qdot);
+    valuecheck(data_out_i.dv_to_qdot, dv_to_qdot);
+    
+    q_new = integrateJointConfigurationVector(body, q, v, dt);
+    valuecheck(data_out_i.q_new, q_new);
+  end
 end
-
-
 end

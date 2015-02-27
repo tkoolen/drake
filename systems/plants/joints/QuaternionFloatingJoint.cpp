@@ -1,6 +1,7 @@
 #include "QuaternionFloatingJoint.h"
 #include <random>
 #include "drakeGeometryUtil.h"
+#include <Eigen/Geometry>
 
 using namespace Eigen;
 using namespace std;
@@ -46,7 +47,7 @@ void QuaternionFloatingJoint::motionSubspaceDotTimesV(const Eigen::Ref<const Vec
   }
 }
 
-void QuaternionFloatingJoint::randomConfiguration(Eigen::Ref<VectorXd>& q, std::default_random_engine& generator) const
+void QuaternionFloatingJoint::randomConfiguration(Eigen::Ref<VectorXd> q, std::default_random_engine& generator) const
 {
   normal_distribution<double> normal;
 
@@ -127,4 +128,25 @@ void QuaternionFloatingJoint::v2qdot(const Eigen::Ref<const VectorXd>& q, Eigen:
   v_to_qdot.block<3, 3>(0, 3) = R;
   v_to_qdot.block<4, 3>(3, 0).noalias() = M * R;
   v_to_qdot.block<4, 3>(3, 3).setZero();
+}
+
+void QuaternionFloatingJoint::integrateConfiguration(Eigen::Ref<Eigen::VectorXd> q, const Eigen::Ref<const Eigen::VectorXd>& v, double dt) const
+{
+  auto position = q.topRows<SPACE_DIMENSION>();
+  Quaterniond quaternion(q[3], q[4], q[5], q[6]);
+
+  auto twist_angular = v.topRows<SPACE_DIMENSION>();
+  auto twist_linear = v.bottomRows<SPACE_DIMENSION>();
+
+  auto positiondot = quaternion * twist_linear;
+  position.noalias() += positiondot * dt;
+
+  auto angle = twist_angular.norm();
+  AngleAxisd delta_angle_axis(angle * dt, twist_angular / angle);
+  quaternion *= Quaterniond(delta_angle_axis);
+
+  q[3] = quaternion.w();
+  q[4] = quaternion.x();
+  q[5] = quaternion.y();
+  q[6] = quaternion.z();
 }

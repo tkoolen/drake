@@ -41,6 +41,8 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[])
   if (nrhs != 1 || nlhs != 1) {
     mexErrMsgIdAndTxt("Drake:testDrakeJointsmex:BadInputs","Usage struct_out = testGeometryGradientsmex(struct_in)");
   }
+  double dt = mxGetScalar((safelyGetField(prhs[0], "dt")));
+
   string prismaticJointName = "prismatic";
   mxArray* mxPrismatic = safelyGetField(prhs[0], prismaticJointName);
   Vector3d prismatic_joint_axis = matlabToEigen<3, 1>(safelyGetField(mxPrismatic, "joint_axis"));
@@ -107,6 +109,9 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[])
     joint->v2qdot(q, v_to_qdot, &dv_to_qdot);
     safelySetField(joint_struct_out, "v_to_qdot", eigenToMatlab(v_to_qdot));
     safelySetField(joint_struct_out, "dv_to_qdot", eigenToMatlab(dv_to_qdot));
+
+    joint->integrateConfiguration(q, v, dt);
+    safelySetField(joint_struct_out, "q_new", eigenToMatlab(q));
 
     int fieldnum = mxAddField(plhs[0], name.c_str());
     mxSetFieldByNumber(plhs[0], 0, fieldnum, joint_struct_out);

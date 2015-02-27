@@ -59,11 +59,13 @@ public:
       Gradient<Vector6d, Eigen::Dynamic>::type* dmotion_subspace_dot_times_vdq = nullptr,
       Gradient<Vector6d, Eigen::Dynamic>::type* dmotion_subspace_dot_times_vdv = nullptr) const = 0;
 
-  virtual void randomConfiguration(Eigen::Ref<Eigen::VectorXd>& q, std::default_random_engine& generator) const = 0;
+  virtual void randomConfiguration(Eigen::Ref<Eigen::VectorXd> q, std::default_random_engine& generator) const = 0;
 
   virtual void qdot2v(const Eigen::Ref<const Eigen::VectorXd>& q, Eigen::MatrixXd& qdot_to_v, Eigen::MatrixXd* dqdot_to_v) const = 0;
 
   virtual void v2qdot(const Eigen::Ref<const Eigen::VectorXd>& q, Eigen::MatrixXd& v_to_qdot, Eigen::MatrixXd* dv_to_qdot) const = 0;
+
+  virtual void integrateConfiguration(Eigen::Ref<Eigen::VectorXd> q, const Eigen::Ref<const Eigen::VectorXd>& v, double dt) const = 0;
 
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW;

@@ -113,7 +113,7 @@ void RollPitchYawFloatingJoint::motionSubspaceDotTimesV(const Eigen::Ref<const V
   }
 }
 
-void RollPitchYawFloatingJoint::randomConfiguration(Eigen::Ref<VectorXd>& q, std::default_random_engine& generator) const
+void RollPitchYawFloatingJoint::randomConfiguration(Eigen::Ref<VectorXd> q, std::default_random_engine& generator) const
 {
   std::normal_distribution<double> normal;
 
@@ -142,4 +142,9 @@ void RollPitchYawFloatingJoint::v2qdot(const Eigen::Ref<const VectorXd>& q, Eige
   if (dv_to_qdot) {
     dv_to_qdot->setZero(v_to_qdot.size(), getNumPositions());
   }
+}
+
+void RollPitchYawFloatingJoint::integrateConfiguration(Eigen::Ref<Eigen::VectorXd> q, const Eigen::Ref<const Eigen::VectorXd>& v, double dt) const
+{
+  q += v * dt;
 }
