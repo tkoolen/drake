@@ -32,6 +32,16 @@ for j = 1:length(qp_input.body_motion_data)
   all_bodies_vdot(j).params = params.body_motion(body_id);
 end
 
+% Extract wrenches to compensate for
+n_wrenches = length(qp_input.body_wrench_data);
+f_ext = zeros(6, length(r.getManipulator().body));
+if n_wrenches > 0
+  for j = 1 : n_wrenches
+    body_id = qp_input.body_wrench_data(j).body_id;
+    f_ext(:, body_id) = f_ext(:, body_id) + qp_input.body_wrench_data(j).wrench;
+  end
+end
+
 % Find the active set of supports
 mask = getActiveSupportsmex(obj.data_mex_ptr, [q; qd], qp_input.support_data, contact_sensor, params.contact_threshold, obj.default_terrain_height);
 supp = qp_input.support_data(logical(mask));
@@ -97,7 +107,7 @@ nd = 4; % for friction cone approx, hard coded for now
 float_idx = 1:6; % indices for floating base dofs
 act_idx = 7:nq; % indices for actuated dofs
 
-[H,C,B] = manipulatorDynamics(r,q,qd);
+[H, C, B] = manipulatorDynamicsWithExternalForceInput(r.getManipulator(), q, qd, f_ext);
 
 H_float = H(float_idx,:);
 C_float = C(float_idx);
@@ -403,3 +413,29 @@ else
   u = B_act'*(H_act*qdd + C_act);
 end
 y = u;
+
+end
+
+function [H, C, B] = manipulatorDynamicsWithExternalForceInput(manipulator, q, qd, f_ext)
+% need this because manipulatorDynamics doesn' take f_ext input and we
+% decided that adding a bunch of RigidBodyThrusts is not a good idea.
+% f_ext should be 6 x robot.num_bodies, and wrenches are expressed in body
+% frame. The conversion to Featherstone joint frame is done internally.
+
+if ~isempty(manipulator.force)
+  error('RigidBodyForceElements are not handled in this method!')
+end
+f_ext = convertExternalWrenchesToRepresentationExpectedByHandC(manipulator, f_ext);
+[H, C] = HandC(manipulator.featherstone, q, qd, f_ext, manipulator.gravity);
+B = manipulator.B;
+end
+
+function f_ext = convertExternalWrenchesToRepresentationExpectedByHandC(robot, f_ext_in)
+f_ext = zeros(6, robot.featherstone.NB);
+for i = 2 : length(robot.body) % skip world
+  wrench_in_body_frame = f_ext_in(:, i);
+  transform_joint_to_body = homogTransInv(robot.body(i).T_body_to_joint);
+  wrench_in_joint_frame = transformAdjoint(transform_joint_to_body)' * wrench_in_body_frame;
+  f_ext(:, robot.featherstone.f_ext_map_to(i - 1)) = wrench_in_joint_frame;
+end
+end
