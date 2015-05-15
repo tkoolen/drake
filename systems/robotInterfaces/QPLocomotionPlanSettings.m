@@ -221,18 +221,24 @@ classdef QPLocomotionPlanSettings
       options = applyDefaults(options, struct('pelvis_height_above_sole', biped.default_walking_params.pelvis_height_above_foot_sole,...
         'pelvis_height_transition_knot',1));
 
+      nq = getNumPositions(biped);
       obj = QPLocomotionPlanSettings(biped);
       obj.x0 = x0;
       arm_inds = biped.findPositionIndices('arm');
       obj.qtraj(arm_inds) = x0(arm_inds);
       % obj.qtraj = x0(1:biped.getNumPositions());
+      q0 = x0(1 : nq);
+      S = load(obj.robot.fixed_point_file);
+      qstar = S.xstar(1 : nq);
 
       [obj.supports, obj.support_times] = QPLocomotionPlanSettings.getSupports(zmp_knots);
       obj.zmptraj = QPLocomotionPlanSettings.getZMPTraj(zmp_knots);
       [~, obj.V, obj.comtraj, LIP_height] = biped.planZMPController(obj.zmptraj, obj.x0, options);
       obj.D_control = -biped.default_walking_params.nominal_LIP_COM_height / obj.g * eye(2);
       obj.zmp_data.D = -LIP_height / obj.g * eye(2);
-      pelvis_motion_data = biped.getPelvisMotionForWalking(x0, foot_motion_data, obj.supports, obj.support_times, options);
+%       pelvis_motion_data = biped.getPelvisMotionForWalking(x0, foot_motion_data, obj.supports, obj.support_times, options);
+
+      pelvis_motion_data = biped.planWalkingPelvisMotion(obj.comtraj, obj.zmptraj, foot_motion_data, obj.supports, obj.support_times, obj.contact_groups, q0, qstar, obj.qtraj, obj.constrained_dofs);
       obj.body_motions = [foot_motion_data, pelvis_motion_data];
 
       obj.duration = obj.support_times(end)-obj.support_times(1)-0.001;

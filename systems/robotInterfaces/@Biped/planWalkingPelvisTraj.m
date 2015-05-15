@@ -1,4 +1,4 @@
-function [xtraj, htraj, ts] = planWalkingPelvisTraj(obj, walking_plan_data, xstar)
+function pelvis_motion_data = planWalkingPelvisMotion(obj, comtraj, zmptraj, foot_motions, support_times, q0, qstar)
 % Given the results of the ZMP tracker, find a pelvis trajectory for the robot to execute
 % its walking plan.
 % @param walking_plan_data a WalkingPlanData, such as that returned by biped.planWalkingZMP()
@@ -7,26 +7,16 @@ function [xtraj, htraj, ts] = planWalkingPelvisTraj(obj, walking_plan_data, xsta
 % @retval htraj a PPTrajectory of CoM heights
 % @retval ts the time points at which the trajectory constraints were applied
 
-if nargin < 3
-  xstar = obj.loadFixedPoint();
-end
-
-nq = obj.getNumPositions();
-q0 = walking_plan_data.x0(1:nq);
-qstar = xstar(1:nq);
-
 % time spacing of samples for IK
-if ~isa(walking_plan_data.comtraj, 'Trajectory')
-  walking_plan_data.comtraj = ExpPlusPPTrajectory(walking_plan_data.comtraj.breaks,...
-                                                  walking_plan_data.comtraj.K,...
-                                                  walking_plan_data.comtraj.A,...
-                                                  walking_plan_data.comtraj.alpha,...
-                                                  walking_plan_data.comtraj.gamma);
+if ~isa(comtraj, 'Trajectory')
+  comtraj = ExpPlusPPTrajectory(comtraj.breaks,...
+    comtraj.K,...
+    comtraj.A,...
+    comtraj.alpha,...
+    comtraj.gamma);
 end
-ts = 0:0.1:walking_plan_data.comtraj.tspan(end);
-if length(ts)>300 % limit number of IK samples to something reasonable
-  ts = linspace(0,walking_plan_data.comtraj.tspan(end),300);
-end
+
+ts = computeBreaks(support_times);
 
 %% create desired joint trajectory
 cost = Point(obj.getStateFrame,1);
@@ -83,4 +73,9 @@ xtraj = xtraj.setOutputFrame(obj.getStateFrame());
 
 end
 
+function breaks = computeBreaks(support_times)
+n = length(support_times) - 1;
+breaks_per_support = 3;
+breaks = interp1(0 : breaks_per_support : breaks_per_support * n, t, 0 : breaks_per_support * n);
+end
 
