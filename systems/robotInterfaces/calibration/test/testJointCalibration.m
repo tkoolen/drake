@@ -14,12 +14,12 @@ s = rng(1234, 'twister');
 q_offset_actual = 2 * (rand(length(q_indices), 1) - 0.5) * q_offset_max;
 q_measured = q_actual + q_noise_stddev * randn(size(q_actual));
 q_measured(q_indices, :) = q_measured(q_indices, :) - repmat(q_offset_actual, 1, num_poses);
-scales = {100, 1};
+scales = {100; 1};
 rng(s);
 
 options.search_floating = true;
 [q_offset_estimated, marker_params, floating_states] = jointOffsetCalibration(r, q_measured, q_indices, ...
-  bodies, marker_functions, cellfun(@(x) 3 * x, num_unmeasured_markers, 'UniformOutput', false), vicon_data, scales, options);
+  bodies, marker_functions, 3 * num_unmeasured_markers, vicon_data, scales, options);
 
 q_offset_error = angleDiff(q_offset_actual, q_offset_estimated);
 
@@ -65,7 +65,7 @@ rng(s);
 options.search_floating = true;
 
 [k_estimated, marker_params, floating_states] = jointStiffnessCalibration(r, q_measured, u_data, q_indices, ...
-  bodies, marker_functions, cellfun(@(x) 3 * x, num_unmeasured_markers, 'UniformOutput', false), vicon_data, ...
+  bodies, marker_functions, 3 * num_unmeasured_markers, vicon_data, ...
   scales, k_initial, options);
 
 fprintf('k_error:\n');
@@ -85,9 +85,10 @@ warning('off','Drake:RigidBodyManipulator:UnsupportedJointLimits');
 r = RigidBodyManipulator(fullfile(getDrakePath,'examples','Atlas','urdf','atlas_minimal_contact.urdf'),options);
 warning(w);
 
-bodies{1} = r.findLinkId('utorso');
-bodies{2} = r.findLinkId('r_hand');
-[~, joint_indices] = r.findKinematicPath(bodies{1}, bodies{2});
+bodies = zeros(2,1);
+bodies(1) = r.findLinkId('utorso');
+bodies(2) = r.findLinkId('r_hand');
+[~, joint_indices] = r.findKinematicPath(bodies(1), bodies(2));
 q_indices = [r.getBody(joint_indices).position_num];
 
 % settings
@@ -112,7 +113,7 @@ end
 
 % marker positions
 marker_positions_actual = cell(length(bodies), 1);
-num_unmeasured_markers = cell(length(bodies), 1);
+num_unmeasured_markers = zeros(length(bodies), 1);
 marker_positions_measured = cell(length(bodies), 1);
 for i = 1 : length(bodies)
 %   marker_positions_actual{i} = 2 * (rand(3, num_markers) - 0.5) * marker_offset_max;
@@ -127,7 +128,7 @@ for i = 1 : length(bodies)
   measured_markers = randperm(num_markers, num_measured_markers);
   measurement_error = marker_measurement_stddev * randn(3, length(measured_markers));
   marker_positions_measured{i}(:, measured_markers) = marker_positions_actual{i}(:, measured_markers) + measurement_error;
-  num_unmeasured_markers{i} = num_markers - length(measured_markers);
+  num_unmeasured_markers(i) = num_markers - length(measured_markers);
 end
 
 % simulated Vicon data
@@ -136,7 +137,7 @@ for i = 1 : num_poses
   q = q_actual(:, i);
   kinsol = r.doKinematics(q, false, true);
   for j = 1 : length(bodies)
-    body = bodies{j};
+    body = bodies(j);
     marker_positions_world = r.forwardKin(kinsol, body, marker_positions_actual{j});
     vicon_noise = vicon_data_noise_stddev * randn(size(marker_positions_world));
     vicon_data{j}(:, :, i) = marker_positions_world + vicon_noise;
