@@ -17,7 +17,6 @@ if ~isa(comtraj, 'Trajectory')
 end
 
 breaks_per_support = 3;
-pelvis_height_above_sole = 0.8;
 ts = upsampleLinearly(support_times, breaks_per_support);
 % ts = support_times(1) : 0.1 : support_times(length(support_times));
 
@@ -257,30 +256,10 @@ ret = [quat2rotmat(expmap2quat(xyz_expmap(4 : 6))), xyz_expmap(1:3); zeros(1, 3)
 end
 
 function base_height = computeBaseHeight(robot, supports, support_times, t, contact_groups, foot_motions, body_id_to_foot_motion_id)
-support_idx = findSegmentIndex(support_times, t);
-
-support_bodies = supports(support_idx).bodies;
-n = length(support_bodies);
-
-% compute weights for each leg
-in_double_support = n == 2;
-weights = ones(n, 1) / n;
-if in_double_support
-  if support_idx > 1 && in_double_support
-    previous_in_single_support = length(supports(support_idx - 1).bodies) == 1;
-    if previous_in_single_support
-      trailing_leg_body_id = supports(support_idx - 1).bodies;
-      support_times_span = support_times([support_idx, support_idx + 1]);
-      support_fraction = (t - support_times_span(1)) / diff(support_times_span);
-      weights(support_bodies ~= trailing_leg_body_id) = support_fraction;
-      weights(support_bodies == trailing_leg_body_id) = 1 - support_fraction;
-    end
-  end
-end
-
-% compute weighted average of toe point heights
+% use weighted average of toe point heights
+[weights, support_bodies] = computeSupportWeights(supports, support_times, t);
 base_height = 0;
-for i = 1 : n
+for i = 1 : length(support_bodies)
   body_id = support_bodies(i);
   toe_points_body = contact_groups{body_id}.toe;
   toe_points_world = transformPointsFromBodyToWorld(robot, foot_motions(body_id_to_foot_motion_id(body_id)), t, toe_points_body);
@@ -290,8 +269,8 @@ end
 end
 
 function ret = computeAverageFootYaw(supports, support_times, t, foot_motions, body_id_to_foot_motion_id)
-support_idx = findSegmentIndex(support_times, t);
-support_bodies = supports(support_idx).bodies;
+% angle weighted average of support foot yaws
+[weights, support_bodies] = computeSupportWeights(supports, support_times, t);
 n = length(support_bodies);
 foot_yaws = zeros(n, 1);
 for i = 1 : n
@@ -302,7 +281,7 @@ for i = 1 : n
 end
 
 if n == 2
-  ret = angleAverage(foot_yaws(1), foot_yaws(2));
+  ret = angleWeightedAverage(foot_yaws(1), weights(1), foot_yaws(2), weights(2));
 else
   ret = foot_yaws;
 end
@@ -321,5 +300,25 @@ if frame_or_body_id < 0
   body_id = robot.getFrame(frame_or_body_id).body_ind;
 else
   body_id = frame_or_body_id;
+end
+end
+
+function [weights, support_bodies] = computeSupportWeights(supports, support_times, t)
+support_idx = findSegmentIndex(support_times, t);
+support_bodies = supports(support_idx).bodies;
+n = length(support_bodies);
+in_double_support = n == 2;
+weights = ones(n, 1) / n;
+if in_double_support
+  if support_idx > 1 && in_double_support
+    previous_in_single_support = length(supports(support_idx - 1).bodies) == 1;
+    if previous_in_single_support
+      trailing_leg_body_id = supports(support_idx - 1).bodies;
+      support_times_span = support_times([support_idx, support_idx + 1]);
+      support_fraction = (t - support_times_span(1)) / diff(support_times_span);
+      weights(support_bodies ~= trailing_leg_body_id) = support_fraction;
+      weights(support_bodies == trailing_leg_body_id) = 1 - support_fraction;
+    end
+  end
 end
 end
