@@ -1,4 +1,4 @@
-function [pelvis_motion_data, qs] = planWalkingPelvisMotion(obj, comtraj, zmptraj, foot_motions, supports, support_times, contact_groups, q0, qstar, qtraj, constrained_indices, pelvis_height_above_sole)
+function [pelvis_motion_data, qs] = planWalkingPelvisMotion(obj, comtraj, zmptraj, foot_motions, supports, support_times, contact_groups, q0, qstar, qtraj, constrained_indices, pelvis_height_above_sole, min_knee_angle)
 % Given the results of the ZMP tracker, find a pelvis trajectory for the robot to execute
 % its walking plan.
 % @param walking_plan_data a WalkingPlanData, such as that returned by biped.planWalkingZMP()
@@ -16,7 +16,9 @@ if ~isa(comtraj, 'Trajectory')
     comtraj.gamma);
 end
 
-breaks_per_support = 3;
+pelvis_height_above_sole = 0.8;
+
+breaks_per_support = 5;
 ts = upsampleLinearly(support_times, breaks_per_support);
 % ts = support_times(1) : 0.1 : support_times(length(support_times));
 
@@ -47,7 +49,7 @@ sides = {'l', 'r'};
 ankle_joint_constraints = containers.Map;
 foot_ids = containers.Map;
 foot_sides = containers.Map('KeyType', 'double', 'ValueType', 'char');
-for i = 1 : length(sides);
+for i = 1 : length(sides)
   side = sides{i};
   ankle_joint_constraints(side) = AtlasAnkleXYJointLimitConstraint(obj, side);
   body_id = robot.findLinkId([side '_foot']);
@@ -57,8 +59,16 @@ end
 
 is_qtraj_constant = ~isa(qtraj, 'Trajectory');
 if is_qtraj_constant
-  posture_constraint = PostureConstraint(obj).setJointLimits(constrained_indices, qtraj(constrained_indices), qtraj(constrained_indices));
+  constrained_dofs_constraint = PostureConstraint(obj).setJointLimits(constrained_indices, qtraj(constrained_indices), qtraj(constrained_indices));
 end
+
+knee_inds = zeros(2, 1);
+knee_limits_min = min_knee_angle * ones(2, 1);
+knee_limits_max = inf(2, 1);
+for i = 1 : length(sides)
+  knee_inds(i) = state_frame.findCoordinateIndex([sides{i} '_leg_kny']);
+end
+knee_constraint = PostureConstraint(obj).setJointLimits(knee_inds, knee_limits_min, knee_limits_max);
 
 foot_motion_body_ids = zeros(size(foot_motions));
 for i = 1 : length(foot_motion_body_ids)
@@ -73,7 +83,8 @@ pelvis_xyzquat = zeros(7, length(ts));
 base_heights = zeros(1, length(ts));
 in_single_support = false(1, length(ts));
 standard_constraints = ankle_joint_constraints.values;
-standard_constraints{end + 1} = posture_constraint;
+standard_constraints{end + 1} = constrained_dofs_constraint;
+standard_constraints{end + 1} = knee_constraint;
 full_IK_calls = 0;
 
 for i = 1 : length(ts)
@@ -326,7 +337,10 @@ delta = diff(support_times_span);
 if delta < eps
   support_fraction = 0;
 else
-  support_fraction = (t - support_times_span(1)) / delta;
+  x = (t - support_times_span(1)) / delta;
+%   support_fraction = x; % linear
+%   support_fraction = 3 * x^2 - 2 * x^3; % cubic polynomial that goes from 0 to 1 on the interval [0 1]
+  support_fraction = 10 * x^3 -15 * x^4 + 6 * x^5; % quintic
 end
 weights(1) = 1 - support_fraction;
 weights(2) = support_fraction;
