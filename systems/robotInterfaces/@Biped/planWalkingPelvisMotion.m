@@ -116,7 +116,9 @@ for i=1:length(ts)
     end
     kc_com = constructRigidBodyConstraint(RigidBodyConstraint.WorldCoMConstraintType,true,obj.getMexModelPtr,[comtraj.eval(t);nan],[comtraj.eval(t);nan]);
     constraints{end + 1} = kc_com;
-    qs(:,i) = inverseKin(obj,qs(:,i-1),qstar,constraints{:},ikoptions);
+    q_seed = qs(:,i-1);
+    q_seed(pelvis_yaw_idx) = qstar(pelvis_yaw_idx); % fix wraparound issues
+    qs(:,i) = inverseKin(obj,q_seed,qstar,constraints{:},ikoptions);
   else
     qs(:,i) = q0;
   end
