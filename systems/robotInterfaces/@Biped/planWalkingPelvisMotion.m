@@ -17,6 +17,7 @@ if ~isa(comtraj, 'Trajectory')
 end
 
 breaks_per_support = 3;
+pelvis_height_above_sole = 0.8;
 ts = upsampleLinearly(support_times, breaks_per_support);
 % ts = support_times(1) : 0.1 : support_times(length(support_times));
 
@@ -43,7 +44,18 @@ pelvis_id = robot.findLinkId('pelvis');
 pelvis_height_idx = state_frame.findCoordinateIndex('base_z');
 pelvis_yaw_idx = state_frame.findCoordinateIndex('base_yaw');
 
-ankle_joint_cnstr = AtlasAnkleXYJointLimitConstraint(obj);
+sides = {'l', 'r'};
+ankle_joint_constraints = containers.Map;
+foot_ids = containers.Map;
+foot_sides = containers.Map('KeyType', 'double', 'ValueType', 'char');
+for i = 1 : length(sides);
+  side = sides{i};
+  ankle_joint_constraints(side) = AtlasAnkleXYJointLimitConstraint(obj, side);
+  body_id = robot.findLinkId([side '_foot']);
+  foot_ids(side) = body_id;
+  foot_sides(body_id) = side;
+end
+
 is_qtraj_constant = ~isa(qtraj, 'Trajectory');
 if is_qtraj_constant
   posture_constraint = PostureConstraint(obj).setJointLimits(constrained_indices, qtraj(constrained_indices), qtraj(constrained_indices));
@@ -61,7 +73,8 @@ qs = zeros(obj.getNumPositions(), length(ts));
 pelvis_xyzquat = zeros(7, length(ts));
 base_heights = zeros(1, length(ts));
 in_single_support = false(1, length(ts));
-standard_constraints = {posture_constraint, ankle_joint_cnstr};
+standard_constraints = ankle_joint_constraints.values;
+standard_constraints{end + 1} = posture_constraint;
 full_IK_calls = 0;
 for i=1:length(ts)
   t = ts(i);  
@@ -97,8 +110,8 @@ for i=1:length(ts)
           obj,frame_or_body_id, [0;0;0],xyz, xyz);
         if ~is_swing_foot % be robust to strange swing trajectories
           constraints{end + 1} = constructRigidBodyConstraint(RigidBodyConstraint.WorldQuatConstraintType,true,obj,frame_or_body_id,quat,0.01);
+%           constraints{end + 1} = ankle_joint_constraints(foot_sides(body_id));
         end
-          
       end
     end
     kc_com = constructRigidBodyConstraint(RigidBodyConstraint.WorldCoMConstraintType,true,obj.getMexModelPtr,[comtraj.eval(t);nan],[comtraj.eval(t);nan]);
@@ -131,14 +144,13 @@ if debug
     rpy(:, i) = quat2rpy(pelvis_xyzquat(4:7, i));
   end
 
-  figure(2);
+  figure(152);
   clf();
   nplots = 4;
   subplot(nplots, 1, 1);
   plot(ts, pelvis_xyzquat(3, :), 'r');
   xlabel('time');
   ylabel('pelvis height');
-
   
   subplot(nplots, 1, 2);
   pelvis_height_modification = pelvis_xyzquat(3, :) - base_heights - pelvis_height_above_sole;
@@ -215,7 +227,7 @@ for support_idx = 1 : length(supports)
           
           debug = false;
           if debug
-            figure(1);
+            figure(153);
             clf();
             title(['toe off possible: ' num2str(ret(j))])
             hold on;
