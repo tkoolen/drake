@@ -65,13 +65,12 @@ if is_qtraj_constant
   constrained_dofs_constraint = PostureConstraint(obj).setJointLimits(constrained_indices, qtraj(constrained_indices), qtraj(constrained_indices));
 end
 
-knee_inds = zeros(2, 1);
-knee_limits_min = min_knee_angle * ones(2, 1);
-knee_limits_max = inf(2, 1);
+knee_constraints = containers.Map;
 for i = 1 : length(sides)
-  knee_inds(i) = state_frame.findCoordinateIndex([sides{i} '_leg_kny']);
+  side = sides{i};
+  knee_ind = state_frame.findCoordinateIndex([side '_leg_kny']);
+  knee_constraints(side) =  PostureConstraint(obj).setJointLimits(knee_ind, min_knee_angle, inf);
 end
-knee_constraint = PostureConstraint(obj).setJointLimits(knee_inds, knee_limits_min, knee_limits_max);
 
 foot_motion_body_ids = zeros(size(foot_motions));
 for i = 1 : length(foot_motion_body_ids)
@@ -88,7 +87,8 @@ average_foot_yaws = zeros(1, length(ts));
 in_single_support = false(1, length(ts));
 standard_constraints = ankle_joint_constraints.values;
 standard_constraints{end + 1} = constrained_dofs_constraint;
-standard_constraints{end + 1} = knee_constraint;
+knee_constraints_values = knee_constraints.values;
+standard_constraints = {standard_constraints{:}, knee_constraints_values{:}};
 full_IK_calls = 0;
 
 for i = 1 : length(ts)
@@ -161,10 +161,34 @@ pelvis_motion_data.weight_multiplier = [1;1;1;0;0;1];
 
 debug = true;
 if debug  
-  rpy = zeros(3, length(ts));
+  n = length(ts);
+  rpy = zeros(3, n);
   for i = 1 : length(ts)
     rpy(:, i) = quat2rpy(pelvis_xyzquat(4:7, i));
   end
+  leg_position_indices = robot.findPositionIndices('leg');
+
+  ankle_constraint_active = false(length(sides), n);
+  knee_constraint_active = false(length(sides), n);
+  joint_limit_constraint_active = false(n, 1);
+  active_tol = 1e-5;
+  for i = 1 : length(ts)
+    for j = 1 : length(sides)
+      side = sides{j};
+      knee_ind = state_frame.findCoordinateIndex([side '_leg_kny']);
+      knee_constraint = knee_constraints(side);
+      knee_constraint_active(j, i) = any(abs(qs(knee_ind, i) - knee_constraint.lb(knee_ind)) < active_tol) || any(abs(qs(knee_ind, i) - knee_constraint.ub(knee_ind)) < active_tol);
+      
+      ankle_constraint = ankle_joint_constraints(side);
+      ankle_val = ankle_constraint.eval(ts(i), qs(:, i));
+      [ankle_lb, ankle_ub] = ankle_constraint.bounds(ts(i));
+      ankle_constraint_active(j, i) = any(abs(ankle_val - ankle_lb) < active_tol) || any(abs(ankle_val - ankle_ub) < active_tol);
+    end
+    at_min_limit = abs(qs(leg_position_indices, i) - robot.joint_limit_min(leg_position_indices)) < active_tol;
+    at_max_limit = abs(qs(leg_position_indices, i) - robot.joint_limit_max(leg_position_indices)) < active_tol;
+    joint_limit_constraint_active(i) = any(at_min_limit) || any(at_max_limit);
+  end
+  
 
   figure(152);
   clf();
@@ -174,14 +198,27 @@ if debug
   ylabel('pelvis height');
   
   subplot(2, 2, 2);
+  h = [];
   pelvis_height_modification = pelvis_xyzquat(3, :) - base_heights - pelvis_height_above_sole;
   hold on;
-  plot(ts, pelvis_height_modification, 'r');
+  h(end + 1) = plot(ts, pelvis_height_modification, 'b');
+  legend_strings = {'pelvis height modification'};
   toe_off_inds = ~isnan(toe_off_possible_body_ids);
-  plot(ts(toe_off_inds), pelvis_height_modification(toe_off_inds), 'kx');
-  plot(ts(in_single_support), pelvis_height_modification(in_single_support), 'gx');
+  if ~isempty(plot(ts(toe_off_inds), pelvis_height_modification(toe_off_inds), 'kx'))
+    legend_strings{end + 1} = 'inds where toe off allowed';
+  end
+  if ~isempty(plot(ts(any(ankle_constraint_active, 1)), pelvis_height_modification(any(ankle_constraint_active, 1)), 'rx'))
+    legend_strings{end + 1} = 'ankle cstr active';
+  end
+  if ~isempty(plot(ts(any(knee_constraint_active, 1)), pelvis_height_modification(any(knee_constraint_active, 1)), 'ro'))
+    legend_strings{end + 1} = 'knee cstr active';
+  end
+  if ~isempty(plot(ts(joint_limit_constraint_active), pelvis_height_modification(joint_limit_constraint_active), 'rs'))
+    legend_strings{end + 1} = 'joint lim. cstr active';
+  end
+%   plot(ts(in_single_support), pelvis_height_modification(in_single_support), 'gx');
   xlabel('time');
-  legend({'pelvis height modification', 'inds where toe off allowed', 'inds in single support'});
+  legend(legend_strings);
   hold off;
  
   subplot(2, 2, 3)
