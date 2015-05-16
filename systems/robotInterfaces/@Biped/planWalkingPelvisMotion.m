@@ -1,11 +1,15 @@
-function [pelvis_motion_data, qs] = planWalkingPelvisMotion(obj, comtraj, zmptraj, foot_motions, supports, support_times, contact_groups, q0, qstar, qtraj, constrained_indices, pelvis_height_above_sole, min_knee_angle)
+function [pelvis_motion_data, qs] = planWalkingPelvisMotion(obj, plan_settings, foot_motions, q0, qstar, pelvis_height_above_sole, min_knee_angle)
 % Given the results of the ZMP tracker, find a pelvis trajectory for the robot to execute
 % its walking plan.
-% @param walking_plan_data a WalkingPlanData, such as that returned by biped.planWalkingZMP()
-% @param xstar the nominal robot state vector
-% @retval xtraj a PPTrajectory of robot states
-% @retval htraj a PPTrajectory of CoM heights
-% @retval ts the time points at which the trajectory constraints were applied
+% TODO: make this be a method of QPLocomotionPlanSettings instead of Biped?
+
+comtraj = plan_settings.comtraj;
+zmptraj = plan_settings.zmptraj;
+supports = plan_settings.supports;
+support_times = plan_settings.support_times;
+contact_groups = plan_settings.contact_groups;
+qtraj = plan_settings.qtraj;
+constrained_indices = plan_settings.constrained_dofs;
 
 % time spacing of samples for IK
 if ~isa(comtraj, 'Trajectory')

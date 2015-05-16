@@ -252,7 +252,7 @@ classdef QPLocomotionPlanSettings
         pelvis_motion_data = biped.getPelvisMotionForWalking(x0, foot_motion_data, obj.supports, obj.support_times, options);
       else
         min_knee_angle_for_plan = 0.2; % smaller than min knee angle. That's fine, otherwise the controller wouldn't do toe off anyway
-        pelvis_motion_data = biped.planWalkingPelvisMotion(obj.comtraj, obj.zmptraj, foot_motion_data, obj.supports, obj.support_times, obj.contact_groups, q0, qstar, obj.qtraj, obj.constrained_dofs, options.pelvis_height_above_sole, min_knee_angle_for_plan);
+        pelvis_motion_data = biped.planWalkingPelvisMotion(obj, foot_motion_data, q0, qstar, options.pelvis_height_above_sole, min_knee_angle_for_plan);
       end
       
       obj.body_motions = [foot_motion_data, pelvis_motion_data];
