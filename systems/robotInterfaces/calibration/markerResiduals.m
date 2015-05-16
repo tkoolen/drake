@@ -33,7 +33,7 @@ for i = 1 : nbodies
   
   for j = 1 : nposes
     kinsol = p.doKinematics(q_data(:,j));
-    x_body(:, :, j) = p.forwardKin(kinsol, bodies{i}, pts);
+    x_body(:, :, j) = p.forwardKin(kinsol, bodies(i), pts);
   end
 
   % remove obscured markers from calculation (nan)

@@ -1,12 +1,17 @@
 function [f, g] = totalMarkerResiduals(...
   p, q_correction_fun, q_data, joint_indices, floating_indices,...
   bodies, marker_functions, motion_capture_data, scales, ...
-  q_correction_params, marker_params, floating_params)
-  
+  q_correction_params_idx, marker_params_idx,floating_params_idx,params)  
+
 nbodies = length(bodies);
 nq = size(q_data, 1);
 nposes = size(q_data, 2);
-
+q_correction_params = params(q_correction_params_idx);
+marker_params = cell(nbodies,1);
+for i = 1:nbodies
+  marker_params{i} = params(marker_params_idx{i});
+end
+floating_params = reshape(params(floating_params_idx),[],nposes);
 [q_data(joint_indices, :), dqdq_correction_params] = q_correction_fun(q_data(joint_indices, :), q_correction_params);
 
 % floating states are parameterized as floating_states(:, i) = [pos; quat];
@@ -44,10 +49,10 @@ for i = 1 : nbodies
   
   for j = 1 : nposes
     kinsol = p.doKinematics(q_data(:,j));
-    [x_body(:, :, j), J_body(:, :, j)] = p.forwardKin(kinsol, bodies{i}, pts);
+    [x_body(:, :, j), J_body(:, :, j)] = p.forwardKin(kinsol, bodies(i), pts);
     
     % awkward hack to get out the rotation matrix
-    R_body{j} = p.forwardKin(kinsol, bodies{i}, eye(3)) - p.forwardKin(kinsol, bodies{i}, zeros(3));
+    R_body{j} = p.forwardKin(kinsol, bodies(i), eye(3)) - p.forwardKin(kinsol, bodies(i), zeros(3));
   end
 
   % remove obscured markers from calculation (nan)

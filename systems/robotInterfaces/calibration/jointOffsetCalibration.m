@@ -46,7 +46,12 @@ motion_capture_joint_calibration = MotionCaptureJointCalibration(...
 % [dq, marker_params, floating_states, objective_value, marker_residuals, info] = motionCaptureJointCalibration(...
 %   p, @offsetCorrectionFun, q_data, joint_indices,...
 %   bodies, marker_functions, marker_function_num_params, motion_capture_data, scales, options);
-
+if(isfield(options,'initial_guess'))
+  q_correction_params0 = options.initial_guess;
+else
+  q_correction_params0 = zeros(length(motion_capture_joint_calibration.joint_indices),1);
+end
+[dq, marker_params, floating_states,objective_value, marker_residuals,info] = motion_capture_joint_calibration.solve(q_correction_params0);
 end
 
 function [q_data_mod, dq_data_mod] = offsetCorrectionFun(q_data, q_offset)
