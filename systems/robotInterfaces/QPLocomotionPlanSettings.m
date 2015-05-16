@@ -238,7 +238,7 @@ classdef QPLocomotionPlanSettings
       obj.zmp_data.D = -LIP_height / obj.g * eye(2);
 %       pelvis_motion_data = biped.getPelvisMotionForWalking(x0, foot_motion_data, obj.supports, obj.support_times, options);
 
-      pelvis_motion_data = biped.planWalkingPelvisMotion(obj.comtraj, obj.zmptraj, foot_motion_data, obj.supports, obj.support_times, obj.contact_groups, q0, qstar, obj.qtraj, obj.constrained_dofs);
+      pelvis_motion_data = biped.planWalkingPelvisMotion(obj.comtraj, obj.zmptraj, foot_motion_data, obj.supports, obj.support_times, obj.contact_groups, q0, qstar, obj.qtraj, obj.constrained_dofs, options.pelvis_height_above_sole);
       obj.body_motions = [foot_motion_data, pelvis_motion_data];
 
       obj.duration = obj.support_times(end)-obj.support_times(1)-0.001;
