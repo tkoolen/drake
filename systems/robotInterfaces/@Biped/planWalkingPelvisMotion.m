@@ -96,17 +96,21 @@ standard_constraints{end + 1} = constrained_dofs_constraint;
 knee_constraints_values = knee_constraints.values;
 standard_constraints = {standard_constraints{:}, knee_constraints_values{:}};
 full_IK_calls = 0;
+alpha_nominal_pelvis_height = 0.3;
 
 for i = 1 : length(ts)
   t = ts(i);  
   base_heights(i) = computeBaseHeight(robot, support_times, t, contact_groups, foot_motions, body_id_to_foot_motion_id);
-  nominal_pelvis_height = base_heights(i) + pelvis_height_above_sole;
-  qstar(pelvis_height_idx) = nominal_pelvis_height;
-  
-  average_foot_yaws(i) = computeAverageFootYaw(support_times, t, foot_motions, body_id_to_foot_motion_id);
-  qstar(pelvis_yaw_idx) = average_foot_yaws(i);
   
   if (i > 1)
+    nominal_pelvis_height = base_heights(i) + pelvis_height_above_sole;
+    % smoothen:
+    nominal_pelvis_height = alpha_nominal_pelvis_height * qs(pelvis_height_idx, i - 1) + (1 - alpha_nominal_pelvis_height) * nominal_pelvis_height;
+    qstar(pelvis_height_idx) = nominal_pelvis_height;
+    
+    average_foot_yaws(i) = computeAverageFootYaw(support_times, t, foot_motions, body_id_to_foot_motion_id);
+    qstar(pelvis_yaw_idx) = average_foot_yaws(i);
+
     constraints = standard_constraints;
     for j = 1:length(foot_motions)
       frame_or_body_id = foot_motions(j).body_id;
