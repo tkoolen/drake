@@ -64,7 +64,7 @@ foot_motion_body_ids = zeros(size(foot_motions));
 for i = 1 : length(foot_motion_body_ids)
   foot_motion_body_ids(i) = getBodyId(robot, foot_motions(i).body_id);
 end
-body_id_to_foot_motion_id = containers.Map(foot_motion_body_ids, 1 : length(foot_motions));
+body_id_to_foot_motion_id = containers.Map(foot_motion_body_ids, 1 : length(foot_motions), 'uniformValues', true);
 
 toe_off_possible_body_ids = isToeOffPossible(robot, zmptraj, supports, support_times, contact_groups, foot_motions, ts, body_id_to_foot_motion_id);
 
@@ -75,13 +75,14 @@ in_single_support = false(1, length(ts));
 standard_constraints = ankle_joint_constraints.values;
 standard_constraints{end + 1} = posture_constraint;
 full_IK_calls = 0;
-for i=1:length(ts)
+
+for i = 1 : length(ts)
   t = ts(i);  
-  base_heights(i) = computeBaseHeight(robot, supports, support_times, t, contact_groups, foot_motions, body_id_to_foot_motion_id);
+  base_heights(i) = computeBaseHeight(robot, support_times, t, contact_groups, foot_motions, body_id_to_foot_motion_id);
   nominal_pelvis_height = base_heights(i) + pelvis_height_above_sole;
   qstar(pelvis_height_idx) = nominal_pelvis_height;
   
-  average_foot_yaw = computeAverageFootYaw(supports, support_times, t, foot_motions, body_id_to_foot_motion_id);
+  average_foot_yaw = computeAverageFootYaw(support_times, t, foot_motions, body_id_to_foot_motion_id);
   qstar(pelvis_yaw_idx) = average_foot_yaw;
   
   if (i > 1)
@@ -109,7 +110,6 @@ for i=1:length(ts)
           obj,frame_or_body_id, [0;0;0],xyz, xyz);
         if ~is_swing_foot % be robust to strange swing trajectories
           constraints{end + 1} = constructRigidBodyConstraint(RigidBodyConstraint.WorldQuatConstraintType,true,obj,frame_or_body_id,quat,0.01);
-%           constraints{end + 1} = ankle_joint_constraints(foot_sides(body_id));
         end
       end
     end
@@ -147,13 +147,12 @@ if debug
 
   figure(152);
   clf();
-  nplots = 4;
-  subplot(nplots, 1, 1);
+  subplot(2, 2, 1);
   plot(ts, pelvis_xyzquat(3, :), 'r');
   xlabel('time');
   ylabel('pelvis height');
   
-  subplot(nplots, 1, 2);
+  subplot(2, 2, 2);
   pelvis_height_modification = pelvis_xyzquat(3, :) - base_heights - pelvis_height_above_sole;
   hold on;
   plot(ts, pelvis_height_modification, 'r');
@@ -164,12 +163,12 @@ if debug
   legend({'pelvis height modification', 'inds where toe off allowed', 'inds in single support'});
   hold off;
  
-  subplot(nplots, 1, 3)
+  subplot(2, 2, 3)
   plot(ts, base_heights);
   xlabel('time');
   ylabel('base height');
   
-  subplot(nplots, 1, 4)
+  subplot(2, 2, 4)
   plot(ts, rpy);
   xlabel('time');
   ylabel('angles');
@@ -255,36 +254,51 @@ function ret = xyzExpMapToTransform(xyz_expmap)
 ret = [quat2rotmat(expmap2quat(xyz_expmap(4 : 6))), xyz_expmap(1:3); zeros(1, 3), 1];
 end
 
-function base_height = computeBaseHeight(robot, supports, support_times, t, contact_groups, foot_motions, body_id_to_foot_motion_id)
+function base_height = computeBaseHeight(robot, support_times, t, contact_groups, foot_motions, body_id_to_foot_motion_id)
 % use weighted average of toe point heights
-[weights, support_bodies] = computeSupportWeights(supports, support_times, t);
+all_support_bodies = body_id_to_foot_motion_id.keys;
+all_support_bodies = [all_support_bodies{:}];
+[weights, support_times_span] = computeSupportWeights(support_times, t);
+
 base_height = 0;
-for i = 1 : length(support_bodies)
-  body_id = support_bodies(i);
+for body_id = all_support_bodies
   toe_points_body = contact_groups{body_id}.toe;
-  toe_points_world = transformPointsFromBodyToWorld(robot, foot_motions(body_id_to_foot_motion_id(body_id)), t, toe_points_body);
-  base_height = base_height + weights(i) * mean(toe_points_world(3, :));
+  foot_motion = foot_motions(body_id_to_foot_motion_id(body_id));
+  for j = 1 : length(support_times_span)
+    % compute toe points in world for each body, both in current support and
+    % next support
+    support_time = support_times_span(j);
+    toe_points_world = transformPointsFromBodyToWorld(robot, foot_motion, support_time, toe_points_body);
+    
+    % do a weighted average over support times
+    base_height = base_height + weights(j) * mean(toe_points_world(3, :));
+  end
+end
+% average over bodies
+base_height = base_height / length(all_support_bodies);
 end
 
-end
-
-function ret = computeAverageFootYaw(supports, support_times, t, foot_motions, body_id_to_foot_motion_id)
+function ret = computeAverageFootYaw(support_times, t, foot_motions, body_id_to_foot_motion_id)
 % angle weighted average of support foot yaws
-[weights, support_bodies] = computeSupportWeights(supports, support_times, t);
-n = length(support_bodies);
-foot_yaws = zeros(n, 1);
-for i = 1 : n
-  body_id = support_bodies(i);
-  xyz_expmap = foot_motions(body_id_to_foot_motion_id(body_id)).eval(t);
-  rpy = quat2rpy(expmap2quat(xyz_expmap(4 : 6)));
-  foot_yaws(i) = rpy(3);
-end
+all_support_bodies = body_id_to_foot_motion_id.keys;
+all_support_bodies = [all_support_bodies{:}];
+[weights, support_times_span] = computeSupportWeights(support_times, t);
 
-if n == 2
-  ret = angleWeightedAverage(foot_yaws(1), weights(1), foot_yaws(2), weights(2));
-else
-  ret = foot_yaws;
+n = length(all_support_bodies);
+average_yaws = zeros(length(support_times), 1);
+for j = 1 : length(support_times_span)
+  support_time = support_times_span(j);
+  foot_yaws = zeros(n, 1);
+  for i = 1 : n
+    body_id = all_support_bodies(i);
+    foot_motion = foot_motions(body_id_to_foot_motion_id(body_id));
+    xyz_expmap = foot_motion.eval(support_time);
+    rpy = quat2rpy(expmap2quat(xyz_expmap(4 : 6)));
+    foot_yaws(i) = rpy(3);
+  end
+  average_yaws(j) = angleAverage(foot_yaws(1), foot_yaws(2)); % average over the feet at a support time
 end
+ret = angleWeightedAverage(average_yaws(1), weights(1), average_yaws(2), weights(2)); % weighted average over support times
 
 end
 
@@ -303,22 +317,17 @@ else
 end
 end
 
-function [weights, support_bodies] = computeSupportWeights(supports, support_times, t)
+function [weights, support_times_span] = computeSupportWeights(support_times, t)
 support_idx = findSegmentIndex(support_times, t);
-support_bodies = supports(support_idx).bodies;
-n = length(support_bodies);
-in_double_support = n == 2;
-weights = ones(n, 1) / n;
-if in_double_support
-  if support_idx > 1 && in_double_support
-    previous_in_single_support = length(supports(support_idx - 1).bodies) == 1;
-    if previous_in_single_support
-      trailing_leg_body_id = supports(support_idx - 1).bodies;
-      support_times_span = support_times([support_idx, support_idx + 1]);
-      support_fraction = (t - support_times_span(1)) / diff(support_times_span);
-      weights(support_bodies ~= trailing_leg_body_id) = support_fraction;
-      weights(support_bodies == trailing_leg_body_id) = 1 - support_fraction;
-    end
-  end
+next_support_idx = min(support_idx + 1, length(support_times));
+support_times_span = support_times([support_idx, next_support_idx]);
+
+delta = diff(support_times_span);
+if delta < eps
+  support_fraction = 0;
+else
+  support_fraction = (t - support_times_span(1)) / delta;
 end
+weights(1) = 1 - support_fraction;
+weights(2) = support_fraction;
 end
