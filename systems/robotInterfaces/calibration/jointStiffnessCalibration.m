@@ -16,14 +16,14 @@ function [k, marker_params, floating_states, objective_value, marker_residuals, 
 % @param bodies nb x 1 cell array of body indices to which motion capture markers
 % were attached
 % @param marker_functions nb x 1 cell array of functions [x,dx]=f(p) where 
-% x (3 x m_i) is the position of the markers in the bodies{i} frame, 
+% x (3 x m_i) is the position of the markers in the bodies(i) frame, 
 % p (marker_function_num_params{i} x 1) are unknown parameters
 % @param marker_function_num_params nb x 1 cell array where
 % marker_function_num_params{i} is the number of parameters describing the  
-% positions of the markers on bodies{i}
+% positions of the markers on bodies(i)
 % @param motion_capture_data nb x 1 cell array of motion capture position
 % data. motion_capture_data{i} is a 3 x m_i x N array containing the
-% measured positions of the markers attached to bodies{i}: the columns
+% measured positions of the markers attached to bodies(i): the columns
 % of motion_capture_data{i}(:, :, j) are the individual measured marker
 % positions. NaNs indicate occluded markers.
 % @param scales nb x 1 cell array of scalings used to weight errors in
@@ -39,7 +39,7 @@ function [k, marker_params, floating_states, objective_value, marker_residuals, 
 % @retval floating_states (6 x N) floating base states found for the robot
 % @retval objective_value objective value at solution
 % @retval marker_residuals nb x 1 cell array where marker_residuals{i}
-% contains the measurement residuals of the markers attached to bodies{i}
+% contains the measurement residuals of the markers attached to bodies(i)
 % @retval info info as returned by fminunc
 
 if nargin < 11
@@ -61,7 +61,7 @@ if options.search_floating
   shortest_path_length = inf;
   closest_body_i = -1;
   for i = 1 : length(bodies)
-    [~, joint_path] = p.findKinematicPath(bodies{i}, floating_body_index);
+    [~, joint_path] = p.findKinematicPath(bodies(i), floating_body_index);
     if (length(joint_path)) < shortest_path_length
       closest_body_i = i;
       shortest_path_length = length(joint_path);
@@ -71,9 +71,14 @@ if options.search_floating
   % find floating states
   floating_search_options.search_floating = true;
   disp('Finding floating states...')
-  [~, ~, floating_states] = motionCaptureJointCalibration(...
-      p, @dummyCorrectionFunction, q_data, [],...
+  motion_capture_joint_calibration = MotionCaptureJointCalibration(p, @dummyCorrectionFunction, q_data, [],...
   bodies(closest_body_i), marker_functions(closest_body_i), num_marker_params(closest_body_i), motion_capture_data(closest_body_i), {1}, floating_search_options);
+  if(isfield(options,'initial_guess'))
+    q_correction_params0 = options.initial_guess;
+  else
+    q_correction_params0 = zeros(length(motion_capture_joint_calibration.joint_indices),1);
+  end
+  [~,~,floating_states] = motion_capture_joint_calibration.solve(q_correction_params0);
   
   q_data(floating_body.position_num, :) = floating_states;
 
@@ -96,9 +101,17 @@ k_inv_sqrt_initial = 1 ./ sqrt(k_initial);
 options.initial_guess = k_inv_sqrt_initial;
 
 disp('Finding stiffnesses...')
-[k_inv_sqrt, marker_params, ~, objective_value, marker_residuals, info] = motionCaptureJointCalibration(...
-  p, @(q_data, k_inv_sqrt) stiffnessCorrectionFun(q_data, k_inv_sqrt, tau_data), q_data, joint_indices,...
+motion_capture_joint_calibration = MotionCaptureJointCalibration(p, @(q_data, k_inv_sqrt) stiffnessCorrectionFun(q_data, k_inv_sqrt, tau_data), q_data, joint_indices,...
   bodies, marker_functions, num_marker_params, motion_capture_data, scales, options);
+if(isfield(options,'initial_guess'))
+  q_correction_params0 = options.initial_guess;
+else
+  q_correction_params0 = zeros(length(motion_capture_joint_calibration.joint_indices),1);
+end
+[k_inv_sqrt, marker_params, ~, objective_value, marker_residuals, info] = motion_capture_joint_calibration.solve(q_correction_params0);
+% [k_inv_sqrt, marker_params, ~, objective_value, marker_residuals, info] = motionCaptureJointCalibration(...
+%   p, @(q_data, k_inv_sqrt) stiffnessCorrectionFun(q_data, k_inv_sqrt, tau_data), q_data, joint_indices,...
+%   bodies, marker_functions, num_marker_params, motion_capture_data, scales, options);
 
 k = 1 ./ (k_inv_sqrt.^2);
 

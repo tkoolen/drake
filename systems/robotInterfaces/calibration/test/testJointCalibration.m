@@ -58,7 +58,7 @@ q_measured = q_actual + q_noise_stddev * randn(size(q_actual));
 q_measured(q_indices, :) = q_measured(q_indices, :) - dq_actual;
 
 k_initial = abs(k_actual + k_initial_stddev * randn(nk, 1));
-scales = {1, 1};
+scales = {1; 1};
 
 rng(s);
 

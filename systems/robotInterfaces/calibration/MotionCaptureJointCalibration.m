@@ -130,20 +130,32 @@ classdef MotionCaptureJointCalibration < NonlinearProgram
           floating_states0(4 : 7, i) = rpy2quat(obj.q_data(obj.floating_indices(4 : 6), i));
         end 
         params0 = [params0;floating_states0(:)];
+      else
+        floating_states0 = zeros(0,obj.nposes);
       end
+      tic
       [params, objective_value,info] = solve@NonlinearProgram(obj,params0);
+      toc
       dq = params(obj.q_correction_params_idx);
       marker_params = cell(obj.nbodies,1);
       for i = 1:obj.nbodies
         marker_params{i} = params(obj.marker_params_idx{i});
       end
-      floating_params = reshape(params(obj.floating_params_idx),7,obj.nposes);
+      if(~isempty(obj.floating_params_idx))
+        floating_params = reshape(params(obj.floating_params_idx),7,obj.nposes);
+      else
+        floating_params = zeros(0,obj.nposes);
+      end
       marker_residuals = markerResiduals(obj.p,obj.q_correction_fun,obj.q_data,obj.joint_indices,obj.floating_indices,...
         obj.bodies, obj.marker_functions, obj.motion_capture_data, dq,marker_params,floating_params);
-      floating_states = zeros(6,obj.nposes);
-      floating_states(1:3,:) = floating_params(1:3,:);
-      for i = 1:obj.nposes
-        floating_states(4:6,i) = quat2rpy(floating_params(4:7,i));
+      if(~isempty(obj.floating_params_idx))
+        floating_states = zeros(6,obj.nposes);
+        floating_states(1:3,:) = floating_params(1:3,:);
+        for i = 1:obj.nposes
+          floating_states(4:6,i) = quat2rpy(floating_params(4:7,i));
+        end
+      else
+        floating_states = floating_states0;
       end
     end
   end
