@@ -26,6 +26,7 @@ ts = upsampleLinearly(support_times, breaks_per_support);
 rpy0_unwrapped = unwrap([zeros(3, 1) q0(4:6)]);
 q0(4:6) = rpy0_unwrapped(:, 2);
 
+sides = {'l', 'r'};
 
 % create desired joint trajectory
 state_frame = obj.getStateFrame;
@@ -39,6 +40,12 @@ cost.base_yaw = 500;
 cost.back_bkz = 10;
 cost.back_bky = 100;
 cost.back_bkx = 100;
+for i = 1 : length(sides)
+  side = sides{i};
+  cost.([side '_leg_akx']) = 10;
+  cost.([side '_leg_aky']) = 10;
+end
+
 cost = double(cost);
 ikoptions = IKoptions(obj);
 ikoptions = ikoptions.setQ(diag(cost(1:obj.getNumPositions)));
@@ -48,7 +55,6 @@ pelvis_id = robot.findLinkId('pelvis');
 pelvis_height_idx = state_frame.findCoordinateIndex('base_z');
 pelvis_yaw_idx = state_frame.findCoordinateIndex('base_yaw');
 
-sides = {'l', 'r'};
 ankle_joint_constraints = containers.Map;
 foot_ids = containers.Map;
 foot_sides = containers.Map('KeyType', 'double', 'ValueType', 'char');
@@ -180,8 +186,8 @@ if debug
       knee_constraint_active(j, i) = any(abs(qs(knee_ind, i) - knee_constraint.lb(knee_ind)) < active_tol) || any(abs(qs(knee_ind, i) - knee_constraint.ub(knee_ind)) < active_tol);
       
       ankle_constraint = ankle_joint_constraints(side);
-      ankle_val = ankle_constraint.eval(ts(i), qs(:, i));
-      [ankle_lb, ankle_ub] = ankle_constraint.bounds(ts(i));
+    ankle_val = ankle_constraint.eval(ts(i), qs(:, i));
+    [ankle_lb, ankle_ub] = ankle_constraint.bounds(ts(i));
       ankle_constraint_active(j, i) = any(abs(ankle_val - ankle_lb) < active_tol) || any(abs(ankle_val - ankle_ub) < active_tol);
     end
     at_min_limit = abs(qs(leg_position_indices, i) - robot.joint_limit_min(leg_position_indices)) < active_tol;
@@ -198,14 +204,13 @@ if debug
   ylabel('pelvis height');
   
   subplot(2, 2, 2);
-  h = [];
   pelvis_height_modification = pelvis_xyzquat(3, :) - base_heights - pelvis_height_above_sole;
   hold on;
-  h(end + 1) = plot(ts, pelvis_height_modification, 'b');
+  plot(ts, pelvis_height_modification, 'b');
   legend_strings = {'pelvis height modification'};
   toe_off_inds = ~isnan(toe_off_possible_body_ids);
   if ~isempty(plot(ts(toe_off_inds), pelvis_height_modification(toe_off_inds), 'kx'))
-    legend_strings{end + 1} = 'inds where toe off allowed';
+    legend_strings{end + 1} = 'toe off allowed';
   end
   if ~isempty(plot(ts(any(ankle_constraint_active, 1)), pelvis_height_modification(any(ankle_constraint_active, 1)), 'rx'))
     legend_strings{end + 1} = 'ankle cstr active';
