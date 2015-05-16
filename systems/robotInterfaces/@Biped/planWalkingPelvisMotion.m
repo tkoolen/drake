@@ -16,13 +16,16 @@ if ~isa(comtraj, 'Trajectory')
     comtraj.gamma);
 end
 
-pelvis_height_above_sole = 0.8;
+robot = obj.getManipulator();
 
 breaks_per_support = 5;
 ts = upsampleLinearly(support_times, breaks_per_support);
 % ts = support_times(1) : 0.1 : support_times(length(support_times));
 
-robot = obj.getManipulator();
+% unwrap rpy
+rpy0_unwrapped = unwrap([zeros(3, 1) q0(4:6)]);
+q0(4:6) = rpy0_unwrapped(:, 2);
+
 
 % create desired joint trajectory
 state_frame = obj.getStateFrame;
@@ -81,6 +84,7 @@ toe_off_possible_body_ids = isToeOffPossible(robot, zmptraj, supports, support_t
 qs = zeros(obj.getNumPositions(), length(ts));
 pelvis_xyzquat = zeros(7, length(ts));
 base_heights = zeros(1, length(ts));
+average_foot_yaws = zeros(1, length(ts));
 in_single_support = false(1, length(ts));
 standard_constraints = ankle_joint_constraints.values;
 standard_constraints{end + 1} = constrained_dofs_constraint;
@@ -93,8 +97,8 @@ for i = 1 : length(ts)
   nominal_pelvis_height = base_heights(i) + pelvis_height_above_sole;
   qstar(pelvis_height_idx) = nominal_pelvis_height;
   
-  average_foot_yaw = computeAverageFootYaw(support_times, t, foot_motions, body_id_to_foot_motion_id);
-  qstar(pelvis_yaw_idx) = average_foot_yaw;
+  average_foot_yaws(i) = computeAverageFootYaw(support_times, t, foot_motions, body_id_to_foot_motion_id);
+  qstar(pelvis_yaw_idx) = average_foot_yaws(i);
   
   if (i > 1)
     constraints = standard_constraints;
@@ -107,7 +111,8 @@ for i = 1 : length(ts)
       
       xyz_exp = foot_motions(j).eval(t);
       xyz = xyz_exp(1:3);
-      quat = expmap2quat(xyz_exp(4:6));
+      expmap = xyz_exp(4:6);
+      quat = expmap2quat(expmap);
       xyz(foot_motions(j).weight_multiplier(4:6) == 0) = nan;
 
       if toe_off_possible_body_ids(i) == body_id
@@ -128,16 +133,21 @@ for i = 1 : length(ts)
     constraints{end + 1} = kc_com;
     q_seed = qs(:,i-1);
     q_seed(pelvis_yaw_idx) = qstar(pelvis_yaw_idx); % fix wraparound issues
-    qs(:,i) = inverseKin(obj,q_seed,qstar,constraints{:},ikoptions);
+    
+    if ~is_qtraj_constant
+      qtraj_val = qtraj.eval(t);
+      constraints{end + 1} = PostureConstraint(obj).setJointLimits(constrained_indices, qtraj_val(constrained_indices), qtraj_val(constrained_indices));
+    end
+    
+    [qs(:,i), info, infeasible] = inverseKin(obj,q_seed,qstar,constraints{:},ikoptions);
+    if info ~= 1
+      fprintf('no solution found at t = %0.2f. Using the solution from the previous time step.\n', t);
+      qs(:, i) = qs(:, i - 1); % desparation move
+    end
   else
     qs(:,i) = q0;
   end
-  
-  if ~is_qtraj_constant
-    qtraj_val = qtraj.eval(t);
-    constraints{end + 1} = PostureConstraint(obj).setJointLimits(constrained_indices, qtraj_val(constrained_indices), qtraj_val(constrained_indices));
-  end
-  
+
   kinsol = doKinematics(robot, qs(:,i));
   pelvis_xyzquat(:, i) = forwardKin(robot, kinsol, pelvis_id, zeros(3, 1), forwardkin_options);
 end
