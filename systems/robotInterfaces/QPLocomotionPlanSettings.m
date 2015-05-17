@@ -251,7 +251,8 @@ classdef QPLocomotionPlanSettings
       if strcmp(options.pelvis_trajectory_mode, 'heuristic')
         pelvis_motion_data = biped.getPelvisMotionForWalking(x0, foot_motion_data, obj.supports, obj.support_times, options);
       else
-        min_knee_angle_for_plan = 0.2; % smaller than min knee angle. That's fine, otherwise the controller wouldn't do toe off anyway
+%         options.pelvis_height_above_sole = 1;
+        min_knee_angle_for_plan = 0.4; % smaller than min knee angle. That's fine, otherwise the controller wouldn't do toe off anyway
         pelvis_motion_data = biped.planWalkingPelvisMotion(obj, foot_motion_data, q0, qstar, options.pelvis_height_above_sole, min_knee_angle_for_plan);
       end
       

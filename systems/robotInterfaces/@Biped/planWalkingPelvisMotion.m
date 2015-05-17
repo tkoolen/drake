@@ -46,6 +46,7 @@ cost.back_bky = 100;
 cost.back_bkx = 100;
 for i = 1 : length(sides)
   side = sides{i};
+  cost.([side '_leg_kny']) = 10;
   cost.([side '_leg_akx']) = 10;
   cost.([side '_leg_aky']) = 10;
 end
@@ -173,7 +174,7 @@ end
 pelvis_motion_data = BodyMotionData.from_body_xyzquat(pelvis_id, ts, pelvis_xyzquat);
 pelvis_motion_data.weight_multiplier = [1;1;1;0;0;1];
 
-debug = true;
+debug = false;
 if debug  
   n = length(ts);
   rpy = zeros(3, n);
@@ -186,16 +187,18 @@ if debug
   knee_constraint_active = false(length(sides), n);
   joint_limit_constraint_active = false(n, 1);
   active_tol = 1e-5;
+  knee_inds = zeros(2, 1);
   for i = 1 : length(ts)
     for j = 1 : length(sides)
       side = sides{j};
-      knee_ind = state_frame.findCoordinateIndex([side '_leg_kny']);
+      knee_ind = robot.findPositionIndices([side '_leg_kny']);
+      knee_inds(j) = knee_ind;
       knee_constraint = knee_constraints(side);
       knee_constraint_active(j, i) = any(abs(qs(knee_ind, i) - knee_constraint.lb(knee_ind)) < active_tol) || any(abs(qs(knee_ind, i) - knee_constraint.ub(knee_ind)) < active_tol);
       
       ankle_constraint = ankle_joint_constraints(side);
-    ankle_val = ankle_constraint.eval(ts(i), qs(:, i));
-    [ankle_lb, ankle_ub] = ankle_constraint.bounds(ts(i));
+      ankle_val = ankle_constraint.eval(ts(i), qs(:, i));
+      [ankle_lb, ankle_ub] = ankle_constraint.bounds(ts(i));
       ankle_constraint_active(j, i) = any(abs(ankle_val - ankle_lb) < active_tol) || any(abs(ankle_val - ankle_ub) < active_tol);
     end
     at_min_limit = abs(qs(leg_position_indices, i) - robot.joint_limit_min(leg_position_indices)) < active_tol;
@@ -206,12 +209,12 @@ if debug
 
   figure(152);
   clf();
-  subplot(2, 2, 1);
+  subplot(3, 2, 1);
   plot(ts, pelvis_xyzquat(3, :), 'r');
   xlabel('time');
   ylabel('pelvis height');
   
-  subplot(2, 2, 2);
+  subplot(3, 2, 2);
   pelvis_height_modification = pelvis_xyzquat(3, :) - base_heights - pelvis_height_above_sole;
   hold on;
   plot(ts, pelvis_height_modification, 'b');
@@ -234,16 +237,22 @@ if debug
   legend(legend_strings);
   hold off;
  
-  subplot(2, 2, 3)
+  subplot(3, 2, 3)
   plot(ts, base_heights);
   xlabel('time');
   ylabel('base height');
   
-  subplot(2, 2, 4)
+  subplot(3, 2, 4)
   plot(ts, rpy);
   xlabel('time');
   ylabel('angles');
   legend({'roll', 'pitch', 'yaw'});
+
+  subplot(3, 2, 5)
+  plot(ts, qs(knee_inds, :));
+  xlabel('time');
+  ylabel('knee angles');
+  legend(sides);
 end
 
 end
