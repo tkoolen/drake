@@ -22,7 +22,7 @@ end
 
 robot = obj.getManipulator();
 
-breaks_per_support = 5;
+breaks_per_support = 3;
 ts = upsampleLinearly(support_times, breaks_per_support);
 % ts = support_times(1) : 0.1 : support_times(length(support_times));
 
@@ -32,7 +32,6 @@ q0(4:6) = rpy0_unwrapped(:, 2);
 
 sides = {'l', 'r'};
 
-% create desired joint trajectory
 state_frame = obj.getStateFrame;
 cost = Point(state_frame,1);
 cost.base_x = 0;
@@ -44,16 +43,10 @@ cost.base_yaw = 500;
 cost.back_bkz = 10;
 cost.back_bky = 100;
 cost.back_bkx = 100;
-for i = 1 : length(sides)
-  side = sides{i};
-  cost.([side '_leg_kny']) = 10;
-  cost.([side '_leg_akx']) = 10;
-  cost.([side '_leg_aky']) = 10;
-end
-
 cost = double(cost);
+cost = cost(1 : robot.getNumPositions());
+
 ikoptions = IKoptions(obj);
-ikoptions = ikoptions.setQ(diag(cost(1:obj.getNumPositions)));
 
 forwardkin_options.rotation_type = 2;
 pelvis_id = robot.findLinkId('pelvis');
@@ -63,12 +56,16 @@ pelvis_yaw_idx = state_frame.findCoordinateIndex('base_yaw');
 ankle_joint_constraints = containers.Map;
 foot_ids = containers.Map;
 foot_sides = containers.Map('KeyType', 'double', 'ValueType', 'char');
+side_to_akx_state_frame_id = containers.Map;
+side_to_aky_state_frame_id = containers.Map;
 for i = 1 : length(sides)
   side = sides{i};
   ankle_joint_constraints(side) = AtlasAnkleXYJointLimitConstraint(obj, side);
   body_id = robot.findLinkId([side '_foot']);
   foot_ids(side) = body_id;
   foot_sides(body_id) = side;
+  side_to_akx_state_frame_id(side) = state_frame.findCoordinateIndex([side '_leg_akx']);
+  side_to_aky_state_frame_id(side) = state_frame.findCoordinateIndex([side '_leg_aky']);
 end
 
 is_qtraj_constant = ~isa(qtraj, 'Trajectory');
@@ -123,6 +120,17 @@ for i = 1 : length(ts)
       support_idx = findSegmentIndex(support_times, t);
       in_single_support(i) = length(supports(support_idx).bodies) == 1;
       is_swing_foot = ~any(supports(support_idx).bodies == body_id);
+      side = foot_sides(body_id);
+      
+      if is_swing_foot
+        cost(side_to_akx_state_frame_id(side)) = 0;
+        cost(side_to_aky_state_frame_id(side)) = 0;
+      else
+        cost(side_to_akx_state_frame_id(side)) = 10;
+        cost(side_to_aky_state_frame_id(side)) = 10;
+      end
+      
+      ikoptions = ikoptions.setQ(diag(cost));
       
       xyz_exp = foot_motions(j).eval(t);
       xyz = xyz_exp(1:3);
@@ -408,8 +416,8 @@ if delta < eps
 else
   x = (t - support_times_span(1)) / delta;
 %   support_fraction = x; % linear
-%   support_fraction = 3 * x^2 - 2 * x^3; % cubic polynomial that goes from 0 to 1 on the interval [0 1]
-  support_fraction = 10 * x^3 -15 * x^4 + 6 * x^5; % quintic
+  support_fraction = 3 * x^2 - 2 * x^3; % cubic polynomial that goes from 0 to 1 on the interval [0 1]
+%   support_fraction = 10 * x^3 -15 * x^4 + 6 * x^5; % quintic
 end
 weights(1) = 1 - support_fraction;
 weights(2) = support_fraction;
