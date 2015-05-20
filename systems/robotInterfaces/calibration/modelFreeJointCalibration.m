@@ -17,6 +17,8 @@ correction_fun_num_params = length(q_indices) * num_poses;
 motion_capture_joint_calibration = MotionCaptureJointCalibration(...
   p, @correctionFun, correction_fun_num_params, q_data, q_indices,...
   bodies, marker_functions, marker_function_num_params, motion_capture_data, scales, options);
+motion_capture_joint_calibration = motion_capture_joint_calibration.setSolverOptions('snopt', 'superbasicslimit', 3000);
+motion_capture_joint_calibration = motion_capture_joint_calibration.setSolverOptions('snopt', 'majoriterationslimit', 3000);
 if(isfield(options,'initial_guess'))
   q_correction_params0 = options.initial_guess;
 else

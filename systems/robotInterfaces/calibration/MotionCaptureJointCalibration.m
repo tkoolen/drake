@@ -71,10 +71,10 @@ classdef MotionCaptureJointCalibration < NonlinearProgram
       obj.njoints = length(q_indices);
       obj.q_correction_params_idx = obj.num_vars + (1:q_correction_fun_num_params)';
       var_names = cell(obj.njoints,1);
-      for i = 1:obj.njoints
-        var_names{i} = sprintf('joint %d correction param',obj.q_indices(i));
+      for i = 1 : q_correction_fun_num_params
+        var_names{i} = sprintf('correction param %d', i);
       end
-      obj = obj.addDecisionVariable(obj.njoints,var_names);
+      obj = obj.addDecisionVariable(q_correction_fun_num_params, var_names);
       obj.nbodies = length(bodies);
       obj.bodies = bodies;
       
@@ -149,7 +149,7 @@ classdef MotionCaptureJointCalibration < NonlinearProgram
       marker_residuals = markerResiduals(obj.p,obj.q_correction_fun,obj.q_data,obj.q_indices,obj.floating_indices,...
         obj.bodies, obj.marker_functions, obj.motion_capture_data, dq,marker_params,floating_params);
       if(~isempty(obj.floating_params_idx))
-        floating_states = zeros(6,obj.nposes);
+        floating_states = obj.q_data(obj.floating_indices, :);
         floating_states(1:3,:) = floating_params(1:3,:);
         for i = 1:obj.nposes
           floating_states(4:6,i) = quat2rpy(floating_params(4:7,i));
