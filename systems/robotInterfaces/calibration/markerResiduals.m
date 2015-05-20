@@ -1,5 +1,5 @@
 function marker_residuals = markerResiduals(...
-  p, q_correction_fun, q_data, joint_indices, floating_indices,...
+  p, q_correction_fun, q_data, q_indices, floating_indices,...
   bodies, marker_functions, motion_capture_data, ...
   q_correction_params, marker_params, floating_params)
   
@@ -7,7 +7,7 @@ nbodies = length(bodies);
 nq = size(q_data, 1);
 nposes = size(q_data, 2);
 
-q_data(joint_indices, :) = q_correction_fun(q_data(joint_indices, :), q_correction_params);
+q_data(q_indices, :) = q_correction_fun(q_data(q_indices, :), q_correction_params);
 
 % floating states are parameterized as floating_states(:, i) = [pos; quat];
 % need to normalize quaternion first:

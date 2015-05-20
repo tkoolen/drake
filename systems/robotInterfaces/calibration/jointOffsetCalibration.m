@@ -40,8 +40,9 @@ if nargin < 9
   options = struct();
 end
 
+q_indices = [p.getBody(joint_indices).position_num];
 motion_capture_joint_calibration = MotionCaptureJointCalibration(...
-  p, @offsetCorrectionFun, q_data, joint_indices,...
+  p, @offsetCorrectionFun, q_data, q_indices,...
   bodies, marker_functions, marker_function_num_params, motion_capture_data, scales, options);
 % [dq, marker_params, floating_states, objective_value, marker_residuals, info] = motionCaptureJointCalibration(...
 %   p, @offsetCorrectionFun, q_data, joint_indices,...
@@ -49,7 +50,7 @@ motion_capture_joint_calibration = MotionCaptureJointCalibration(...
 if(isfield(options,'initial_guess'))
   q_correction_params0 = options.initial_guess;
 else
-  q_correction_params0 = zeros(length(motion_capture_joint_calibration.joint_indices),1);
+  q_correction_params0 = zeros(length(motion_capture_joint_calibration.q_indices),1);
 end
 [dq, marker_params, floating_states,objective_value, marker_residuals,info] = motion_capture_joint_calibration.solve(q_correction_params0);
 end

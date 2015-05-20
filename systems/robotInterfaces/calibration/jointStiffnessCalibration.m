@@ -1,4 +1,4 @@
-function [k, marker_params, floating_states, objective_value, marker_residuals, info] = jointStiffnessCalibration(p, q_data, u_data, joint_indices,...
+function [k, marker_params, floating_states, objective_value, marker_residuals, info] = jointStiffnessCalibration(p, q_data, tau_data, joint_indices,...
     bodies, marker_functions, num_marker_params, motion_capture_data, scales, k_initial, options)
 % Perform joint stiffness calibration, given motion capture data and joint data.
 % Given (x,y,z) position data of some set of markers on various
@@ -10,8 +10,9 @@ function [k, marker_params, floating_states, objective_value, marker_residuals, 
 % Method: when options.search_floating = true
 % 
 % @param p Robot plant
-% @param q_data (nxN) joint data
-% @param joint_indices indices of joints for which to find stiffnesses
+% @param q_data (nxN) joint position data
+% @param tau_data (nxN) joint torque data
+% @param joint_indices indices of joints/bodies for which to find stiffnesses
 % @param body1
 % @param bodies nb x 1 cell array of body indices to which motion capture markers
 % were attached
@@ -73,35 +74,21 @@ if options.search_floating
   disp('Finding floating states...')
   motion_capture_joint_calibration = MotionCaptureJointCalibration(p, @dummyCorrectionFunction, q_data, [],...
   bodies(closest_body_i), marker_functions(closest_body_i), num_marker_params(closest_body_i), motion_capture_data(closest_body_i), {1}, floating_search_options);
-  if(isfield(options,'initial_guess'))
-    q_correction_params0 = options.initial_guess;
-  else
-    q_correction_params0 = zeros(length(motion_capture_joint_calibration.joint_indices),1);
-  end
-  [~,~,floating_states] = motion_capture_joint_calibration.solve(q_correction_params0);
+  [~,~,floating_states] = motion_capture_joint_calibration.solve([]);
   
   q_data(floating_body.position_num, :) = floating_states;
 
   options.search_floating = false;
 end
 
-B = p.getB();
-B_calibrated_joints = B(joint_indices, :);
-is_simple = all(sum(B_calibrated_joints ~= 0, 1) <= 1) && all(sum(B_calibrated_joints ~= 0, 2) == 1);
-if ~is_simple
-  error('Function can only handle the case where B(Joint_indices, :) is simple')
-end
-[rows, u_indices] = find(B_calibrated_joints ~= 0);
-[~, sort_indices] = sort(rows);
-u_indices = u_indices(sort_indices);
-
-tau_data = B(joint_indices, u_indices) * u_data(u_indices, :);
-
 k_inv_initial = 1 ./ k_initial;
 options.initial_guess = k_inv_initial;
+q_indices = [p.getBody(joint_indices).position_num];
+v_indices = [p.getBody(joint_indices).velocity_num];
+tau_data_for_joints_to_be_calibrated = tau_data(v_indices, :);
 
 disp('Finding stiffnesses...')
-motion_capture_joint_calibration = MotionCaptureJointCalibration(p, @(q_data, k_inv) stiffnessCorrectionFun(q_data, k_inv, tau_data), q_data, joint_indices,...
+motion_capture_joint_calibration = MotionCaptureJointCalibration(p, @(q_data, k_inv) stiffnessCorrectionFun(q_data, k_inv, tau_data_for_joints_to_be_calibrated), q_data, q_indices,...
   bodies, marker_functions, num_marker_params, motion_capture_data, scales, options);
 k_inv_bnds = BoundingBoxConstraint(zeros(length(k_inv_initial),1),inf(length(k_inv_initial),1));
 motion_capture_joint_calibration = motion_capture_joint_calibration.addBoundingBoxConstraint(k_inv_bnds,motion_capture_joint_calibration.q_correction_params_idx);

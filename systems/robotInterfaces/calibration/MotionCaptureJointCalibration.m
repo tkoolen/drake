@@ -13,11 +13,11 @@ classdef MotionCaptureJointCalibration < NonlinearProgram
     
     p % Robot plant
     q_correction_fun % a function 
-                    % [q_data_mod, dq_data_mod] = f(q_data(joint_indices, :), params)
-                    % where q_mod is a modified version of q_data(joint_indices) and params
-                    % (length(joint_indices) x 1) are unknown parameters
+                    % [q_data_mod, dq_data_mod] = f(q_data(q_indices, :), params)
+                    % where q_mod is a modified version of q_data(q_indices) and params
+                    % (length(q_indices) x 1) are unknown parameters
     q_data % (nxN) joint data
-    joint_indices % joint configuration vector indices corresponding to joints to calibrate
+    q_indices % joint configuration vector indices corresponding to joints to calibrate
     floating_indices % floating base configuration vector indices 
     bodies % nb x 1 array of body indices to which motion capture markers were attached
     marker_functions % nb x 1 cell array of functions [x,dx]=f(p) where 
@@ -39,11 +39,11 @@ classdef MotionCaptureJointCalibration < NonlinearProgram
   end
   
   methods
-    function obj = MotionCaptureJointCalibration(p,q_correction_fun,q_data,joint_indices,bodies,marker_functions,marker_function_num_params,motion_capture_data,scales,options)
+    function obj = MotionCaptureJointCalibration(p,q_correction_fun,q_data,q_indices,bodies,marker_functions,marker_function_num_params,motion_capture_data,scales,options)
       % @param q_correction_fun a function 
-      % [q_data_mod, dq_data_mod] = f(q_data(joint_indices, :), params)
-      % where q_mod is a modified version of q_data(joint_indices) and params
-      % (length(joint_indices) x 1) are unknown parameters
+      % [q_data_mod, dq_data_mod] = f(q_data(q_indices, :), params)
+      % where q_mod is a modified version of q_data(q_indices) and params
+      % (length(q_indices) x 1) are unknown parameters
       % @param marker_functions nb x 1 cell array of functions [x,dx]=f(p) where 
       % x (3 x m_i) is the position of the markers in the bodies{i} frame, 
       % p (marker_function_num_params{i} x 1) are unknown parameters
@@ -61,18 +61,18 @@ classdef MotionCaptureJointCalibration < NonlinearProgram
       obj.q_correction_fun = q_correction_fun;
       obj.q_data = q_data;
       obj.nposes = size(q_data,2);
-      obj.joint_indices = joint_indices;
+      obj.q_indices = q_indices;
       if(options.search_floating)
         obj.floating_indices = obj.p.getBody(2).position_num;
       else
         obj.floating_indices = zeros(0,1);
       end
       num_floating_params = 7 * obj.nposes;
-      obj.njoints = length(joint_indices);
+      obj.njoints = length(q_indices);
       obj.q_correction_params_idx = obj.num_vars + (1:obj.njoints)';
       var_names = cell(obj.njoints,1);
       for i = 1:obj.njoints
-        var_names{i} = sprintf('joint %d correction param',obj.joint_indices(i));
+        var_names{i} = sprintf('joint %d correction param',obj.q_indices(i));
       end
       obj = obj.addDecisionVariable(obj.njoints,var_names);
       obj.nbodies = length(bodies);
@@ -115,7 +115,7 @@ classdef MotionCaptureJointCalibration < NonlinearProgram
       else
         obj.floating_params_idx = zeros(0,obj.nposes);
       end
-      cost_fun = FunctionHandleConstraint(-inf,inf,obj.num_vars,@(params) totalMarkerResiduals(obj.p, q_correction_fun, obj.q_data, obj.joint_indices, obj.floating_indices,...
+      cost_fun = FunctionHandleConstraint(-inf,inf,obj.num_vars,@(params) totalMarkerResiduals(obj.p, q_correction_fun, obj.q_data, obj.q_indices, obj.floating_indices,...
                 obj.bodies, marker_functions, obj.motion_capture_data, obj.scales, ...
                 obj.q_correction_params_idx, obj.marker_params_idx,obj.floating_params_idx,params),1);
       obj = obj.addCost(cost_fun);
@@ -146,13 +146,17 @@ classdef MotionCaptureJointCalibration < NonlinearProgram
       else
         floating_params = zeros(0,obj.nposes);
       end
-      marker_residuals = markerResiduals(obj.p,obj.q_correction_fun,obj.q_data,obj.joint_indices,obj.floating_indices,...
+      marker_residuals = markerResiduals(obj.p,obj.q_correction_fun,obj.q_data,obj.q_indices,obj.floating_indices,...
         obj.bodies, obj.marker_functions, obj.motion_capture_data, dq,marker_params,floating_params);
       if(~isempty(obj.floating_params_idx))
         floating_states = zeros(6,obj.nposes);
         floating_states(1:3,:) = floating_params(1:3,:);
         for i = 1:obj.nposes
           floating_states(4:6,i) = quat2rpy(floating_params(4:7,i));
+
+          % use only yaw:
+%           rpy = quat2rpy(floating_params(4:7,i));
+%           floating_states(6,i) = rpy(3);
         end
       else
         floating_states = floating_states0;

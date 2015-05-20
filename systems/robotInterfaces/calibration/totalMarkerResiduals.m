@@ -1,5 +1,5 @@
 function [f, g] = totalMarkerResiduals(...
-  p, q_correction_fun, q_data, joint_indices, floating_indices,...
+  p, q_correction_fun, q_data, q_indices, floating_indices,...
   bodies, marker_functions, motion_capture_data, scales, ...
   q_correction_params_idx, marker_params_idx,floating_params_idx,params)  
 
@@ -12,7 +12,7 @@ for i = 1:nbodies
   marker_params{i} = params(marker_params_idx{i});
 end
 floating_params = reshape(params(floating_params_idx),[],nposes);
-[q_data(joint_indices, :), dqdq_correction_params] = q_correction_fun(q_data(joint_indices, :), q_correction_params);
+[q_data(q_indices, :), dqdq_correction_params] = q_correction_fun(q_data(q_indices, :), q_correction_params);
 
 % floating states are parameterized as floating_states(:, i) = [pos; quat];
 % need to normalize quaternion first:
@@ -28,6 +28,10 @@ if ~isempty(floating_params)
     [R, dRdquat] = quat2rotmat(floating_params(quat_rows, i)); % includes normalization
     [rpy, drpydquat] = rotmat2rpy(R, dRdquat);
     q_data(floating_indices, i) = [pos; rpy];
+
+    % only use yaw:
+%     q_data(floating_indices([1:3, 6]), i) = [pos; rpy(3)];
+%     drpydquat(1:2, :) = zeros(size(drpydquat(1:2, :)));
     
     pos_indices = sub2ind(size(floating_params), pos_rows, repmat(i, 1, length(pos_rows)));
     quat_indices = sub2ind(size(floating_params), quat_rows, repmat(i, 1, length(quat_rows)));
@@ -67,7 +71,7 @@ for i = 1 : nbodies
   
   % Gradient computation
   % dfdq_correction_params
-  J_body_joint_indices_cell = mat2cell(J_body(:, joint_indices, :), size(J_body, 1), length(joint_indices), ones(1, nposes));
+  J_body_joint_indices_cell = mat2cell(J_body(:, q_indices, :), size(J_body, 1), length(q_indices), ones(1, nposes));
   dbody_errdq_correction_params = blkdiag(J_body_joint_indices_cell{:}) * dqdq_correction_params;
   dfdq_correction_params = dfdq_correction_params + scales{i} * 2 * body_err' * dbody_errdq_correction_params;
   
