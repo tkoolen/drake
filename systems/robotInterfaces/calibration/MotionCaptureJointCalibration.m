@@ -39,7 +39,7 @@ classdef MotionCaptureJointCalibration < NonlinearProgram
   end
   
   methods
-    function obj = MotionCaptureJointCalibration(p,q_correction_fun,q_data,q_indices,bodies,marker_functions,marker_function_num_params,motion_capture_data,scales,options)
+    function obj = MotionCaptureJointCalibration(p,q_correction_fun,q_correction_fun_num_params,q_data,q_indices,bodies,marker_functions,marker_function_num_params,motion_capture_data,scales,options)
       % @param q_correction_fun a function 
       % [q_data_mod, dq_data_mod] = f(q_data(q_indices, :), params)
       % where q_mod is a modified version of q_data(q_indices) and params
@@ -69,7 +69,7 @@ classdef MotionCaptureJointCalibration < NonlinearProgram
       end
       num_floating_params = 7 * obj.nposes;
       obj.njoints = length(q_indices);
-      obj.q_correction_params_idx = obj.num_vars + (1:obj.njoints)';
+      obj.q_correction_params_idx = obj.num_vars + (1:q_correction_fun_num_params)';
       var_names = cell(obj.njoints,1);
       for i = 1:obj.njoints
         var_names{i} = sprintf('joint %d correction param',obj.q_indices(i));

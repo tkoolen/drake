@@ -71,8 +71,9 @@ if options.search_floating
   
   % find floating states
   floating_search_options.search_floating = true;
+  num_params = 0;
   disp('Finding floating states...')
-  motion_capture_joint_calibration = MotionCaptureJointCalibration(p, @dummyCorrectionFunction, q_data, [],...
+  motion_capture_joint_calibration = MotionCaptureJointCalibration(p, @dummyCorrectionFunction, num_params, q_data, [],...
   bodies(closest_body_i), marker_functions(closest_body_i), num_marker_params(closest_body_i), motion_capture_data(closest_body_i), {1}, floating_search_options);
   [~,~,floating_states] = motion_capture_joint_calibration.solve([]);
   
@@ -86,9 +87,10 @@ options.initial_guess = k_inv_initial;
 q_indices = [p.getBody(joint_indices).position_num];
 v_indices = [p.getBody(joint_indices).velocity_num];
 tau_data_for_joints_to_be_calibrated = tau_data(v_indices, :);
+num_params = length(q_indices);
 
 disp('Finding stiffnesses...')
-motion_capture_joint_calibration = MotionCaptureJointCalibration(p, @(q_data, k_inv) stiffnessCorrectionFun(q_data, k_inv, tau_data_for_joints_to_be_calibrated), q_data, q_indices,...
+motion_capture_joint_calibration = MotionCaptureJointCalibration(p, @(q_data, k_inv) stiffnessCorrectionFun(q_data, k_inv, tau_data_for_joints_to_be_calibrated), num_params, q_data, q_indices,...
   bodies, marker_functions, num_marker_params, motion_capture_data, scales, options);
 k_inv_bnds = BoundingBoxConstraint(zeros(length(k_inv_initial),1),inf(length(k_inv_initial),1));
 motion_capture_joint_calibration = motion_capture_joint_calibration.addBoundingBoxConstraint(k_inv_bnds,motion_capture_joint_calibration.q_correction_params_idx);
