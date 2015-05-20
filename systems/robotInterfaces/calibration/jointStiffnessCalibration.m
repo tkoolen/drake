@@ -1,4 +1,4 @@
-function [k, marker_params, floating_states, objective_value, marker_residuals, info] = jointStiffnessCalibration(p, q_data, tau_data, joint_indices,...
+function [k, q_corrected, marker_params, floating_states, objective_value, marker_residuals, info] = jointStiffnessCalibration(p, q_data, tau_data, joint_indices,...
     bodies, marker_functions, num_marker_params, motion_capture_data, scales, k_initial, options)
 % Perform joint stiffness calibration, given motion capture data and joint data.
 % Given (x,y,z) position data of some set of markers on various
@@ -75,7 +75,7 @@ if options.search_floating
   disp('Finding floating states...')
   motion_capture_joint_calibration = MotionCaptureJointCalibration(p, @dummyCorrectionFunction, num_params, q_data, [],...
   bodies(closest_body_i), marker_functions(closest_body_i), num_marker_params(closest_body_i), motion_capture_data(closest_body_i), {1}, floating_search_options);
-  [~,~,floating_states] = motion_capture_joint_calibration.solve([]);
+  [~,~,~,floating_states] = motion_capture_joint_calibration.solve([]);
   
   q_data(floating_body.position_num, :) = floating_states;
 
@@ -99,7 +99,7 @@ if(isfield(options,'initial_guess'))
 else
   q_correction_params0 = zeros(length(motion_capture_joint_calibration.joint_indices),1);
 end
-[k_inv, marker_params, ~, objective_value, marker_residuals, info] = motion_capture_joint_calibration.solve(q_correction_params0);
+[k_inv, q_corrected, marker_params, ~, objective_value, marker_residuals, info] = motion_capture_joint_calibration.solve(q_correction_params0);
 % [k_inv_sqrt, marker_params, ~, objective_value, marker_residuals, info] = motionCaptureJointCalibration(...
 %   p, @(q_data, k_inv_sqrt) stiffnessCorrectionFun(q_data, k_inv_sqrt, tau_data), q_data, joint_indices,...
 %   bodies, marker_functions, num_marker_params, motion_capture_data, scales, options);

@@ -121,7 +121,7 @@ classdef MotionCaptureJointCalibration < NonlinearProgram
       obj = obj.addCost(cost_fun);
     end
     
-    function [dq, marker_params, floating_states,objective_value, marker_residuals,info] = solve(obj,q_correction_params0)
+    function [dq, q_corrected, marker_params, floating_states,objective_value, marker_residuals,info] = solve(obj,q_correction_params0)
       params0 = [q_correction_params0;zeros(sum(obj.marker_function_num_params),1)];
       if(~isempty(obj.floating_params_idx))
         floating_states0 = zeros(7,obj.nposes);
@@ -161,6 +161,9 @@ classdef MotionCaptureJointCalibration < NonlinearProgram
       else
         floating_states = floating_states0;
       end
+      q_corrected = obj.q_data;
+      q_corrected(1 : size(floating_states, 1), :) = floating_states;
+      q_corrected(obj.q_indices, :) = obj.q_correction_fun(obj.q_data(obj.q_indices, :), dq);
     end
   end
 end

@@ -5,8 +5,8 @@ end
 
 function testJointOffsetCalibration()
 num_poses = 10;
-[r, q_actual, q_indices, bodies, marker_positions_actual, marker_functions, num_unmeasured_markers, vicon_data] = setUp(num_poses);
-
+[r, q_actual, joint_indices, bodies, marker_positions_actual, marker_functions, num_unmeasured_markers, vicon_data] = setUp(num_poses);
+q_indices = [r.getBody(joint_indices).position_num];
 q_offset_max = 1e-2;
 q_noise_stddev = 1e-6;
 
@@ -18,7 +18,7 @@ scales = {100; 1};
 rng(s);
 
 options.search_floating = true;
-[q_offset_estimated, marker_params, floating_states] = jointOffsetCalibration(r, q_measured, q_indices, ...
+[q_offset_estimated, ~, marker_params, floating_states] = jointOffsetCalibration(r, q_measured, joint_indices, ...
   bodies, marker_functions, 3 * num_unmeasured_markers, vicon_data, scales, options);
 
 q_offset_error = angleDiff(q_offset_actual, q_offset_estimated);
@@ -40,19 +40,19 @@ k_initial_stddev = 1e3;
 q_noise_stddev = 1e-5;
 u_stddev = 150;
 
-[r, q_actual, q_indices, bodies, marker_positions_actual, marker_functions, num_unmeasured_markers, vicon_data] = setUp(num_poses);
+[r, q_actual, joint_indices, bodies, marker_positions_actual, marker_functions, num_unmeasured_markers, vicon_data] = setUp(num_poses);
 
 s = rng(1234, 'twister');
 
+q_indices = [r.getBody(joint_indices).position_num];
+v_indices = [r.getBody(joint_indices).velocity_num];
 nk = length(q_indices);
 k_actual = k_nominal * ones(nk, 1) + rand(nk, 1) * k_max_deviation;
 u_data = u_stddev * randn(r.getNumInputs(), num_poses);
 
 B = r.getB();
-[rows, u_indices] = find(B(q_indices, :) ~= 0);
-[~, sort_indices] = sort(rows);
-u_indices = u_indices(sort_indices);
-dq_actual = diag(1 ./ k_actual) * B(q_indices, u_indices) * u_data(u_indices, :);
+effort_data = B * u_data;
+dq_actual = diag(1 ./ k_actual) * effort_data(v_indices, :);
 
 q_measured = q_actual + q_noise_stddev * randn(size(q_actual));
 q_measured(q_indices, :) = q_measured(q_indices, :) - dq_actual;
@@ -64,7 +64,7 @@ rng(s);
 
 options.search_floating = true;
 
-[k_estimated, marker_params, floating_states] = jointStiffnessCalibration(r, q_measured, u_data, q_indices, ...
+[k_estimated, ~, marker_params, floating_states] = jointStiffnessCalibration(r, q_measured, effort_data, joint_indices, ...
   bodies, marker_functions, 3 * num_unmeasured_markers, vicon_data, ...
   scales, k_initial, options);
 
@@ -77,7 +77,7 @@ checkFloatingStates(r, bodies, q_actual, floating_states, num_poses);
 
 end
 
-function [r, q_actual, q_indices, bodies, marker_positions_actual, marker_functions, num_unmeasured_markers, vicon_data] = setUp(num_poses)
+function [r, q_actual, joint_indices, bodies, marker_positions_actual, marker_functions, num_unmeasured_markers, vicon_data] = setUp(num_poses)
 options.floating = 'rpy';
 w = warning('off','Drake:RigidBodyManipulator:UnsupportedVelocityLimits');
 warning('off','Drake:RigidBodyManipulator:UnsupportedContactPoints');
@@ -89,7 +89,6 @@ bodies = zeros(2,1);
 bodies(1) = r.findLinkId('utorso');
 bodies(2) = r.findLinkId('r_hand');
 [~, joint_indices] = r.findKinematicPath(bodies(1), bodies(2));
-q_indices = [r.getBody(joint_indices).position_num];
 
 % settings
 marker_measurement_stddev = 1e-5;
