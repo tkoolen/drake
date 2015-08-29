@@ -86,7 +86,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
   double foot_z = mxGetScalar(prhs[narg++]);
 
   KinematicsCache<double> cache(pdata->r->bodies, 0); // FIXME: pass this into the function.
-  pdata->r->doKinematics(q, qd, cache, false, false);
+  pdata->r->doKinematics(q, qd, cache, false);
 
   // TODO: this must be updated to use quaternions/spatial velocity
   auto pelvis_pose_gradientvar = pdata->r->forwardKin(cache, Vector3d::Zero().eval(), pdata->pelvis_body_index, 0, 1, 1);
