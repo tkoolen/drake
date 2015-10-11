@@ -104,11 +104,11 @@ template <typename Derived>
 Eigen::Matrix<typename Derived::Scalar, 3, 3> quat2rotmat(const Eigen::MatrixBase<Derived>& q)
 {
   EIGEN_STATIC_ASSERT_VECTOR_SPECIFIC_SIZE(Eigen::MatrixBase<Derived>, 4);
-  auto q_normalized = q.normalized();
-  auto w = q_normalized(0);
-  auto x = q_normalized(1);
-  auto y = q_normalized(2);
-  auto z = q_normalized(3);
+//  auto q_normalized = q.normalized();
+  auto w = q(0);
+  auto x = q(1);
+  auto y = q(2);
+  auto z = q(3);
 
   Eigen::Matrix<typename Derived::Scalar, 3, 3> M;
   M.row(0) << w * w + x * x - y * y - z * z, 2.0 * x * y - 2.0 * w * z, 2.0 * x * z + 2.0 * w * y;
@@ -410,17 +410,16 @@ typename Gradient<Eigen::Matrix<typename Derived::Scalar, 3, 3>, QUAT_SIZE>::typ
   typename Gradient<Eigen::Matrix<typename Derived::Scalar, 3, 3>, QUAT_SIZE>::type ret;
   typename Eigen::MatrixBase<Derived>::PlainObject qtilde;
   typename Gradient<Derived, QUAT_SIZE>::type dqtilde;
-  normalizeVec(q, qtilde, &dqtilde);
 
   typedef typename Derived::Scalar Scalar;
-  Scalar w=qtilde(0);
-  Scalar x=qtilde(1);
-  Scalar y=qtilde(2);
-  Scalar z=qtilde(3);
+  Scalar w=q(0);
+  Scalar x=q(1);
+  Scalar y=q(2);
+  Scalar z=q(3);
 
   ret << w, x, -y, -z, z, y, x, w, -y, z, -w, x, -z, y, x, -w, w, -x, y, -z, x, w, z, y, y, z, w, x, -x, -w, z, y, w, -x, -y, z;
   ret *= 2.0;
-  ret *= dqtilde;
+//  ret *= dqtilde;
   return ret;
 }
 
@@ -715,14 +714,14 @@ void quatdot2angularvelMatrix(const Eigen::MatrixBase<DerivedQ>& q,
   EIGEN_STATIC_ASSERT_VECTOR_SPECIFIC_SIZE(Eigen::MatrixBase<DerivedQ>, QUAT_SIZE);
   EIGEN_STATIC_ASSERT_MATRIX_SPECIFIC_SIZE(Eigen::MatrixBase<DerivedM>, SPACE_DIMENSION, QUAT_SIZE);
 
-  typename DerivedQ::PlainObject qtilde;
+  typename DerivedQ::PlainObject qtilde = q;
   if (dM) {
     typename Gradient<DerivedQ, QUAT_SIZE>::type dqtilde;
-    normalizeVec(q, qtilde, &dqtilde);
+//    normalizeVec(q, qtilde, &dqtilde);
     (*dM) << 0.0, -2.0, 0.0, 0.0, 0.0, 0.0, -2.0, 0.0, 0.0, 0.0, 0.0, -2.0, 2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 2.0, 0.0, 0.0, -2.0, 0.0, 0.0, 0.0, 0.0, -2.0, 2.0, 0.0, 0.0, 0.0, 0.0, 2.0, 0.0, 0.0, 0.0, 0.0, 2.0, 0.0, 0.0, -2.0, 0.0, 0.0, 2.0, 0.0, 0.0, 0.0;
-    (*dM) *= dqtilde;
+//    (*dM) *= dqtilde;
   } else {
-    normalizeVec(q, qtilde);
+//    normalizeVec(q, qtilde);
   }
   M << -qtilde(1), qtilde(0), -qtilde(3), qtilde(2), -qtilde(2), qtilde(3), qtilde(0), -qtilde(1), -qtilde(3), -qtilde(2), qtilde(1), qtilde(0);
   M *= 2.0;
@@ -1039,6 +1038,22 @@ Eigen::Matrix<typename DerivedA::Scalar, TWIST_SIZE, Eigen::Dynamic> dCrossSpati
   ret = -ret;
   return ret;
 };
+
+
+/**
+ * This exists because the inverse method of Transform switches between different types of transforms depending on transform characteristics.
+ * All of these methods will be compiled when the inverse() template method is instantiated.
+ * Only in the Isometry case is the inverse of the linear part equal to the transpose.
+ * For e.g. TrigPoly inputs, a general inverse is not a polynomial, but the transpose is.
+ */
+template<typename Scalar, int Dim, int Options>
+Eigen::Transform<Scalar, Dim, Eigen::Isometry, Options> isometryInverse(const Eigen::Transform<Scalar, Dim, Eigen::Isometry, Options>& other) {
+  Eigen::Transform<Scalar, Dim, Eigen::Isometry, Options> ret;
+  ret.matrix().template topLeftCorner<Dim,Dim>() = other.linear().transpose();
+  ret.matrix().template topRightCorner<Dim,1>() = - ret.matrix().template topLeftCorner<Dim,Dim>() * other.translation();
+  ret.makeAffine();
+  return ret;
+}
 
 /*
  * spatial transform gradient methods
