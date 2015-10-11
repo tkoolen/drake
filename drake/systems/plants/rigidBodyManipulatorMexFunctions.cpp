@@ -83,31 +83,36 @@ typedef AutoDiffScalar<VectorXd> AutoDiffDynamicSize;
 void centerOfMassJacobianDotTimesVmex(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
   auto func_double = make_function(&RigidBodyManipulator::centerOfMassJacobianDotTimesV<double>);
   auto func_autodiff_dynamic = make_function(&RigidBodyManipulator::centerOfMassJacobianDotTimesV<AutoDiffDynamicSize>);
-  mexTryToCallFunctions(nlhs, plhs, nrhs, prhs, func_double, func_autodiff_dynamic);
+//  auto func_trigpoly = make_function(&RigidBodyManipulator::centerOfMassJacobianDotTimesV<TrigPolyd>);
+  mexTryToCallFunctions(nlhs, plhs, nrhs, prhs, func_double, func_autodiff_dynamic); //, func_trigpoly);
 }
 
 void centerOfMassmex(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
   auto func_double = make_function(&RigidBodyManipulator::centerOfMass<double>);
   auto func_autodiff_dynamic = make_function(&RigidBodyManipulator::centerOfMass<AutoDiffDynamicSize>);
-  mexTryToCallFunctions(nlhs, plhs, nrhs, prhs, func_double, func_autodiff_dynamic);
+//  auto func_trigpoly = make_function(&RigidBodyManipulator::centerOfMass<TrigPolyd>);
+  mexTryToCallFunctions(nlhs, plhs, nrhs, prhs, func_double, func_autodiff_dynamic); //, func_trigpoly);
 }
 
 void centerOfMassJacobianmex(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
   auto func_double = make_function(&RigidBodyManipulator::centerOfMassJacobian<double>);
   auto func_autodiff_dynamic = make_function(&RigidBodyManipulator::centerOfMassJacobian<AutoDiffDynamicSize>);
-  mexTryToCallFunctions(nlhs, plhs, nrhs, prhs, func_double, func_autodiff_dynamic);
+//  auto func_trigpoly = make_function(&RigidBodyManipulator::centerOfMassJacobian<TrigPolyd>);
+  mexTryToCallFunctions(nlhs, plhs, nrhs, prhs, func_double, func_autodiff_dynamic); //, func_trigpoly);
 }
 
 void centroidalMomentumMatrixDotTimesvmex(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
   auto func_double = make_function(&RigidBodyManipulator::centroidalMomentumMatrixDotTimesV<double>);
   auto func_autodiff_dynamic = make_function(&RigidBodyManipulator::centroidalMomentumMatrixDotTimesV<AutoDiffDynamicSize>);
-  mexTryToCallFunctions(nlhs, plhs, nrhs, prhs, func_double, func_autodiff_dynamic);
+//  auto func_trigpoly = make_function(&RigidBodyManipulator::centroidalMomentumMatrixDotTimesV<TrigPolyd>);
+  mexTryToCallFunctions(nlhs, plhs, nrhs, prhs, func_double, func_autodiff_dynamic); //, func_trigpoly);
 }
 
 void centroidalMomentumMatrixmex(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
   auto func_double = make_function(&RigidBodyManipulator::centroidalMomentumMatrix<double>);
   auto func_autodiff_dynamic = make_function(&RigidBodyManipulator::centroidalMomentumMatrix<AutoDiffDynamicSize>);
-  mexTryToCallFunctions(nlhs, plhs, nrhs, prhs, func_double, func_autodiff_dynamic);
+//  auto func_trigpoly = make_function(&RigidBodyManipulator::centroidalMomentumMatrix<TrigPolyd>);
+  mexTryToCallFunctions(nlhs, plhs, nrhs, prhs, func_double, func_autodiff_dynamic); //, func_trigpoly);
 }
 
 template <typename DerivedQ, typename DerivedV>
@@ -121,10 +126,14 @@ void doKinematicsTemp(const RigidBodyManipulator &model, KinematicsCache<typenam
 }
 
 void doKinematicsmex(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
-  typedef Matrix<AutoDiffScalar<VectorXd>, Dynamic, 1> VectorXAutoDiff;
   auto func_double = make_function(&doKinematicsTemp<Map<const VectorXd>, Map<const VectorXd>>);
+
+  typedef Matrix<AutoDiffScalar<VectorXd>, Dynamic, 1> VectorXAutoDiff;
   auto func_autodiff_dynamic = make_function(&doKinematicsTemp<VectorXAutoDiff, VectorXAutoDiff>);
-  mexTryToCallFunctions(nlhs, plhs, nrhs, prhs, func_double, func_autodiff_dynamic);
+
+  typedef Matrix<TrigPolyd, Dynamic, 1> VectorXTrigPoly;
+  auto func_trigpoly = make_function(&doKinematicsTemp<VectorXTrigPoly, VectorXTrigPoly>);
+  mexTryToCallFunctions(nlhs, plhs, nrhs, prhs, func_double, func_autodiff_dynamic, func_trigpoly);
 }
 
 void findKinematicPathmex(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
@@ -139,7 +148,10 @@ void forwardJacDotTimesVmex(int nlhs, mxArray *plhs[], int nrhs, const mxArray *
   typedef Matrix<AutoDiffDynamicSize, 3, Dynamic> DerivedPointsAutoDiff;
   auto func_autodiff_dynamic = make_function(&RigidBodyManipulator::forwardJacDotTimesV<DerivedPointsAutoDiff>);
 
-  mexTryToCallFunctions(nlhs, plhs, nrhs, prhs, func_double, func_autodiff_dynamic);
+//  typedef Matrix<TrigPolyd, 3, Dynamic> DerivedPointsTrigPoly;
+//  auto func_trigpoly = make_function(&RigidBodyManipulator::forwardJacDotTimesV<DerivedPointsTrigPoly>);
+
+  mexTryToCallFunctions(nlhs, plhs, nrhs, prhs, func_double, func_autodiff_dynamic); //, func_trigpoly);
 }
 
 void forwardKinmex(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
@@ -148,6 +160,10 @@ void forwardKinmex(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 
   typedef Matrix<AutoDiffDynamicSize, 3, Dynamic> DerivedPointsAutoDiff;
   auto func_autodiff_dynamic = make_function(&RigidBodyManipulator::forwardKin<DerivedPointsAutoDiff>);
+
+  // can't add this because of rotmat2quat, rotmat2rpy
+//  typedef Matrix<TrigPolyd, 3, Dynamic> DerivedPointsTrigPoly;
+//  auto func_trigpoly = make_function(&RigidBodyManipulator::forwardKin<DerivedPointsTrigPoly>);
 
   mexTryToCallFunctions(nlhs, plhs, nrhs, prhs, func_double, func_autodiff_dynamic);
 }
@@ -159,21 +175,26 @@ void forwardKinJacobianmex(int nlhs, mxArray *plhs[], int nrhs, const mxArray *p
   typedef Matrix<AutoDiffDynamicSize, 3, Dynamic> DerivedPointsAutoDiff;
   auto func_autodiff_dynamic = make_function(&RigidBodyManipulator::forwardKinJacobian<DerivedPointsAutoDiff>);
 
-  mexTryToCallFunctions(nlhs, plhs, nrhs, prhs, func_double, func_autodiff_dynamic);
+//  typedef Matrix<TrigPolyd, 3, Dynamic> DerivedPointsTrigPoly;
+//  auto func_trigpoly = make_function(&RigidBodyManipulator::forwardKinJacobian<DerivedPointsTrigPoly>);
+
+  mexTryToCallFunctions(nlhs, plhs, nrhs, prhs, func_double, func_autodiff_dynamic); //, func_trigpoly);
 }
 
 void forwardKinPositionGradientmex(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
   auto func_double = make_function(&RigidBodyManipulator::forwardKinPositionGradient<double>);
   auto func_autodiff_dynamic = make_function(&RigidBodyManipulator::forwardKinPositionGradient<AutoDiffDynamicSize>);
+//  auto func_trigpoly = make_function(&RigidBodyManipulator::forwardKinPositionGradient<TrigPolyd>);
 
-  mexTryToCallFunctions(nlhs, plhs, nrhs, prhs, func_double, func_autodiff_dynamic);
+  mexTryToCallFunctions(nlhs, plhs, nrhs, prhs, func_double, func_autodiff_dynamic); //, func_trigpoly);
 }
 
 void geometricJacobianDotTimesVmex(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
   auto func_double = make_function(&RigidBodyManipulator::geometricJacobianDotTimesV<double>);
   auto func_autodiff_dynamic = make_function(&RigidBodyManipulator::geometricJacobianDotTimesV<AutoDiffDynamicSize>);
+  auto func_trigpoly = make_function(&RigidBodyManipulator::geometricJacobianDotTimesV<TrigPolyd>);
 
-  mexTryToCallFunctions(nlhs, plhs, nrhs, prhs, func_double, func_autodiff_dynamic);
+  mexTryToCallFunctions(nlhs, plhs, nrhs, prhs, func_double, func_autodiff_dynamic, func_trigpoly);
 }
 
 template <typename Scalar>
@@ -185,13 +206,15 @@ GradientVar<Scalar, TWIST_SIZE, Eigen::Dynamic> geometricJacobianTemp(const Rigi
 void geometricJacobianmex(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
   auto func_double = make_function(&geometricJacobianTemp<double>);
   auto func_autodiff_dynamic = make_function(&geometricJacobianTemp<AutoDiffDynamicSize>);
-  mexTryToCallFunctions(nlhs, plhs, nrhs, prhs, func_double, func_autodiff_dynamic);
+  auto func_trigpoly = make_function(&geometricJacobianTemp<TrigPolyd>);
+  mexTryToCallFunctions(nlhs, plhs, nrhs, prhs, func_double, func_autodiff_dynamic, func_trigpoly);
 }
 
 void massMatrixmex(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
   auto func_double = make_function(&RigidBodyManipulator::massMatrix<double>);
   auto func_autodiff_dynamic = make_function(&RigidBodyManipulator::massMatrix<AutoDiffScalar<VectorXd>>);
-  mexTryToCallFunctions(nlhs, plhs, nrhs, prhs, func_double, func_autodiff_dynamic);
+  auto func_trigpoly = make_function(&RigidBodyManipulator::massMatrix<TrigPolyd>);
+  mexTryToCallFunctions(nlhs, plhs, nrhs, prhs, func_double, func_autodiff_dynamic, func_trigpoly);
 }
 
 template <typename Scalar, typename DerivedF, typename DerivedDF>
@@ -225,6 +248,7 @@ GradientVar<Scalar, Eigen::Dynamic, 1>  dynamicsBiasTermTemp(const RigidBodyMani
 void dynamicsBiasTermmex(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
   auto func_double = make_function(&dynamicsBiasTermTemp<double, Map<const Matrix<double, 6, Dynamic> >, Map<const Matrix<double, Dynamic, Dynamic> > >);
   auto func_autodiff_dynamic = make_function(&dynamicsBiasTermTemp<AutoDiffDynamicSize, Matrix<AutoDiffDynamicSize, 6, Dynamic>, Matrix<AutoDiffDynamicSize, Dynamic, Dynamic> >);
+  auto func_trigpoly = make_function(&dynamicsBiasTermTemp<TrigPolyd, Matrix<TrigPolyd, 6, Dynamic>, Matrix<TrigPolyd, Dynamic, Dynamic> >);
 
-  mexTryToCallFunctions(nlhs, plhs, nrhs, prhs, func_double, func_autodiff_dynamic);
+  mexTryToCallFunctions(nlhs, plhs, nrhs, prhs, func_double, func_autodiff_dynamic, func_trigpoly);
 }

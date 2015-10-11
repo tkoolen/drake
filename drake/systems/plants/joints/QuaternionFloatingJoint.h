@@ -64,8 +64,8 @@ public:
     typename Gradient<Eigen::Matrix<Scalar, 4, 1>, QUAT_SIZE, 1>::type dquattildedquat;
 
     if (dqdot_to_v) {
-      typename Gradient<Eigen::Matrix<Scalar, 4, 1>, QUAT_SIZE, 2>::type ddquattildedquat;
-      normalizeVec(quat, quattilde, &dquattildedquat, &ddquattildedquat);
+//      typename Gradient<Eigen::Matrix<Scalar, 4, 1>, QUAT_SIZE, 2>::type ddquattildedquat;
+//      normalizeVec(quat, quattilde, &dquattildedquat, &ddquattildedquat);
       auto dR = dquat2rotmat(quat);
       typename Gradient<Eigen::Matrix<Scalar, SPACE_DIMENSION, QUAT_SIZE>, QUAT_SIZE, 1>::type dM;
       quatdot2angularvelMatrix(quat, M, &dM);
@@ -73,13 +73,13 @@ public:
       RTransposeM.noalias() = R.transpose() * M;
       auto dRTranspose = transposeGrad(dR, R.rows());
       auto dRTransposeM = matGradMultMat(R.transpose(), M, dRTranspose, dM);
-      auto dRTransposeMdquattildedquat = matGradMultMat(RTransposeM, dquattildedquat, dRTransposeM, ddquattildedquat);
+//      auto dRTransposeMdquattildedquat = matGradMultMat(RTransposeM, dquattildedquat, dRTransposeM, ddquattildedquat);
       dqdot_to_v->setZero(qdot_to_v.size(), getNumPositions());
       setSubMatrixGradient<4>(*dqdot_to_v, dRTranspose, intRange<3>(3), intRange<3>(0), qdot_to_v.rows(), 3);
-      setSubMatrixGradient<4>(*dqdot_to_v, dRTransposeMdquattildedquat, intRange<3>(0), intRange<4>(3), qdot_to_v.rows(), 3);
+      setSubMatrixGradient<4>(*dqdot_to_v, dRTransposeM, intRange<3>(0), intRange<4>(3), qdot_to_v.rows(), 3);
     }
     else {
-      normalizeVec(quat, quattilde, &dquattildedquat);
+//      normalizeVec(quat, quattilde, &dquattildedquat);
       quatdot2angularvelMatrix(quat, M);
       RTransposeM.noalias() = R.transpose() * M;
     }

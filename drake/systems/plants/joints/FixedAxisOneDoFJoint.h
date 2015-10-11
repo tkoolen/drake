@@ -89,13 +89,13 @@ public:
     using std::abs;
     typedef typename DerivedV::Scalar Scalar;
     ret.value()[0] = damping * v[0];
-    Scalar coulomb_window_fraction = v[0] / coulomb_window;
-    ret.value()[0] += std::min(static_cast<Scalar>(1.0), std::max(static_cast<Scalar>(-1.0), coulomb_window_fraction)) * coulomb_friction;
-    if (gradient_order > 0) {
-      ret.gradient().value()(0, 0) = damping;
-      if (abs(v[0]) < coulomb_window)
-        ret.gradient().value()(0, 0) += sign(v[0]) * (coulomb_friction / coulomb_window);
-    }
+//    Scalar coulomb_window_fraction = v[0] / coulomb_window;
+//    ret.value()[0] += std::min(static_cast<Scalar>(1.0), std::max(static_cast<Scalar>(-1.0), coulomb_window_fraction)) * coulomb_friction;
+//    if (gradient_order > 0) {
+//      ret.gradient().value()(0, 0) = damping;
+//      if (abs(v[0]) < coulomb_window)
+//        ret.gradient().value()(0, 0) += sign(v[0]) * (coulomb_friction / coulomb_window);
+//    }
     return ret;
   }
 

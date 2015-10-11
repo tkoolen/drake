@@ -7,6 +7,7 @@
 #include <random>
 #include "drakeGeometryUtil.h"
 #include "GradientVar.h"
+#include "TrigPoly.h"
 
 #undef DLLEXPORT_DRAKEJOINT
 #if defined(WIN32) || defined(WIN64)
@@ -83,6 +84,8 @@ public:
   POSITION_AND_VELOCITY_DEPENDENT_METHODS(double)
 
   POSITION_AND_VELOCITY_DEPENDENT_METHODS(Eigen::AutoDiffScalar<Eigen::VectorXd>)
+
+  POSITION_AND_VELOCITY_DEPENDENT_METHODS(TrigPolyd)
 
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
