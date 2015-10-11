@@ -248,6 +248,25 @@ std::ostream& operator<<(std::ostream& os, const Eigen::Matrix<TrigPoly<Coeffici
   return os;
 }
 
+template<typename CoefficientType>
+struct Eigen::NumTraits<TrigPoly<CoefficientType>> {
+  typedef TrigPoly<typename Eigen::NumTraits<CoefficientType>::Real> Real;
+  typedef TrigPoly<CoefficientType> NonInteger;
+  typedef TrigPoly<CoefficientType> Nested;
+  enum {
+    IsComplex = Eigen::NumTraits<CoefficientType>::IsComplex,
+    IsInteger = 0,
+    ReadCost = Eigen::NumTraits<CoefficientType>::ReadCost,
+    AddCost = Eigen::NumTraits<CoefficientType>::AddCost,
+    MulCost = Eigen::NumTraits<CoefficientType>::MulCost,
+    IsSigned = 1,
+    RequireInitialization = 1
+  };
+  // TODO: Real epsilon()
+  // TODO: Real dummy_precision()
+  // TODO: highest(), lowest()
+};
+
 typedef TrigPoly<double> TrigPolyd;
 
 #endif
