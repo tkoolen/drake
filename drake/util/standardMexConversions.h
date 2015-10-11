@@ -48,6 +48,15 @@ Eigen::Matrix<Eigen::AutoDiffScalar<DerType>, Rows, Cols, Options, MaxRows, MaxC
   return taylorVarToEigen<Rows, Cols>(mex);
 }
 
+template<typename CoefficientType, int Rows, int Cols, int Options, int MaxRows, int MaxCols>
+Eigen::Matrix<TrigPoly<CoefficientType>, Rows, Cols, Options, MaxRows, MaxCols> fromMex(
+    const mxArray *mex, Eigen::MatrixBase<Eigen::Matrix<TrigPoly<CoefficientType>, Rows, Cols, Options, MaxRows, MaxCols>> *) {
+  if (!mxIsClass(mex, "TrigPoly"))
+    throw MexToCppConversionError("Expected an array of TrigPoly");
+
+  return trigPolyToEigen(mex);
+}
+
 /**
  * toMex specializations
  */
