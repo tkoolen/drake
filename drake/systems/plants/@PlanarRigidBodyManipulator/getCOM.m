@@ -14,6 +14,6 @@ com = model.T_2D_to_3D'*com;
 if nargout>1
   J = model.T_2D_to_3D'*J;
   if nargout>2
-    error('need to implement dJ');
+    dJ = model.T_2D_to_3D'*dJ;
   end
 end

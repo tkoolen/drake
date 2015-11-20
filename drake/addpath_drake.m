@@ -48,6 +48,7 @@ addpath(fullfile(root,'solvers','trajectoryOptimization'));
 addpath(fullfile(root,'util'));
 addpath(fullfile(root,'util','geometry'));
 addpath(fullfile(root,'util','visualization'));
+addpath(fullfile(root,'util','sosutil'));
 addpath(fullfile(root,'thirdParty'));
 addpath(fullfile(root,'thirdParty','path'));
 addpath(fullfile(root,'thirdParty','spatial'));
