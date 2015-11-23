@@ -392,7 +392,7 @@ classdef LQRTree < HybridDrakeSystem
         % try to find a trajectory
         prog = DircolTrajectoryOptimization(p,nbreaks,[options.Tslb,options.Tsub]);
         prog = prog.addStateConstraint(ConstantConstraint(xs),1);
-        prog = prog.addStateConstraint(FunctionHandleConstraint(0,0,nX,@c.onTreeConstraint),nbreaks);
+        prog = prog.addStateConstraint(FunctionHandleConstraint(zeros(nX,1),zeros(nX,1),nX,@c.onTreeConstraint),nbreaks);
         prog = prog.addRunningCost(@(t,x,u)trajCost(t,x,u,.01));
         prog = prog.addFinalCost(@trajFinalCost);
         [xtraj,utraj,~,~,info] = prog.solveTraj(tf0);
