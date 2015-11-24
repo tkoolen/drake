@@ -13,7 +13,7 @@ function contourSpotless(poly,x_var,y_var,x_range,y_range,const_vars,const_vals,
 % @input const_vals corresponding constant values
 % @input contour_value Set to plot only a specific value
 % @input color Optional color argument
-% @input x_count Number of x-values to sample, default 200
+% @input x_count Number of x-values to sample, default 500
 % @input y_count
 
 poly = poly(:);
@@ -31,10 +31,10 @@ if nargin < 9
   color = [];
 end
 if nargin < 10
-  x_count = 200;
+  x_count = 500;
 end
 if nargin < 11
-  y_count = 200;
+  y_count = 500;
 end
 
 
