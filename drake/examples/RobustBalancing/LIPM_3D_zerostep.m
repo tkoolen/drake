@@ -1,3 +1,6 @@
+checkDependency('spotless')
+checkDependency('mosek')
+
 prog = spotsosprog;
 degree = 6;
 

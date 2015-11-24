@@ -1,7 +1,9 @@
-% clear all
+clear all
 
+n = 2; % step count
 
-load V0_LIPM
+data=load(sprintf('V%d_LIPM',n-1));
+V0 = data.Vsol;
 prog = spotsosprog;
 degree = 6;
 
@@ -127,4 +129,4 @@ figure(2)
 hold off
 contourSpotless([Vsol;h_X;r_ic'*r_ic],plot_vars(1),plot_vars(2),[-R_diag(1) R_diag(1)],[-R_diag(2) R_diag(2)],sub_vars,sub_val,[0 0 .07],{'b','r','g'});
 %%
-save V1_LIPM Vsol;
+save V1_LIPM Vsol
