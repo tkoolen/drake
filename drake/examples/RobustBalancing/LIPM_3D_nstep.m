@@ -2,7 +2,7 @@
 % Constant height, angular momentum model
 % Control input is the foot position on each step (massless foot)
 
-clear all
+% clear all
 
 n = 2; % step count
 
@@ -116,7 +116,8 @@ plot_vars = [q(1);v(1)];
 figure(1)
 contourSpotless([Wsol;h_X],plot_vars(1),plot_vars(2),[-R_diag(1) R_diag(1)],[-R_diag(2) R_diag(2)],sub_vars,sub_val,[1 0],{'b','r'});
 
-figure(2)
+figure(n*10+2)
 contourSpotless([Vsol;h_X;r_ic'*r_ic],plot_vars(1),plot_vars(2),[-R_diag(1) R_diag(1)],[-R_diag(2) R_diag(2)],sub_vars,sub_val,[0 0 .07],{'b','r','g'});
+
 %%
 save(sprintf('V%d_LIPM',n),'Vsol')
