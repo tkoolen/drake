@@ -2,45 +2,46 @@ function LIPM_3D_nstep(n)
 % Run an n-step reachability problem for the LIPM
 % Constant height, angular momentum model
 % Control input is the foot position on each step (massless foot)
+
 checkDependency('spotless');
 checkDependency('mosek');
 
-if n == 0
-  LIPM_3D_zerostep();
-  return;
+
+%% Load previous problem data
+if n > 0
+  filename = sprintf('V%d_LIPM.mat',n-1);
+  if ~exist(filename, 'file')
+    LIPM_3D_nstep(n - 1);
+  end
+  data=load(sprintf('V%d_LIPM',n-1));
+  V0 = data.Vsol;
 end
 
-% load previous problem data
-filename = sprintf('V%d_LIPM.mat',n-1);
-if ~exist(filename, 'file')
-  LIPM_3D_nstep(n - 1);
-end
-data=load(sprintf('V%d_LIPM',n-1));
-V0 = data.Vsol;
-
-% solution method settings
+%% Solution method settings
 degree = 6; % degree of V,W
 do_backoff = false; % solve once, then remove cost function and re-solve with cost as constraint (to improve numerical conditioning)
 time_varying = true; % Let V depend on t--probably want it true for this problem class
 R_diag = [2 2 2 2]; % state space ball
 
-% model parameters
-T = .3;  % Step-time
+%% Model parameters
+T = 2; %0.3;  % Step-time
 g = 10;  % gravity acceleration
 z_nom = 1; % nominal center of mass height
 step_max = .7; % max step distance
 
-% Create SOS program
+%% Create SOS program
 prog = spotsosprog;
 
+%% Create indeterminates
 [prog,t]=prog.newIndeterminate('t',1);
 [prog,q]=prog.newIndeterminate('q',2);
 [prog,v]=prog.newIndeterminate('v',2);
-[prog,u]=prog.newIndeterminate('u',2);
+if n > 0
+  [prog,u]=prog.newIndeterminate('u',2);
+end
 x = [q;v];
 
-
-% Create polynomials V(t,x) and W(x)
+%% Create polynomials V(t,x) and W(x)
 if time_varying
   V_vars = [t;x];
 else
@@ -50,10 +51,11 @@ W_vars = x;
 [prog,V] = prog.newFreePoly(monomials(V_vars,0:degree));
 [prog,W] = prog.newFreePoly(monomials(W_vars,0:degree));
 
-% LIPM dynamics
+%% LIPM dynamics
 f = [v;q*g/z_nom];
 
-% time rescaling
+% Time rescaling
+% tau = t / T
 % dx/dtau = dx/dt * dt/dtau = dx/dt*T
 T_unscaled = T;
 f = f*T;
@@ -61,7 +63,7 @@ T = 1;
 
 Vdot = diff(V,x)*f + diff(V,t);
 
-% goal region
+%% Goal region
 if n > 0
   % jump equation
   % control input changes q only
@@ -77,39 +79,56 @@ else
   V0p = goal_radius^2 - x'*x;
 end
 
-
+% State constraint
 A = diag(1./(R_diag.^2));
 h_X = 1 - x'*A*x;
 
-% 4 SOS constraints
-% (1) V(T,x) >= 0 for x in goal region
+%% SOS constraints
+sos = msspoly;
+if n > 0
+  % (1) V(T,x) >= 0 for x in goal region
+  % goal region
+  [prog, goal_sos] = spotless_add_sprocedure(prog, (subs(V,t,T))*(1+x'*x + u'*u), V0p,[W_vars;u],2);
+
+  % state constraint
+  [prog, goal_sos] = spotless_add_sprocedure(prog, goal_sos, h_X,[W_vars;u],degree);
+
+  % control input limit -step_max <= u <= step_max
+  [prog, goal_sos] = spotless_add_sprocedure(prog, goal_sos, step_max^2-u'*u,[W_vars;u],degree);
+else
+  % (1) V(t,x) >= 0 for x in goal region
+  [prog, goal_sos] = spotless_add_sprocedure(prog, V, V0p,V_vars,degree-2);
+
+  if time_varying
+    [prog, goal_sos] = spotless_add_sprocedure(prog, goal_sos, T^2-t^2,V_vars,degree-2);
+  end
+end
+sos = [sos; goal_sos];
+
+
 % (2) -Vdot(t,x) <= 0 for x in X
-% (3) W(x) >= 0 for x in X
-% (4) W(x) >= V(0,x) + 1 for x in X
-sos = [(subs(V,t,T))*(1+x'*x + u'*u);-Vdot; W;W - subs(V,t,0) - 1];
-
-% add goal region and h_X constraints
-[prog, sos(1)] = spotless_add_sprocedure(prog, sos(1), V0p,[W_vars;u],2);
-[prog, sos(1)] = spotless_add_sprocedure(prog, sos(1), h_X,[W_vars;u],degree);
-[prog, sos(2)] = spotless_add_sprocedure(prog, sos(2), h_X,V_vars,degree-2);
-[prog, sos(3)] = spotless_add_sprocedure(prog, sos(3), h_X,W_vars,degree-2);
-[prog, sos(4)] = spotless_add_sprocedure(prog, sos(4), h_X,W_vars,degree-2);
-
-% control input limit -step_max <= u <= step_max
-[prog, sos(1)] = spotless_add_sprocedure(prog, sos(1), step_max^2-u'*u,[W_vars;u],degree);
-
-% 0 <= t < = 1
+[prog, Vdot_sos] = spotless_add_sprocedure(prog, -Vdot, h_X,V_vars,degree-2);
+% 0 <= t < = T
 % could also write this with two constraints
 if time_varying
-  [prog, sos(2)] = spotless_add_sprocedure(prog, sos(2), T^2-t^2,V_vars,degree-2);
+  [prog, Vdot_sos] = spotless_add_sprocedure(prog, Vdot_sos, T^2-t^2,V_vars,degree-2);
 end
-%% Setup cost function -- integration over a sphere and then solve
-cost = spotlessIntegral(prog,W,x,R_diag,[],[]);
+sos = [sos; Vdot_sos];
+
+% (3) W(x) >= 0 for x in X
+[prog, sos(end + 1)] = spotless_add_sprocedure(prog, W, h_X,W_vars,degree-2);
+
+% (4) W(x) >= V(0,x) + 1 for x in X
+[prog, sos(end + 1)] = spotless_add_sprocedure(prog, W - subs(V,t,0) - 1, h_X,W_vars,degree-2);
 
 for i=1:length(sos)
   prog = prog.withSOS(sos(i));
 end
 
+%% Set up cost function -- integration over a sphere
+cost = spotlessIntegral(prog,W,x,R_diag,[],[]);
+
+%% Solve
 options = spotprog.defaultOptions;
 options.verbose = true;
 options.do_fr = true;
@@ -121,7 +140,7 @@ if do_backoff
   sol = prog.minimize(0,@spot_mosek,options);
 end
 
-%% plotting
+%% Plotting
 Vsol = sol.eval(V);
 Wsol = sol.eval(W);
 sub_vars = [q(2);v(2);t];
