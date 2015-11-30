@@ -1,3 +1,5 @@
+function LIPM_3D_zerostep()
+
 % Run a 0-step reachability problem (completely passive, no actuation)
 checkDependency('spotless')
 checkDependency('mosek')
@@ -133,5 +135,6 @@ ylabel('v_1')
 title('V(0,x)')
 
 %%
-V0 = Vsol;
-save V0_LIPM V0
+save V0_LIPM Vsol
+
+end

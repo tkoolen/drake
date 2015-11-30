@@ -1,10 +1,9 @@
-% Run a 1-step reachability problem for the LIPM
+function LIPM_3D_nstep(n)
+% Run an n-step reachability problem for the LIPM
 % Constant height, angular momentum model
 % Control input is the foot position on each step (massless foot)
-
-% clear all
-
-n = 2; % step count
+checkDependency('spotless')
+checkDependency('mosek')
 
 % load previous problem data
 data=load(sprintf('V%d_LIPM',n-1));
@@ -123,3 +122,5 @@ contourSpotless([Vsol;h_X;r_ic'*r_ic],plot_vars(1),plot_vars(2),[-R_diag(1) R_di
 
 %%
 save(sprintf('V%d_LIPM',n),'Vsol')
+
+end
