@@ -2,12 +2,22 @@ function LIPM_3D_nstep(n)
 % Run an n-step reachability problem for the LIPM
 % Constant height, angular momentum model
 % Control input is the foot position on each step (massless foot)
-checkDependency('spotless')
-checkDependency('mosek')
+checkDependency('spotless');
+checkDependency('mosek');
+
+if n == 0
+  LIPM_3D_zerostep();
+  return;
+end
 
 % load previous problem data
+filename = sprintf('V%d_LIPM.mat',n-1);
+if ~exist(filename, 'file')
+  LIPM_3D_nstep(n - 1);
+end
 data=load(sprintf('V%d_LIPM',n-1));
 V0 = data.Vsol;
+
 prog = spotsosprog;
 degree = 6;
 
