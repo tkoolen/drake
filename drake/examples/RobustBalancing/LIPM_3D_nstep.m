@@ -19,6 +19,7 @@ T = .3;  % Step-time
 g = 10;  % gravity acceleration
 z_nom = 1; % nominal center of mass height
 step_max = .7; % max step distance
+dN = captureLimit(T, 0, step_max, z_nom, g, n); % theoretical max ICP distance
 
 [prog,t]=prog.newIndeterminate('t',1);
 [prog,q]=prog.newIndeterminate('q',2);
@@ -51,6 +52,7 @@ Vdot = diff(V,x)*f + diff(V,t);
 % from Koolen et. al IJRR
 % regions should depend on the instantaneous capture point
 r_ic = q + v*sqrt(z_nom/g);
+
 %% jump equation
 % control input changes q only
 % qp = qm - u 
@@ -117,7 +119,7 @@ figure(1)
 contourSpotless([Wsol;h_X],plot_vars(1),plot_vars(2),[-R_diag(1) R_diag(1)],[-R_diag(2) R_diag(2)],sub_vars,sub_val,[1 0],{'b','r'});
 
 figure(n*10+2)
-contourSpotless([Vsol;h_X;r_ic'*r_ic],plot_vars(1),plot_vars(2),[-R_diag(1) R_diag(1)],[-R_diag(2) R_diag(2)],sub_vars,sub_val,[0 0 .07],{'b','r','g'});
+contourSpotless([Vsol;h_X;r_ic'*r_ic],plot_vars(1),plot_vars(2),[-R_diag(1) R_diag(1)],[-R_diag(2) R_diag(2)],sub_vars,sub_val,[0 0 dN^2],{'b','r','g'});
 
 %%
 save(sprintf('V%d_LIPM',n),'Vsol')
