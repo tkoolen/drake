@@ -117,7 +117,7 @@ sol = prog.minimize(cost,@spot_mosek,options);
 
 if do_backoff
   % resolve problem with cost replaced by a constraint
-  prog = prog.withPos(sol.eval(cost)*1.01 - coeff*l);
+  prog = prog.withPos(sol.eval(cost)*1.01 - cost);
   sol = prog.minimize(0,@spot_mosek,options);
 end
 
