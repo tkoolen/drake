@@ -24,7 +24,11 @@ time_varying = true; % Let V depend on t--probably want it true for this problem
 R_diag = [2 2 2 2]; % state space ball
 
 %% Model parameters
-T = 2; %0.3;  % Step-time
+if n > 0
+  T = 0.3;  % Step-time
+else
+  T = 2;
+end
 g = 10;  % gravity acceleration
 z_nom = 1; % nominal center of mass height
 step_max = .7; % max step distance
