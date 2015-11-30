@@ -21,7 +21,7 @@ time_varying = true;
 
 
 % problem data
-T = 2;  %step time. Note that on actual step is taken, just the amount of tme allowd to get to the goal region
+T = 2;  %step time. Note that no actual step is taken, just the amount of time allowed to get to the goal region
 g = 10; %gravity acceleration
 z_nom = 1; %COM height
 goal_radius = .01; % Radius of goal region
