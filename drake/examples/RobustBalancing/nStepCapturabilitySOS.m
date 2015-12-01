@@ -1,4 +1,4 @@
-function nStepCapturabilitySOS(num_states, num_reset_inputs, dynamics, reset, reset_input_limits, n, options)
+function nStepCapturabilitySOS(model, n, options)
 % Run an n-step reachability problem for the LIPM
 % Constant height, angular momentum model
 % Control input is the foot position on each step (massless foot)
@@ -12,7 +12,7 @@ checkDependency('mosek');
 degree = 6; % degree of V,W
 do_backoff = false; % solve once, then remove cost function and re-solve with cost as constraint (to improve numerical conditioning)
 time_varying = n > 0; % Let V depend on t--probably want it true for this problem class
-R_diag = 2 * ones(1, num_states); % state space ball
+R_diag = 2 * ones(1, model.num_states); % state space ball
 goal_radius = .01; % radius of ball around the origin used as goal for 0-step capturability
 
 %% Load previous problem data
@@ -31,9 +31,9 @@ prog = spotsosprog;
 
 %% Create indeterminates
 [prog,t]=prog.newIndeterminate('t',1); % time
-[prog,x]=prog.newIndeterminate('x', num_states); % state
+[prog,x]=prog.newIndeterminate('x', model.num_states); % state
 if n > 0
-  [prog,s]=prog.newIndeterminate('s', num_reset_inputs); % reset map input
+  [prog,s]=prog.newIndeterminate('s', model.num_reset_inputs); % reset map input
 end
 
 %% Create polynomials V(t,x) and W(x)
@@ -47,7 +47,7 @@ W_vars = x;
 [prog,W] = prog.newFreePoly(monomials(W_vars,0:degree));
 
 %% Dynamics
-f = dynamics(t, x);
+f = model.dynamics(t, x);
 
 % Time rescaling
 % tau = t / T
@@ -61,7 +61,7 @@ Vdot = diff(V,x)*f + diff(V,t);
 %% Goal region
 if n > 0
   % jump equation
-  xp = reset(t, x, s);
+  xp = model.reset(t, x, s);
 
   % for n > 0, goal region is based off V from 0-step model
   % V0p(x) = V0(0,xp)
@@ -86,7 +86,7 @@ if n > 0
   [prog, goal_sos] = spotless_add_sprocedure(prog, goal_sos, h_X,[W_vars;s],degree);
 
   % control input limit -u_max <= u <= u_max
-  [prog, goal_sos] = spotless_add_sprocedure(prog, goal_sos, reset_input_limits(s),[W_vars;s],degree);
+  [prog, goal_sos] = spotless_add_sprocedure(prog, goal_sos, model.resetInputLimits(s),[W_vars;s],degree);
 else
   % (1) V(t,x) >= 0 for x in goal region
   [prog, goal_sos] = spotless_add_sprocedure(prog, V, V0p,V_vars,degree-2);
