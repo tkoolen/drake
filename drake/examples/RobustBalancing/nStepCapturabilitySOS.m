@@ -1,9 +1,7 @@
 function nStepCapturabilitySOS(model, n, options)
-% Run an n-step reachability problem for the LIPM
-% Constant height, angular momentum model
-% Control input is the foot position on each step (massless foot)
+% Run an n-step reachability problem
 
-% TODO: parse options struct
+% TODO: put more stuff in options struct
 
 checkDependency('spotless');
 checkDependency('mosek');
@@ -32,6 +30,11 @@ prog = spotsosprog;
 %% Create indeterminates
 [prog,t]=prog.newIndeterminate('t',1); % time
 [prog,x]=prog.newIndeterminate('x', model.num_states); % state
+if model.num_inputs > 0
+  [prog,u]=prog.newIndeterminate('u', model.num_inputs); % input
+else
+  u = msspoly;
+end
 if n > 0
   [prog,s]=prog.newIndeterminate('s', model.num_reset_inputs); % reset map input
 end
@@ -47,7 +50,7 @@ W_vars = x;
 [prog,W] = prog.newFreePoly(monomials(W_vars,0:degree));
 
 %% Dynamics
-f = model.dynamics(t, x);
+f = model.dynamics(t, x, u);
 
 % Time rescaling
 % tau = t / T
@@ -85,7 +88,7 @@ if n > 0
   % state constraint
   [prog, goal_sos] = spotless_add_sprocedure(prog, goal_sos, h_X,[W_vars;s],degree);
 
-  % control input limit -u_max <= u <= u_max
+  % reset map input limits
   [prog, goal_sos] = spotless_add_sprocedure(prog, goal_sos, model.resetInputLimits(s),[W_vars;s],degree);
 else
   % (1) V(t,x) >= 0 for x in goal region
@@ -97,12 +100,16 @@ else
 end
 sos = [sos; goal_sos];
 
-% (2) -Vdot(t,x) <= 0 for x in X
-[prog, Vdot_sos] = spotless_add_sprocedure(prog, -Vdot, h_X,V_vars,degree-2);
+% (2) -Vdot(t,x,u) <= 0 for x in X
+[prog, Vdot_sos] = spotless_add_sprocedure(prog, -Vdot, h_X,[V_vars;u],degree-2);
+
+% input limits
+[prog, Vdot_sos] = spotless_add_sprocedure(prog, Vdot_sos, model.inputLimits(u),[V_vars;u],degree);
+
 % 0 <= t < = T
 % could also write this with two constraints
 if time_varying
-  [prog, Vdot_sos] = spotless_add_sprocedure(prog, Vdot_sos, T^2-t^2,V_vars,degree-2);
+  [prog, Vdot_sos] = spotless_add_sprocedure(prog, Vdot_sos, T^2-t^2,[V_vars;u],degree-2);
 end
 sos = [sos; Vdot_sos];
 
