@@ -21,7 +21,7 @@ title('W(x)')
 % from Koolen et. al IJRR
 % regions should depend on the instantaneous capture point
 r_ic = q + v*sqrt(z_nom/g);
-dN = captureLimit(T, cop_max, step_max, z_nom, g, n); % theoretical max ICP distance
+dN = lipmCaptureLimit(T, cop_max, step_max, z_nom, g, n); % theoretical max ICP distance
 
 figure(n*10+2)
 contourSpotless([Vsol;h_X;r_ic'*r_ic],plot_vars(1),plot_vars(2),[-R_diag(1) R_diag(1)],[-R_diag(2) R_diag(2)],sub_vars,sub_val,[0 0 dN^2],{'b','r','g'});

@@ -1,10 +1,10 @@
 function lipm3DNstepCapturability(n)
 
-g = 10; % gravitational acceleration
-z_nom = 1; % nominal center of mass height
-step_max = .7; % max step distance
-step_time = 0.3;  % step time
-cop_max = 0.2;
+g = 10;
+z_nom = 1;
+step_max = .7;
+step_time = 0.3;
+cop_max = 0.2; % set to 0 to get point foot model with no continuous inputs
 
 model = LIPM3D(g, z_nom, step_max, step_time, cop_max);
 
