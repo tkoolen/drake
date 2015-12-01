@@ -1,7 +1,7 @@
 function lipm3DNstepCapturability(n)
 
-model_params.T = 0.3;  % Step-time
-model_params.g = 10; % gravity acceleration
+model_params.T = 0.3;  % step time
+model_params.g = 10; % gravitational acceleration
 model_params.z_nom = 1; % nominal center of mass height
 model_params.step_max = .7; % max step distance
 
@@ -16,7 +16,9 @@ options.plotfun = @(n, Vsol, Wsol, h_X, R_diag, t, x) lipm3DPlotFun(n, Vsol, Wso
 dynamics = @(t, x) lipmDynamics(t, x, model_params);
 reset = @lipmResetMap;
 reset_input_limits = @(u) lipmStepLimits(u, model_params);
-nStepCapturabilitySOS(dynamics, reset, reset_input_limits, n, options)
+num_states = 4;
+num_reset_inputs = 2;
+nStepCapturabilitySOS(num_states, num_reset_inputs, dynamics, reset, reset_input_limits, n, options)
 
 end
 
@@ -37,7 +39,7 @@ v = x(3 : 4);
 xp = [q - u; v];
 end
 
-function ret = lipmStepLimits(u, model_params)
+function ret = lipmStepLimits(s, model_params)
 step_max = model_params.step_max;
-ret = step_max^2 - u'*u;
+ret = step_max^2 - s'*s;
 end
