@@ -1,5 +1,6 @@
-function nStepCapturabilitySOS(model, T, n, options)
+function nStepCapturabilitySOS(model, T, R_diag, target, n, options)
 % Run an n-step reachability problem
+% @param R_diag state space ball
 
 % TODO: put more stuff in options struct
 
@@ -7,14 +8,12 @@ checkDependency('spotless');
 checkDependency('mosek');
 
 %% Solution method settings
-degree = 6; % degree of V,W
+degree = options.degree; % degree of V,W
 do_backoff = false; % solve once, then remove cost function and re-solve with cost as constraint (to improve numerical conditioning)
 time_varying = n > 0; % Let V depend on t--probably want it true for this problem class
-R_diag = 2 * ones(1, model.num_states); % state space ball
-goal_radius = .01; % radius of ball around the origin used as goal for 0-step capturability
 
 %% Load previous problem data
-filename_suffix = options.filename_suffix;
+filename_suffix = class(model);
 if n > 0
   filename = sprintf(['V%d_' filename_suffix '.mat'],n - 1);
   if ~exist(filename, 'file')
@@ -69,8 +68,7 @@ if n > 0
   % V0p(x) = V0(0,xp)
   V0p = subs(V0,[x;t],[xp;0]);
 else
-  % use a small radius around the origin  
-  V0p = goal_radius^2 - x'*x;
+  V0p = target(x);
 end
 
 % State constraint
