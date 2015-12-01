@@ -20,7 +20,7 @@ end
 %% Solution method settings
 degree = 6; % degree of V,W
 do_backoff = false; % solve once, then remove cost function and re-solve with cost as constraint (to improve numerical conditioning)
-time_varying = true; % Let V depend on t--probably want it true for this problem class
+time_varying = n > 0; % Let V depend on t--probably want it true for this problem class
 R_diag = [2 2 2 2]; % state space ball
 
 %% Model parameters
