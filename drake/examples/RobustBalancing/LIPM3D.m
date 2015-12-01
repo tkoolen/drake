@@ -21,12 +21,12 @@ classdef LIPM3D < NStepCapturabilitySOSSystem
       xdot = [v; q * obj.g/ obj.z_nom];
     end
     
-    function xp = reset(obj, t, x, s)
+    function xp = reset(obj, t, xm, s)
       % control input changes q only
       % qp = qm - u
-      q = x(1 : 2);
-      v = x(3 : 4);
-      xp = [q - s; v];
+      qm = xm(1 : 2);
+      vm = xm(3 : 4);
+      xp = [qm - s; vm];
     end
     
     function ret = resetInputLimits(obj, s)
