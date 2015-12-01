@@ -13,11 +13,10 @@ do_backoff = false; % solve once, then remove cost function and re-solve with co
 time_varying = n > 0; % Let V depend on t--probably want it true for this problem class
 
 %% Load previous problem data
-filename_suffix = class(model);
 if n > 0
-  filename = sprintf(['V%d_' filename_suffix '.mat'],n - 1);
+  filename = solutionFileName(model, n - 1);
   if ~exist(filename, 'file')
-    nStepCapturabilitySOS(model, T, n - 1, options);
+    nStepCapturabilitySOS(model, T, R_diag, target, n - 1, options);
   end
   data = load(filename);
   V0 = data.Vsol;
@@ -144,6 +143,11 @@ if isfield(options, 'plotfun')
 end
 
 %%
-save(sprintf('V%d_LIPM',n),'Vsol')
+save(solutionFileName(model, n),'Vsol')
 
+end
+
+function filename = solutionFileName(model, n)
+filename_suffix = class(model);
+filename = sprintf(['V%d_' filename_suffix '.mat'], n);
 end

@@ -4,8 +4,9 @@ g = 10; % gravitational acceleration
 z_nom = 1; % nominal center of mass height
 step_max = .7; % max step distance
 step_time = 0.3;  % step time
+cop_max = 0.2;
 
-model = LIPM3D(g, z_nom, step_max, step_time);
+model = LIPM3D(g, z_nom, step_max, step_time, cop_max);
 
 if n > 0
   T = step_time;
