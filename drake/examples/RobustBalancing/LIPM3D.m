@@ -10,12 +10,12 @@ classdef LIPM3D < NStepCapturabilitySOSSystem
   end
   
   methods
-    function obj = LIPM3D(g, z_nom, step_max, T)
+    function obj = LIPM3D(g, z_nom, step_max, step_time)
       obj@NStepCapturabilitySOSSystem(4, 0, 2);
       obj.g = g;
       obj.z_nom = z_nom;
       obj.step_max = step_max;
-      obj.T = T;
+      obj.T = step_time;
     end
     
     function xdot = dynamics(obj, t, x, u)

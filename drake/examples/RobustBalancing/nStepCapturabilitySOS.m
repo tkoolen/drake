@@ -1,4 +1,4 @@
-function nStepCapturabilitySOS(model, n, options)
+function nStepCapturabilitySOS(model, T, n, options)
 % Run an n-step reachability problem
 
 % TODO: put more stuff in options struct
@@ -18,7 +18,7 @@ filename_suffix = options.filename_suffix;
 if n > 0
   filename = sprintf(['V%d_' filename_suffix '.mat'],n - 1);
   if ~exist(filename, 'file')
-    nstepCapturabilitySOS(n - 1);
+    nStepCapturabilitySOS(model, T, n - 1, options);
   end
   data = load(filename);
   V0 = data.Vsol;
@@ -55,7 +55,6 @@ f = model.dynamics(t, x, u);
 % Time rescaling
 % tau = t / T
 % dx/dtau = dx/dt * dt/dtau = dx/dt*T
-T = options.time_scaling;
 f = f*T;
 T = 1;
 
