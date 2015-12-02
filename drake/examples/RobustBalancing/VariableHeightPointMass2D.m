@@ -42,14 +42,13 @@ classdef VariableHeightPointMass2D < NStepCapturabilitySOSSystem
       xp = [qm - [1; 0] * s; vm];
     end
     
-    % f / m = u * |q|
-    % (f / m)^2 = u^2 * q' * q
-    % want 0 < f / m < max_accel
+    % f / m = u * |q| <= f_max / m
+    % (f / m)^2 = u^2 * q' * q <= (f_max / m)^2
+    % and u > 0
     function ret = inputLimits(obj, u, x)
-      f_mid = obj.f_max / 2;
       q = x(1 : 2);
-      f = u^2 * (q' * q);
-      ret = f_mid^2 - (f - f_mid)' * (f - f_mid);
+      f_squared = u^2 * (q' * q);
+      ret = [obj.f_max^2 - f_squared; u];
     end
     
     function ret = resetInputLimits(obj, s)
