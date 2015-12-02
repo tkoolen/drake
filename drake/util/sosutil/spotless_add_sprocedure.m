@@ -20,9 +20,9 @@ for i = 1 : length(h)
       [prog,mult,coefmult] = prog.newDSOSPoly(monomials(vars,0:degree));
   end
   
-  eqn = eqn - h*mult;
+  eqn = eqn - h(i) * mult;
   
-  display(sprintf('S-proc ineq. SOS deg: %d, h deg: %d, mult deg: %d',full(deg(eqn,vars)), deg(h), degree))
+  display(sprintf('S-proc ineq. SOS deg: %d, h deg: %d, mult deg: %d',full(deg(eqn,vars)), deg(h(i)), degree))
 end
 end
 
