@@ -64,8 +64,9 @@ classdef LIPM3D < NStepCapturabilitySOSSystem
       sub_val = [0;0;0];
       plot_vars = [q(1);v(1)];
       
+      
       figure(1)
-      contourSpotless([Wsol;h_X],plot_vars(1),plot_vars(2),[-R_diag(1) R_diag(1)],[-R_diag(2) R_diag(2)],sub_vars,sub_val,[1 0],{'b','r'});
+      contourSpotless([Wsol;h_X],plot_vars(1),plot_vars(2),[-R_diag(1) R_diag(1)],[-R_diag(3) R_diag(3)],sub_vars,sub_val,[1 0],{'b','r'});
       xlabel('q_1')
       ylabel('v_1')
       title('W(x)')
@@ -76,7 +77,7 @@ classdef LIPM3D < NStepCapturabilitySOSSystem
       dN = lipmCaptureLimit(obj.T, obj.cop_max, obj.step_max, obj.z_nom, obj.g, n); % theoretical max ICP distance
       
       figure(n*10+2)
-      contourSpotless([Vsol;h_X;r_ic'*r_ic],plot_vars(1),plot_vars(2),[-R_diag(1) R_diag(1)],[-R_diag(2) R_diag(2)],sub_vars,sub_val,[0 0 dN^2],{'b','r','g'});
+      contourSpotless([Vsol;h_X;r_ic'*r_ic],plot_vars(1),plot_vars(2),[-R_diag(1) R_diag(1)],[-R_diag(3) R_diag(3)],sub_vars,sub_val,[0 0 dN^2],{'b','r','g'});
       xlabel('q_1')
       ylabel('v_1')
       title('V(0,x)')
