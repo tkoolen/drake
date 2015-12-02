@@ -44,7 +44,7 @@ classdef LIPM3D < NStepCapturabilitySOSSystem
       xp = [qm - s; vm];
     end
     
-    function ret = inputLimits(obj, u)
+    function ret = inputLimits(obj, u, x)
       if obj.num_inputs > 0
         ret = obj.cop_max^2 - u'*u;
       else

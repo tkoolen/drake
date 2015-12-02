@@ -8,19 +8,20 @@ classdef VariableHeightPointMass2D < NStepCapturabilitySOSSystem
     z_nom; % nominal height
     step_max; % max step distance
     T; % step time
-    u_max;
+    f_max; % max 'leg force'. Really f_max / mass
   end
   
   methods
-    function obj = VariableHeightPointMass2D(g, z_nom, step_max, step_time, u_max)
+    function obj = VariableHeightPointMass2D(g, z_nom, step_max, step_time, f_max)
       obj@NStepCapturabilitySOSSystem(4, 1, 1);
       obj.g = g;
       obj.z_nom = z_nom;
       obj.step_max = step_max;
       obj.T = step_time;
-      obj.u_max = u_max;
+      obj.f_max = f_max;
     end
     
+    % f: 'leg force'
     % m * vdot = [0; -mg] + f * q / |q|
     % define u = f / (m * |q|)
     % vdot = [0; -g] + u * q
@@ -41,10 +42,14 @@ classdef VariableHeightPointMass2D < NStepCapturabilitySOSSystem
       xp = [qm - [1; 0] * s; vm];
     end
     
-    % u > 0 implies f > 0
-    function ret = inputLimits(obj, u)
-      u_mid = obj.u_max / 2;
-      ret = u_mid^2 - (u - u_mid)' * (u - u_mid);
+    % f / m = u * |q|
+    % (f / m)^2 = u^2 * q' * q
+    % want 0 < f / m < max_accel
+    function ret = inputLimits(obj, u, x)
+      f_mid = obj.f_max / 2;
+      q = x(1 : 2);
+      f = u^2 * (q' * q);
+      ret = f_mid^2 - (f - f_mid)' * (f - f_mid);
     end
     
     function ret = resetInputLimits(obj, s)

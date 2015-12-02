@@ -14,7 +14,7 @@ classdef UnivariateCubic < NStepCapturabilitySOSSystem
       xp = xm;
     end
     
-    function ret = inputLimits(obj, u)
+    function ret = inputLimits(obj, u, x)
       ret = zeros(1, 1, 'like', u);
     end
     

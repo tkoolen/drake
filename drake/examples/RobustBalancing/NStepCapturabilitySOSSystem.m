@@ -19,7 +19,7 @@ classdef NStepCapturabilitySOSSystem
     xp = reset(obj, t, xm, s);
     
     %@return >= 0 for valid inputs
-    ret = inputLimits(obj, u);
+    ret = inputLimits(obj, u, x);
     
     %@return >= 0 for valid inputs
     ret = resetInputLimits(obj, s);
