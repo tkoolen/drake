@@ -137,10 +137,7 @@ end
 %% Plotting
 Vsol = sol.eval(V);
 Wsol = sol.eval(W);
-
-if isfield(options, 'plotfun')
-  options.plotfun(n, Vsol, Wsol, h_X, R_diag, t, x);
-end
+model.plotfun(n, Vsol, Wsol, h_X, R_diag, t, x);
 
 %%
 save(solutionFileName(model, n),'Vsol')

@@ -23,6 +23,8 @@ classdef NStepCapturabilitySOSSystem
     
     %@return >= 0 for valid inputs
     ret = resetInputLimits(obj, s);
+    
+    plotfun(obj, n, Vsol, Wsol, h_X, R_diag, t, x);
   end
   
 end

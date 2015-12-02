@@ -55,5 +55,32 @@ classdef LIPM3D < NStepCapturabilitySOSSystem
     function ret = resetInputLimits(obj, s)
       ret = obj.step_max^2 - s'*s;
     end
+    
+    function plotfun(obj, n, Vsol, Wsol, h_X, R_diag, t, x)
+      q = x(1 : 2);
+      v = x(3 : 4);
+      
+      sub_vars = [q(2);v(2);t];
+      sub_val = [0;0;0];
+      plot_vars = [q(1);v(1)];
+      
+      figure(1)
+      contourSpotless([Wsol;h_X],plot_vars(1),plot_vars(2),[-R_diag(1) R_diag(1)],[-R_diag(2) R_diag(2)],sub_vars,sub_val,[1 0],{'b','r'});
+      xlabel('q_1')
+      ylabel('v_1')
+      title('W(x)')
+      
+      % from Koolen et. al IJRR
+      % regions should depend on the instantaneous capture point
+      r_ic = q + v*sqrt(obj.z_nom / obj.g);
+      dN = lipmCaptureLimit(obj.T, obj.cop_max, obj.step_max, obj.z_nom, obj.g, n); % theoretical max ICP distance
+      
+      figure(n*10+2)
+      contourSpotless([Vsol;h_X;r_ic'*r_ic],plot_vars(1),plot_vars(2),[-R_diag(1) R_diag(1)],[-R_diag(2) R_diag(2)],sub_vars,sub_val,[0 0 dN^2],{'b','r','g'});
+      xlabel('q_1')
+      ylabel('v_1')
+      title('V(0,x)')
+    end
+    
   end
 end
