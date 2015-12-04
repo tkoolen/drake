@@ -1,4 +1,4 @@
-function ret = captureLimit(t_min, r_max, l_max, z0, g, N)
+function ret = lipmCaptureLimit(t_min, r_max, l_max, z0, g, N)
 % implements equation (26) in Koolen et al. IJRR 2012
 %
 % @return maximum distance between ankle and instantaneous capture point
