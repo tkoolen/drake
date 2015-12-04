@@ -100,7 +100,7 @@ sos = [sos; goal_sos];
 [prog, Vdot_sos] = spotless_add_sprocedure(prog, -Vdot, h_X,[V_vars;u],degree-2);
 
 % input limits
-[prog, Vdot_sos] = spotless_add_sprocedure(prog, Vdot_sos, model.inputLimits(u),[V_vars;u],degree);
+[prog, Vdot_sos] = spotless_add_sprocedure(prog, Vdot_sos, model.inputLimits(u, x),[V_vars;u],degree);
 
 % 0 <= t < = T
 % could also write this with two constraints
@@ -137,10 +137,7 @@ end
 %% Plotting
 Vsol = sol.eval(V);
 Wsol = sol.eval(W);
-
-if isfield(options, 'plotfun')
-  options.plotfun(n, Vsol, Wsol, h_X, R_diag, t, x);
-end
+model.plotfun(n, Vsol, Wsol, h_X, R_diag, t, x);
 
 %%
 save(solutionFileName(model, n),'Vsol')
