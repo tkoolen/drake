@@ -74,6 +74,51 @@ classdef VariableHeightPointMass2D < NStepCapturabilitySOSSystem
       xlabel('q_1')
       ylabel('v_1')
       title('V(0,x)')
+      
+      % 3d plot for z0dot = 0
+      figure(n * 10 + 3);
+      VsolSlice = subs(Vsol, [v(2); t], [0; 0]);
+      grid_size = 20;
+      [q1s, v1s, q2s] = meshgrid(...
+        linspace(-R_diag(1), R_diag(1), grid_size),...
+        linspace(-R_diag(3), R_diag(3), grid_size),...
+        linspace(-R_diag(2), R_diag(2), grid_size));
+      Vs = full(msubs(VsolSlice, [q(1); v(1); q(2)], [q1s(:)';v1s(:)'; q2s(:)']));
+      Vs = reshape(Vs, grid_size, grid_size, grid_size);
+      
+      % plot surface where constraint_left_hand_side is zero
+      p = patch(isosurface(q1s, v1s, q2s, Vs, 0), 'FaceColor', 'r', 'EdgeColor', 'none');
+      patch(isocaps(q1s,v1s,q2s,Vs,0), 'FaceColor', 'interp', 'EdgeColor', 'none');
+      
+      % graph formatting
+      isonormals(q1s,v1s,q2s,Vs, p)
+      daspect([1 1 1])
+      view(3)
+      camlight; lighting phong
+      xlabel('q_1'); ylabel('v_1'); zlabel('q_2');
+      grid on;
+      box on;
+      ax = gca();
+      set(ax, 'BoxStyle', 'full');
+      ax.XTick = linspace(-R_diag(1), R_diag(1), 5);
+      ax.YTick = linspace(-R_diag(3), R_diag(3), 5);
+      ax.ZTick = linspace(-R_diag(2), R_diag(2), 5);
+      axis vis3d
+      zoom(1.4)
+      
+      create_video = true;
+      if create_video
+        writer = VideoWriter([class(obj) '_V' num2str(n) '.avi'], 'MPEG-4');
+        set(writer, 'Quality', 90)
+        
+        open(writer);
+        dtheta = 1;
+        for i = 1 : 360 / dtheta
+          camorbit(dtheta, 0); drawnow;
+          writeVideo(writer, getframe(gcf()));
+        end
+        close(writer);
+      end
     end
   end
 end
