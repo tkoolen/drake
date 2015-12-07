@@ -23,11 +23,19 @@ for i = 1 : length(h)
       [prog,mult_i,coefmult_i] = prog.newDSOSPoly(monomials(vars,0:degree));
   end
   
+  original_deg = full(deg(eqn,vars));
+  
   eqn = eqn - h(i) * mult_i;
   mult = [mult; mult_i]; %#ok<AGROW>
   coefmult = [coefmult; coefmult_i]; %#ok<AGROW>
   
-  display(sprintf('S-proc ineq. SOS deg: %d, h deg: %d, mult deg: %d',full(deg(eqn,vars)), deg(h(i)), degree))
+  display(sprintf('S-proc ineq. SOS deg: %d, h deg: %d, mult deg: %d',original_deg, deg(h(i)), degree))
+  if original_deg < deg(h(i)) + degree
+    warning('Degree increased by s-procedure')
+  end
+  if original_deg > deg(h(i)) + degree + 1
+    warning('S-procedure degree likely too low')
+  end
 end
 end
 

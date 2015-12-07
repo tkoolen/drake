@@ -10,7 +10,7 @@ checkDependency('mosek');
 %% Solution method settings
 degree = options.degree; % degree of V,W
 do_backoff = false; % solve once, then remove cost function and re-solve with cost as constraint (to improve numerical conditioning)
-time_varying = n > 0; % Let V depend on t--probably want it true for this problem class
+time_varying = n > 0 || model.num_inputs; % Let V depend on t--probably want it true for this problem class
 
 %% Load previous problem data
 if n > 0
@@ -58,6 +58,7 @@ T = 1;
 
 Vdot = diff(V,x)*f + diff(V,t);
 
+
 %% Goal region
 if n > 0
   % jump equation
@@ -100,7 +101,7 @@ sos = [sos; goal_sos];
 [prog, Vdot_sos] = spotless_add_sprocedure(prog, -Vdot, h_X,[V_vars;u],degree-2);
 
 % input limits
-[prog, Vdot_sos] = spotless_add_sprocedure(prog, Vdot_sos, model.inputLimits(u, x),[V_vars;u],degree);
+[prog, Vdot_sos] = spotless_add_sprocedure(prog, Vdot_sos, model.inputLimits(u, x),[V_vars;u],degree-2);
 
 % 0 <= t < = T
 % could also write this with two constraints
