@@ -58,6 +58,8 @@ T = 1;
 
 Vdot = diff(V,x)*f + diff(V,t);
 
+Vdot_degree = even_degree(Vdot,[x;u]);
+
 
 %% Goal region
 if n > 0
@@ -98,15 +100,16 @@ end
 sos = [sos; goal_sos];
 
 % (2) -Vdot(t,x,u) <= 0 for x in X
-[prog, Vdot_sos] = spotless_add_sprocedure(prog, -Vdot, h_X,[V_vars;u],degree-2);
+[prog, Vdot_sos] = spotless_add_sprocedure(prog, -Vdot, h_X,[V_vars;u],Vdot_degree-2);
 
 % input limits
-[prog, Vdot_sos] = spotless_add_sprocedure(prog, Vdot_sos, model.inputLimits(u, x),[V_vars;u],degree-2);
+input_limit_degree = even_degree(model.inputLimits(u,x),[x;u]);
+[prog, Vdot_sos] = spotless_add_sprocedure(prog, Vdot_sos, model.inputLimits(u, x),[V_vars;u],[]);
 
 % 0 <= t < = T
 % could also write this with two constraints
 if time_varying
-  [prog, Vdot_sos] = spotless_add_sprocedure(prog, Vdot_sos, T^2-t^2,[V_vars;u],degree-2);
+  [prog, Vdot_sos] = spotless_add_sprocedure(prog, Vdot_sos, T^2-t^2,[V_vars;u],Vdot_degree-2);
 end
 sos = [sos; Vdot_sos];
 

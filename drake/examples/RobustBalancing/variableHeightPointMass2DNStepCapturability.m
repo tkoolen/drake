@@ -1,6 +1,6 @@
 function variableHeightPointMass2DNStepCapturability(n)
 
-g = 1;
+g = 10;
 step_max = .3;
 step_time = 0.3;
 f_max = 1.5 * g;

@@ -78,10 +78,10 @@ classdef VariableHeightPointMass2D < NStepCapturabilitySOSSystem
       % 3d plot for z0dot = 0
       hFig = figure(n * 10 + 3);
       clf;
-      variableHeightContour3D(Vsol, h_X, R_diag, t, x);
+      VariableHeightPointMass2D.variableHeightContour3D(Vsol, h_X, R_diag, t, x);
       
       % video of rotating ROA
-      create_video = true;
+      create_video = false;
       if create_video
         writer = VideoWriter([class(obj) '_V' num2str(n)], 'MPEG-4');
         set(writer, 'Quality', 90)
