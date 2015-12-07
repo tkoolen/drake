@@ -11,6 +11,20 @@ if nargin < 6
   sos_option = 1;
 end
 
+original_deg = even_degree(eqn,vars);
+
+if isempty(degree)
+  degree = zeros(length(h),1);
+  for i = 1:length(h)
+    degree(i) = original_deg - even_degree(h(i),vars);
+  end
+else
+  if length(degree) == 1
+    degree = repmat(degree,length(h),1);
+  end
+  
+end
+
 mult = msspoly;
 coefmult = msspoly;
 for i = 1 : length(h)
@@ -21,20 +35,15 @@ for i = 1 : length(h)
       [prog,mult_i,coefmult_i] = prog.newSDSOSPoly(monomials(vars,0:degree));
     case 3
       [prog,mult_i,coefmult_i] = prog.newDSOSPoly(monomials(vars,0:degree));
-  end
-  
-  original_deg = full(deg(eqn,vars));
+  end  
   
   eqn = eqn - h(i) * mult_i;
   mult = [mult; mult_i]; %#ok<AGROW>
   coefmult = [coefmult; coefmult_i]; %#ok<AGROW>
   
-  display(sprintf('S-proc ineq. SOS deg: %d, h deg: %d, mult deg: %d',original_deg, deg(h(i)), degree))
-  if original_deg < deg(h(i)) + degree
-    warning('Degree increased by s-procedure')
-  end
-  if original_deg > deg(h(i)) + degree + 1
-    warning('S-procedure degree likely too low')
+  display(sprintf('S-proc ineq. SOS deg: %d, h deg: %d, mult deg: %d',original_deg, deg(h(i)), degree(i)))
+  if original_deg ~= even_degree(h(i),vars) + degree(i);
+    warning('S-procedure degree mismatch')
   end
 end
 end
