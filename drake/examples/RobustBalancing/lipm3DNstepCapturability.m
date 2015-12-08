@@ -18,8 +18,9 @@ options.degree = 6;
 R_diag = 2 * ones(1, model.num_states);
 
 % radius of ball around the origin used as goal for 0-step capturability
-goal_radius = 0.01;
-target = @(x) goal_radius^2 - x'*x;
+% goal_radius = 0.01;
+% target = @(x) goal_radius^2 - x'*x;
+target = [];
 
 nStepCapturabilitySOS(model, T, R_diag, target, n, options)
 

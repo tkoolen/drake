@@ -7,9 +7,16 @@ function nStepCapturabilitySOS(model, T, R_diag, target, n, options)
 checkDependency('spotless');
 checkDependency('mosek');
 
+if ~isfield(options,'do_backoff')
+  options.do_backoff = false;
+end
+
+if ~isfield(options,'backoff_ratio')
+  options.backoff_ratio = 1.01;
+end
+
 %% Solution method settings
 degree = options.degree; % degree of V,W
-do_backoff = false; % solve once, then remove cost function and re-solve with cost as constraint (to improve numerical conditioning)
 time_varying = n > 0 || model.num_inputs; % Let V depend on t--probably want it true for this problem class
 
 %% Load previous problem data
@@ -70,7 +77,9 @@ if n > 0
   % V0p(x) = V0(0,xp)
   V0p = subs(V0,[x;t],[xp;0]);
 else
-  V0p = target(x);
+  if ~isempty(target)
+    V0p = target(x);
+  end
 end
 
 % State constraint
@@ -89,15 +98,23 @@ if n > 0
 
   % reset map input limits
   [prog, goal_sos] = spotless_add_sprocedure(prog, goal_sos, model.resetInputLimits(s),[W_vars;s],degree);
+  
+  sos = [sos; goal_sos];
 else
-  % (1) V(t,x) >= 0 for x in goal region
-  [prog, goal_sos] = spotless_add_sprocedure(prog, V, V0p,V_vars,degree-2);
-
-  if time_varying
-    [prog, goal_sos] = spotless_add_sprocedure(prog, goal_sos, T^2-t^2,V_vars,degree-2);
+  if ~isempty(target)
+    % (1) V(t,x) >= 0 for x in goal region
+    [prog, goal_sos] = spotless_add_sprocedure(prog, V, V0p,V_vars,degree-2);
+    
+    if time_varying
+      [prog, goal_sos] = spotless_add_sprocedure(prog, goal_sos, T^2-t^2,V_vars,degree-2);
+    end
+    
+    sos = [sos; goal_sos];
+  else
+    prog = prog.withPos(subs(subs(V,t,T),x,zeros(model.num_states,1)));
   end
 end
-sos = [sos; goal_sos];
+
 
 % (2) -Vdot(t,x,u) <= 0 for x in X
 [prog, Vdot_sos] = spotless_add_sprocedure(prog, -Vdot, h_X,[V_vars;u],Vdot_degree-2);
@@ -132,11 +149,11 @@ spot_options.verbose = true;
 spot_options.do_fr = true;
 sol = prog.minimize(cost,@spot_mosek,spot_options);
 
-if do_backoff
+if options.do_backoff
   % resolve problem with cost replaced by a constraint
-  prog = prog.withPos(sol.eval(cost)*1.01 - cost);
+  prog = prog.withPos(sol.eval(cost)*options.backoff_ratio - cost);
   sol = prog.minimize(0,@spot_mosek,spot_options);
-end
+ end
 
 %% Plotting
 Vsol = sol.eval(V);
