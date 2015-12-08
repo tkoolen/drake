@@ -147,12 +147,14 @@ cost = spotlessIntegral(prog,W,x,R_diag,[],[]);
 spot_options = spotprog.defaultOptions;
 spot_options.verbose = true;
 spot_options.do_fr = true;
-sol = prog.minimize(cost,@spot_mosek,spot_options);
+solver = @spot_mosek;
+% solver = @spot_sedumi;
+sol = prog.minimize(cost,solver,spot_options);
 
 if options.do_backoff
   % resolve problem with cost replaced by a constraint
   prog = prog.withPos(sol.eval(cost)*options.backoff_ratio - cost);
-  sol = prog.minimize(0,@spot_mosek,spot_options);
+  sol = prog.minimize(0,solver,spot_options);
  end
 
 %% Plotting
