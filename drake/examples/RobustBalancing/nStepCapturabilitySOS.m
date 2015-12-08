@@ -106,7 +106,7 @@ else
     [prog, goal_sos] = spotless_add_sprocedure(prog, V, V0p,V_vars,degree-2);
     
     if time_varying
-      [prog, goal_sos] = spotless_add_sprocedure(prog, goal_sos, T^2-t^2,V_vars,degree-2);
+      [prog, goal_sos] = spotless_add_sprocedure(prog, goal_sos, t * (T - t),V_vars,degree-2);
     end
     
     sos = [sos; goal_sos];
@@ -126,7 +126,7 @@ input_limit_degree = even_degree(model.inputLimits(u,x),[x;u]);
 % 0 <= t < = T
 % could also write this with two constraints
 if time_varying
-  [prog, Vdot_sos] = spotless_add_sprocedure(prog, Vdot_sos, T^2-t^2,[V_vars;u],Vdot_degree-2);
+  [prog, Vdot_sos] = spotless_add_sprocedure(prog, Vdot_sos, t * (T - t),[V_vars;u],Vdot_degree-2);
 end
 sos = [sos; Vdot_sos];
 
