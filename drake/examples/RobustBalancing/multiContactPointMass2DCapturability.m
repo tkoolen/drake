@@ -1,27 +1,26 @@
 function multiContactPointMass2DCapturability()
-g = 1;
-m = 1;
+g = 3;
 z_nom = 1;
 step_max = 1;
 step_time = 1;
 
-% max_forces = [2, 2];
-% normal_angles = [-deg2rad(70), deg2rad(70)];
-% normals = [sin(normal_angles); cos(normal_angles)];
-% mus = [0.1, 0.1];
-% contact_points = [...
-%   -0.5, 0.5;
-%    0.0, 0.0];
+max_forces = g * [1.5, 1.5];
+normal_angles = [-deg2rad(0), -deg2rad(30)];
+normals = [sin(normal_angles); cos(normal_angles)];
+mus = [0.8, 0.8];
+contact_points = [...
+  -0.5, 0;
+   0.0, 0.5];
 
 % reduction to single point contact:
-max_forces = 1.5;
-normals = [0; 1];
-mus = 3;
-contact_points = [0; 0];
+% max_forces = 1.5;
+% normals = [0; 1];
+% mus = 3;
+% contact_points = [0; 0];
 
-R_diag = [1, 1, 1, 1];
+R_diag = [1, 0.5, 1, 1];
 
-model = MultiContactPointMass2D(g, m, z_nom, step_max, step_time, max_forces, normals, mus, contact_points);
+model = MultiContactPointMass2D(g, z_nom, step_max, step_time, max_forces, normals, mus, contact_points);
 
 T = 2;
 options.degree = 4;
