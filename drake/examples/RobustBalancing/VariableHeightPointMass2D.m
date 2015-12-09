@@ -30,7 +30,7 @@ classdef VariableHeightPointMass2D < NStepCapturabilitySOSSystem
       q = x(1 : 2);
       q(2) = q(2) + obj.z_nom;
       v = x(3 : 4);
-      vdot = [0; -obj.g] + u * q;
+      vdot = [0; -obj.g] + u * q * obj.g;
       xdot = [v; vdot];
     end
     
@@ -47,8 +47,17 @@ classdef VariableHeightPointMass2D < NStepCapturabilitySOSSystem
     % and u > 0
     function ret = inputLimits(obj, u, x)
       q = x(1 : 2);
+      q(2) = q(2) - obj.z_nom;
       f_squared = u^2 * (q' * q);
       ret = [obj.f_max^2 - f_squared; u];
+    end
+    
+    function[umin,umax,A] = simpleInputLimits(obj,x)
+      q = x(1:2);
+      q(2) = q(2) + obj.z_nom;
+      umin = 0;
+      umax = obj.f_max/sqrt(q'*q);
+      A = [];
     end
     
     function ret = resetInputLimits(obj, s)

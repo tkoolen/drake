@@ -50,7 +50,14 @@ classdef LIPM3D < NStepCapturabilitySOSSystem
       else
         ret = zeros(1, 1, 'like', u);
       end
+    end    
+        
+    function[umin,umax,A] = simpleInputLimits(obj,x)
+      umin = [];
+      umax = [];
+      A = eye(2)/obj.cop_max^2;
     end
+    
     
     function ret = resetInputLimits(obj, s)
       ret = obj.step_max^2 - s'*s;
