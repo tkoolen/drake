@@ -113,6 +113,18 @@ classdef MultiContactPointMass2D < NStepCapturabilitySOSSystem
       xlabel('q_1')
       ylabel('v_1')
       title('V(0,x)')
+      
+      % 3d plot for t = 0, zdot = 0
+      hFig = figure(n * 10 + 3);
+      clf;
+      contourSpotless3D(subs(Vsol, [x(4); t], [0; 0]), [x(1); x(3); x(2)], 0, [R_diag(1); R_diag(3); R_diag(2)]);
+      xlabel('q_1'); ylabel('v_1'); zlabel('q_2');
+
+      % video of rotating ROA
+      create_video = false;
+      if create_video
+        createRotatingVideo([class(obj) '_V' num2str(n)], filename);
+      end
     end
   end
 end
