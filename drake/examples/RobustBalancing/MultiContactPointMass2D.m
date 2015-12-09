@@ -54,18 +54,23 @@ classdef MultiContactPointMass2D < NStepCapturabilitySOSSystem
     % also, || f_i ||^2 <= f_{max,i}^2
     function ret = inputLimits(obj, u, x)
       forces = reshape(u, 2, length(obj.max_forces));
-      ret = msspoly * zeros(0, 1);
+      num_contacts = size(forces, 2);
+      ret = zeros(3 * num_contacts, 1, 'like', u);
+      row = 1;
       for i = 1 : size(forces, 2)
         n = obj.normals(:, i);
         mu = obj.mus(i);
         f = forces(:, i);
         f_max = obj.max_forces(:, i);
-
         f_normal = n' * f;
         f_tangential = f - f_normal * n;
-        ret(end + 1) = (mu * f_normal)^2 - f_tangential' * f_tangential;
-        ret(end + 1) = f_normal;
-        ret(end + 1) = f_max^2 - f' * f;
+        
+        ret(row) =  (mu * f_normal)^2 - f_tangential' * f_tangential;
+        row = row + 1;
+        ret(row) = f_normal;
+        row = row + 1;
+        ret(row) = f_max^2 - f' * f;
+        row = row + 1;
       end
     end
     

@@ -16,7 +16,7 @@ step_time = 1;
 % reduction to single point contact:
 max_forces = 1.5;
 normals = [0; 1];
-mus = 1;
+mus = 3;
 contact_points = [0; 0];
 
 R_diag = [1, 1, 1, 1];
