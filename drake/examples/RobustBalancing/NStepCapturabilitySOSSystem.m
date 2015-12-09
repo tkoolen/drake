@@ -30,4 +30,11 @@ classdef NStepCapturabilitySOSSystem
     plotfun(obj, n, Vsol, Wsol, h_X, R_diag, t, x);
   end
   
+  methods
+    %@return 0 for valid inputs
+    function ret = inputEqualityConstraints(obj, u, x)
+      ret = msspoly * zeros(0, 1);
+    end
+  end
+  
 end
