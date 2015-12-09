@@ -30,11 +30,11 @@ coefmult = msspoly;
 for i = 1 : length(h)
   switch sos_option
     case 1
-      [prog,mult_i,coefmult_i] = prog.newSOSPoly(monomials(vars,0:degree));
+      [prog,mult_i,coefmult_i] = prog.newSOSPoly(monomials(vars,0:degree(i)));
     case 2
-      [prog,mult_i,coefmult_i] = prog.newSDSOSPoly(monomials(vars,0:degree));
+      [prog,mult_i,coefmult_i] = prog.newSDSOSPoly(monomials(vars,0:degree(i)));
     case 3
-      [prog,mult_i,coefmult_i] = prog.newDSOSPoly(monomials(vars,0:degree));
+      [prog,mult_i,coefmult_i] = prog.newDSOSPoly(monomials(vars,0:degree(i)));
   end  
   
   eqn = eqn - h(i) * mult_i;
