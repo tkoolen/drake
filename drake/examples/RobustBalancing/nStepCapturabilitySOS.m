@@ -15,6 +15,10 @@ if ~isfield(options,'backoff_ratio')
   options.backoff_ratio = 1.01;
 end
 
+if ~isfield(options,'free_final_time')
+  options.free_final_time = false; % goal region is not restricted to t=T if true
+end
+
 %% Solution method settings
 degree = options.degree; % degree of V,W
 time_varying = n > 0 || model.num_inputs; % Let V depend on t--probably want it true for this problem class
@@ -41,7 +45,11 @@ else
   u = msspoly;
 end
 if n > 0
-  [prog,s]=prog.newIndeterminate('s', model.num_reset_inputs); % reset map input
+  if model.num_reset_inputs > 0
+    [prog,s]=prog.newIndeterminate('s', model.num_reset_inputs); % reset map input
+  else
+    s = [];
+  end
 end
 
 %% Create polynomials V(t,x) and W(x)
@@ -91,7 +99,12 @@ sos = msspoly;
 if n > 0
   % (1) V(T,x) >= 0 for x in goal region
   % goal region
-  [prog, goal_sos] = spotless_add_sprocedure(prog, (subs(V,t,T))*(1+x'*x + s'*s), V0p,[W_vars;s],2);
+  if options.free_final_time
+    V_goal_eqn = V*(1+[t;x;s]'*[t;x;s]);
+  else
+    V_goal_eqn = subs(V,t,T)*(1+[x;s]'*[x;s]);
+  end
+  [prog, goal_sos] = spotless_add_sprocedure(prog, V_goal_eqn, V0p,[W_vars;s],2);
 
   % state constraint
   [prog, goal_sos] = spotless_add_sprocedure(prog, goal_sos, h_X,[W_vars;s],degree);
