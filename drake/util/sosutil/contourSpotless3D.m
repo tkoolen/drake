@@ -89,8 +89,8 @@ box on;
 ax = gca();
 set(ax, 'BoxStyle', 'full');
 ax.XTick = linspace(-R_diag(1), R_diag(1), 5);
-ax.YTick = linspace(-R_diag(3), R_diag(3), 5);
-ax.ZTick = linspace(-R_diag(2), R_diag(2), 5);
+ax.YTick = linspace(-R_diag(2), R_diag(2), 5);
+ax.ZTick = linspace(-R_diag(3), R_diag(3), 5);
 axis vis3d
 zoom(1.4)
 colorbar
