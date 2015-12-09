@@ -120,8 +120,13 @@ end
 [prog, Vdot_sos] = spotless_add_sprocedure(prog, -Vdot, h_X,[V_vars;u],Vdot_degree-2);
 
 % input limits
-input_limit_degree = even_degree(model.inputLimits(u,x),[x;u]);
 [prog, Vdot_sos] = spotless_add_sprocedure(prog, Vdot_sos, model.inputLimits(u, x),[V_vars;u],[]);
+
+input_equality_constraints = model.inputEqualityConstraints(u, x);
+input_equality_constraint_degree = even_degree(input_equality_constraints,[x;u]);
+for i = 1 : length(input_equality_constraints) % TODO iteration in spotless_add_eq_sprocedure
+  [prog, Vdot_sos] = spotless_add_eq_sprocedure(prog, Vdot_sos, input_equality_constraints(i), [V_vars; u], input_equality_constraint_degree); % TODO: degree
+end
 
 % 0 <= t < = T
 % could also write this with two constraints
