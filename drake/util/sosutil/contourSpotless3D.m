@@ -14,7 +14,7 @@ intersect_with_ellipsoid = true; % TODO: make option
 colormap summer;
 
 % uniform grid
-grid_size = 100;
+grid_size = 50;
 [x1s_grid, x2s_grid, x3s_grid] = meshgrid(...
   linspace(-R_diag(1), R_diag(1), grid_size),...
   linspace(-R_diag(2), R_diag(2), grid_size),...
@@ -68,12 +68,13 @@ if intersect_with_ellipsoid
   % use h_Xs normals for caps
   isonormals(x1s_grid,x2s_grid,x3s_grid,h_Xs, patch_poly_caps);
   
-  % draw intersection between ellipsoid boundary and V zero-level set
+  % draw intersection between ellipsoid boundary and poly level set
   patch_poly_caps_boundary = patch(isocaps(x1s,x2s,x3s,poly_vals,contour_value), 'FaceColor', 'none');
   poly_vals_caps = full(msubs(poly, vars, patch_poly_caps_boundary.Vertices'));
   patch_poly_caps_boundary.FaceVertexCData = nan(length(poly_vals_caps), 3);
-  tol = 5e-3;
-  patch_poly_caps_boundary.FaceVertexCData(abs(poly_vals_caps - contour_value) < tol, :) = 0;
+  tol = min(poly_vals_caps) + 1e-2 * max(poly_vals_caps) - min(poly_vals_caps);
+  patch_poly_caps_boundary.FaceVertexCData(poly_vals_caps < tol, :) = 0;
+%   patch_poly_caps_boundary.FaceVertexCData(abs(poly_vals_caps - contour_value) < tol, :) = 0;
   patch_poly_caps_boundary.EdgeColor = 'interp';
   patch_poly_caps_boundary.LineWidth = 2;
 end
