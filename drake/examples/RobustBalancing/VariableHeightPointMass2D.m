@@ -8,23 +8,30 @@ classdef VariableHeightPointMass2D < NStepCapturabilitySOSSystem
     z_nom; % nominal height
     step_max; % max step distance
     T; % step time
-    f_max; % max 'leg force'. Really f_max / mass
+    f_max; % max 'leg force'. Really f_max / weight
+    f_min; % min 'leg force'. Really f_min / weight
   end
   
   methods
-    function obj = VariableHeightPointMass2D(g, z_nom, step_max, step_time, f_max)
+    function obj = VariableHeightPointMass2D(g, z_nom, step_max, step_time, f_max, f_min)
       obj@NStepCapturabilitySOSSystem(4, 1, 1);
       obj.g = g;
       obj.z_nom = z_nom;
       obj.step_max = step_max;
       obj.T = step_time;
       obj.f_max = f_max;
+      if nargin < 6
+        obj.f_min = 0;
+      else
+        assert(f_min >= 0)
+        obj.f_min = f_min;
+      end
     end
     
     % f: 'leg force'
-    % m * vdot = [0; -mg] + f * q / |q|
-    % define u = f / (m * |q|)
-    % vdot = [0; -g] + u * q
+    % m * vdot = [0; -mg] + f
+    % define u = f_z / (m * g * z)
+    % vdot = [0; -g] + u * q * g
     % using x(2) = z - z_nom
     function xdot = dynamics(obj, t, x, u)
       q = x(1 : 2);
@@ -42,21 +49,34 @@ classdef VariableHeightPointMass2D < NStepCapturabilitySOSSystem
       xp = [qm - [1; 0] * s; vm];
     end
     
-    % f / m = u * |q| <= f_max / m
-    % (f / m)^2 = u^2 * q' * q <= (f_max / m)^2
+    
+    % f_z / (m * g) <= f_max
+    % 
+    % f / (m * g) = u * |q| <= f_max
+    % (f / (m * g))^2 = u^2 * q' * q <= f_max^2
     % and u > 0
     function ret = inputLimits(obj, u, x)
+      
       q = x(1 : 2);
-      q(2) = q(2) - obj.z_nom;
-      f_squared = u^2 * (q' * q);
-      ret = [obj.f_max^2 - f_squared; u];
+      z = q(2) + obj.z_nom;      
+      
+%       f_squared = u^2 * (q' * q);
+%       ret = [obj.f_max^2 - f_squared];
+%       
+%       if obj.f_min == 0
+%         ret = [ret;0];
+%       else
+%         ret = [ret;f_squared - obj.f_min^2];
+%       end
+      
+      ret = (obj.f_max - obj.f_min)^2 - 4 *(u*z - (obj.f_max + obj.f_min)/2)^2;
     end
     
     function[umin,umax,A] = simpleInputLimits(obj,x)
       q = x(1:2);
-      q(2) = q(2) + obj.z_nom;
-      umin = 0;
-      umax = obj.f_max/sqrt(q'*q);
+      z = q(2) + obj.z_nom;
+      umin = obj.f_min/z;
+      umax = obj.f_max/z;
       A = [];
     end
     
