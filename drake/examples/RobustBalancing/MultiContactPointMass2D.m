@@ -4,8 +4,7 @@ classdef MultiContactPointMass2D < NStepCapturabilitySOSSystem
   % along vector from foot to CoM
   
   properties
-    g; % gravitational accelerationm
-    m; % mass
+    g; % gravitational acceleration
     z_nom; % nominal height
     step_max; % max step distance
     T; % step time
@@ -16,10 +15,9 @@ classdef MultiContactPointMass2D < NStepCapturabilitySOSSystem
   end
   
   methods
-    function obj = MultiContactPointMass2D(g, m, z_nom, step_max, step_time, max_forces, normals, mus, contact_points)
+    function obj = MultiContactPointMass2D(g, z_nom, step_max, step_time, max_forces, normals, mus, contact_points)
       obj@NStepCapturabilitySOSSystem(4, 2 * length(max_forces), 0);
       obj.g = g;
-      obj.m = m;
       obj.z_nom = z_nom;
       obj.step_max = step_max;
       obj.T = step_time;
@@ -35,16 +33,16 @@ classdef MultiContactPointMass2D < NStepCapturabilitySOSSystem
       v = x(3 : 4);
       num_forces = obj.num_inputs / 2;
       forces = reshape(u, 2, num_forces);
-      vdot = sum(forces, 2) + [0; -obj.m * obj.g];
+      vdot = sum(forces, 2) + [0; -obj.g];
       xdot = [v; vdot];
     end
     
     function xp = reset(obj, t, xm, s)
-%       % control input changes q(1) only
-%       % qp = qm - u
-%       qm = xm(1 : 2);
-%       vm = xm(3 : 4);
-%       xp = [qm - [1; 0] * s; vm];
+      %       % control input changes q(1) only
+      %       % qp = qm - u
+      %       qm = xm(1 : 2);
+      %       vm = xm(3 : 4);
+      %       xp = [qm - [1; 0] * s; vm];
       xp = xm; % todo
     end
     
@@ -91,10 +89,12 @@ classdef MultiContactPointMass2D < NStepCapturabilitySOSSystem
     
     function ret = resetInputLimits(obj, s)
       ret = zeros(0, 0, 'like', s);
-%       ret = obj.step_max^2 - s'*s;
+      %       ret = obj.step_max^2 - s'*s;
     end
     
     function plotfun(obj, n, Vsol, Wsol, h_X, R_diag, t, x)
+      situationPlot(obj, R_diag);
+      
       q = x(1 : 2);
       v = x(3 : 4);
       
@@ -119,12 +119,30 @@ classdef MultiContactPointMass2D < NStepCapturabilitySOSSystem
       clf;
       contourSpotless3D(subs(Vsol, [x(4); t], [0; 0]), [x(1); x(3); x(2)], 0, [R_diag(1); R_diag(3); R_diag(2)]);
       xlabel('q_1'); ylabel('v_1'); zlabel('q_2');
-
+      
       % video of rotating ROA
       create_video = false;
       if create_video
         createRotatingVideo([class(obj) '_V' num2str(n)], filename);
       end
+    end
+    
+    function situationPlot(obj, R_diag)
+      figure(9);
+      clf;
+      hold on;
+      s = linspace(0,2*pi);
+      patch(R_diag(1) * cos(s),obj.z_nom + R_diag(2) * sin(s), MITlightgray);
+      plot(0, obj.z_nom, '*', 'Color', MITred)
+      platform_length = obj.z_nom / 3;
+      quiver(obj.contact_points(1, :), obj.contact_points(2, :), obj.normals(1, :), obj.normals(2, :));
+      for i = 1 : length(obj.mus)
+        c = obj.contact_points(:, i);
+        normal_perp = [-obj.normals(2, i); obj.normals(1, i)];
+        platform = [c + platform_length / 2 * normal_perp, c - platform_length / 2 * normal_perp];
+        plot(platform(1, :), platform(2, :), 'Color', MITred, 'LineWidth', 2);
+      end
+      hold off;
     end
   end
 end
