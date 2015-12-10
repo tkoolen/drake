@@ -22,7 +22,7 @@ if n > 0
 else
   T = 1;
 end
-options.degree = 6;
+options.degree = 4;
 options.do_backoff = false;
 options.backoff_ratio = 1.05;
 

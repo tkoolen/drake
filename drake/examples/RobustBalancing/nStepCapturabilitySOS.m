@@ -100,17 +100,23 @@ if n > 0
   % (1) V(T,x) >= 0 for x in goal region
   % goal region
   if options.free_final_time
-    V_goal_eqn = V*(1+[t;x;s]'*[t;x;s]);
+    V_goal_eqn = V*(1+[V_vars;s]'*[V_vars;s]);
+    goal_vars = [V_vars;s];
   else
     V_goal_eqn = subs(V,t,T)*(1+[x;s]'*[x;s]);
+    goal_vars = [W_vars;s];
   end
-  [prog, goal_sos] = spotless_add_sprocedure(prog, V_goal_eqn, V0p,[W_vars;s],2);
+  [prog, goal_sos] = spotless_add_sprocedure(prog, V_goal_eqn, V0p,goal_vars,2);
 
   % state constraint
-  [prog, goal_sos] = spotless_add_sprocedure(prog, goal_sos, h_X,[W_vars;s],degree);
+  [prog, goal_sos] = spotless_add_sprocedure(prog, goal_sos, h_X,goal_vars,degree);
 
   % reset map input limits
-  [prog, goal_sos] = spotless_add_sprocedure(prog, goal_sos, model.resetInputLimits(s),[W_vars;s],degree);
+  [prog, goal_sos] = spotless_add_sprocedure(prog, goal_sos, model.resetInputLimits(s),goal_vars,degree);
+  
+  if options.free_final_time && time_varying
+    [prog, goal_sos] = spotless_add_sprocedure(prog, goal_sos, t * (T - t),goal_vars,degree);
+  end
   
   sos = [sos; goal_sos];
 else
@@ -164,7 +170,7 @@ cost = spotlessIntegral(prog,W,x,R_diag,[],[]);
 %% Solve
 spot_options = spotprog.defaultOptions;
 spot_options.verbose = true;
-spot_options.do_fr = true;
+spot_options.do_fr = false;
 solver = @spot_mosek;
 % solver = @spot_sedumi;
 sol = prog.minimize(cost,solver,spot_options);

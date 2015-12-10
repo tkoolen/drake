@@ -1,14 +1,15 @@
-function firstOrderSwingVariableHeightNStepCapturability(n)
+function firstOrderSwingVariableHeightAndPitchNStepCapturability(n)
 
-g = 2;
+g = 10;
 u_max = 1;
 T = .5;
 z_nom = 1;
-R_diag = [2, 1, 2, 2, 2];
-f_min = .9;
-f_max = 1.1;
+R_diag = [2, 1, 1, 2, 2, 2, 1];
+f_min = .5;
+f_max = 1.5;
+inertia_ratio = .3^2/2; 
 
-model = FirstOrderSwingVariableHeight(g, z_nom, u_max, f_max, f_min);
+model = FirstOrderSwingVariableHeightandPitch(g, z_nom, inertia_ratio, u_max, f_max, f_min);
 
 options.degree = 4;
 options.do_backoff = false;

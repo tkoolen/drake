@@ -13,7 +13,7 @@ R_diag = R_diag/scale;
 
 model = FirstOrderSwingZMP(g, z_nom, u_max);
 
-options.degree = 6;
+options.degree = 4;
 options.do_backoff = false;
 options.backoff_ratio = 1.05;
 options.free_final_time = true;
