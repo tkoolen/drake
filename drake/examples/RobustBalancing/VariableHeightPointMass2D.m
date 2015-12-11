@@ -113,7 +113,7 @@ classdef VariableHeightPointMass2D < NStepCapturabilitySOSSystem
       % video of rotating ROA
       create_video = false;
       if create_video
-        createRotatingVideo([class(obj) '_V' num2str(n)], filename);
+        createRotatingVideo(hFig,[class(obj) '_V' num2str(n)]);
       end
     end
   end

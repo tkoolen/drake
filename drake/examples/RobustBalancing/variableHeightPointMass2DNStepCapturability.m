@@ -6,12 +6,6 @@ step_time = 0.3;
 z_nom = 1;
 R_diag = [2, 2 2, 2];
 
-scale = 1;
-g = g/scale;
-z_nom = z_nom/scale;
-step_max = step_max/scale;
-R_diag = R_diag/scale;
-
 f_max = 1.1;
 f_min = .9;
 
@@ -24,7 +18,9 @@ else
 end
 options.degree = 4;
 options.do_backoff = false;
-options.backoff_ratio = 1.05;
+options.backoff_ratio = 1.02;
+options.scale = 1/5;
+options.scale_input = 5;
 
 % R_diag = 2 * ones(1, model.num_states);
 

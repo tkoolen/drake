@@ -19,19 +19,30 @@ if ~isfield(options,'free_final_time')
   options.free_final_time = false; % goal region is not restricted to t=T if true
 end
 
+%scaling of state vector
+if ~isfield(options,'scale')
+  scale = ones(model.num_states,1);
+elseif length(options.scale) == 1
+  scale = ones(model.num_states,1)*options.scale;
+else
+  scale = options.scale;
+end
+scale_inv = 1./scale;
+R_diag = scale'.*R_diag;
+
+%scaling of input vector
+if ~isfield(options,'scale_input')
+  scale_input = ones(model.num_inputs,1);
+elseif length(options.scale_input) == 1
+  scale_input = ones(model.num_inputs,1)*options.scale_input;
+else
+  scale_input = options.scale_input;
+end
+scale_input_inv = 1./scale_input;
+
 %% Solution method settings
 degree = options.degree; % degree of V,W
 time_varying = n > 0 || model.num_inputs; % Let V depend on t--probably want it true for this problem class
-
-%% Load previous problem data
-if n > 0
-  filename = solutionFileName(model, n - 1);
-  if ~exist(filename, 'file')
-    nStepCapturabilitySOS(model, T, R_diag, target, n - 1, options);
-  end
-  data = load(filename);
-  V0 = data.Vsol;
-end
 
 %% Create SOS program
 prog = spotsosprog;
@@ -52,6 +63,16 @@ if n > 0
   end
 end
 
+%% Load previous problem data
+if n > 0
+  filename = solutionFileName(model, n - 1);
+  if ~exist(filename, 'file')
+    nStepCapturabilitySOS(model, T, R_diag, target, n - 1, options);
+  end
+  data = load(filename);
+  V0 = subs(data.Vsol,x,x.*scale_inv);
+end
+
 %% Create polynomials V(t,x) and W(x)
 if time_varying
   V_vars = [t;x];
@@ -63,7 +84,7 @@ W_vars = x;
 [prog,W] = prog.newFreePoly(monomials(W_vars,0:degree));
 
 %% Dynamics
-f = model.dynamics(t, x, u);
+f = scale.*model.dynamics(t, scale_inv.*x, scale_input_inv.*u);
 
 % Time rescaling
 % tau = t / T
@@ -79,14 +100,14 @@ Vdot_degree = even_degree(Vdot,[x;u]);
 %% Goal region
 if n > 0
   % jump equation
-  xp = model.reset(t, x, s);
+  xp = scale.*model.reset(t, scale_inv.*x, s);
 
   % for n > 0, goal region is based off V from 0-step model
   % V0p(x) = V0(0,xp)
   V0p = subs(V0,[x;t],[xp;0]);
 else
   if ~isempty(target)
-    V0p = target(x);
+    V0p = target(scale_inv.*x);
   end
 end
 
@@ -139,9 +160,9 @@ end
 [prog, Vdot_sos] = spotless_add_sprocedure(prog, -Vdot, h_X,[V_vars;u],Vdot_degree-2);
 
 % input limits
-[prog, Vdot_sos] = spotless_add_sprocedure(prog, Vdot_sos, model.inputLimits(u, x),[V_vars;u],[]);
+[prog, Vdot_sos] = spotless_add_sprocedure(prog, Vdot_sos, scale_input.*model.inputLimits(scale_input_inv.*u, scale_inv.*x),[V_vars;u],[]);
 
-input_equality_constraints = model.inputEqualityConstraints(u, x);
+input_equality_constraints = model.inputEqualityConstraints(scale_input_inv.*u, scale_inv.*x);
 input_equality_constraint_degree = even_degree(input_equality_constraints,[x;u]);
 for i = 1 : length(input_equality_constraints) % TODO iteration in spotless_add_eq_sprocedure
   [prog, Vdot_sos] = spotless_add_eq_sprocedure(prog, Vdot_sos, input_equality_constraints(i), [V_vars; u], input_equality_constraint_degree); % TODO: degree
@@ -182,9 +203,10 @@ if options.do_backoff
  end
 
 %% Plotting
-Vsol = sol.eval(V);
-Wsol = sol.eval(W);
-model.plotfun(n, Vsol, Wsol, h_X, R_diag, t, x);
+Vsol = subs(sol.eval(V),x,scale.*x);
+Wsol = subs(sol.eval(W),x,scale.*x);
+R_diag = scale_inv'.*R_diag;
+model.plotfun(n, Vsol, Wsol, subs(h_X,x,scale.*x), R_diag, t, x);
 
 %%
 save(solutionFileName(model, n),'Vsol')
