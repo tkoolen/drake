@@ -6,8 +6,8 @@ step_time = 0.3;
 z_nom = 1;
 R_diag = [2, 2 2, 2];
 
-f_max = 1.1;
-f_min = .9;
+f_max = 1.5;
+f_min = .5;
 
 model = VariableHeightPointMass2D(g, z_nom, step_max, step_time, f_max, f_min);
 

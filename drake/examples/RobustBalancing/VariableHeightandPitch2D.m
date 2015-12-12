@@ -57,7 +57,8 @@ classdef VariableHeightandPitch2D < NStepCapturabilitySOSSystem
     end
     
     function ret = resetInputLimits(obj, s)
-      ret = [];
+            ret = obj.step_max^2 - s'*s;
+
     end
     
     function plotfun(obj, n, Vsol, Wsol, h_X, R_diag, t, x)
