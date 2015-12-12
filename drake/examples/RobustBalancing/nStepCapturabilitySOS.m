@@ -89,6 +89,7 @@ f = scale.*model.dynamics(t, scale_inv.*x, scale_input_inv.*u);
 % Time rescaling
 % tau = t / T
 % dx/dtau = dx/dt * dt/dtau = dx/dt*T
+T_init = T;
 f = f*T;
 T = 1;
 
@@ -209,7 +210,8 @@ R_diag = scale_inv'.*R_diag;
 model.plotfun(n, Vsol, Wsol, subs(h_X,x,scale.*x), R_diag, t, x);
 
 %%
-save(solutionFileName(model, n),'Vsol')
+T = T_init;
+save(solutionFileName(model, n),'Vsol','model','T','R_diag')
 
 end
 
