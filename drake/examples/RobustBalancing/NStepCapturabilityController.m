@@ -41,13 +41,16 @@ classdef NStepCapturabilityController < DrakeSystem
           end
         end
       else
-        %u'Au <= 1
-        u = A\dVdotdu;
-        u = u/sqrt(u'*A*u);
+        b = umax;
+        u = linprog(-dVdotdu,A,b);
         
-        if norm(dVdotdu) < obj.dVdotdu_interp_bound
-          u = u * norm(dVdotdu)/(obj.dVdotdu_interp_bound);
-        end
+%         %u'Au <= 1
+%         u = A\dVdotdu;
+%         u = u/sqrt(u'*A*u);
+%         
+%         if norm(dVdotdu) < obj.dVdotdu_interp_bound
+%           u = u * norm(dVdotdu)/(obj.dVdotdu_interp_bound);
+%         end
       end
     end
   end

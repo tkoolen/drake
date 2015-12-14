@@ -49,16 +49,33 @@ classdef VariableHeightandPitch2D < NStepCapturabilitySOSSystem
     
     function ret = inputLimits(obj, u, x)
       force_squared = u'*u;
-      ret = [obj.f_max^2 - force_squared; -obj.f_min^2 + force_squared];
+      mu = 1;
+      f_z = u(2);
+      f_x = u(1);
+%       ret = [obj.f_max^2 - force_squared; -obj.f_min^2 + force_squared; mu^2*u(2)^2 - u(1)^2];
+      ret = [obj.f_max - f_z;f_z - obj.f_min; mu^2*f_z^2 - f_x^2];
     end
     
     function[umin,umax,A] = simpleInputLimits(obj,x)
-      error('not yet implemented');
+      % Au <= umax
+      umin = [];
+      mu = 1;
+      A = [0 1;0 -1;1 -mu;-1 -mu];
+      b = [obj.f_max;-obj.f_min;0;0];
+      umax = b;
     end
     
     function ret = resetInputLimits(obj, s)
             ret = obj.step_max^2 - s'*s;
+    end
 
+    function [smin,smax] = simpleResetInputLimits(obj,x)
+      smin = -obj.step_max;
+      smax = obj.step_max;
+    end
+
+    function rp = stanceUpdate(obj,x,r,s)
+      rp = r + [s;0];
     end
     
     function plotfun(obj, n, Vsol, Wsol, h_X, R_diag, t, x)
@@ -92,6 +109,17 @@ classdef VariableHeightandPitch2D < NStepCapturabilitySOSSystem
       if create_video
         createRotatingVideo([class(obj) '_V' num2str(n)], filename);
       end
+    end
+    
+    function draw(obj,t,x)
+      x_stance = x(end-1);
+      % draw line from origin to COM
+      h=line(x_stance+[0;x(1)],[0;x(2) + obj.z_nom]);
+      set(h,'LineWidth',3,'Color','red')
+      radius = .1;
+      rectangle('Position',[x_stance+x(1)-radius/2,x(2)+obj.z_nom-radius/2,radius,2*radius],'Curvature',[1,1], 'FaceColor','k')
+      xlim([-3 3])
+      ylim([-.1 1.5])
     end
   end
 end

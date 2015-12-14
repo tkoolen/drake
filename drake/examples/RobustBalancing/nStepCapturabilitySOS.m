@@ -162,7 +162,7 @@ end
 [prog, Vdot_sos] = spotless_add_sprocedure(prog, -Vdot, h_X,[V_vars;u],Vdot_degree-2);
 
 % input limits
-[prog, Vdot_sos] = spotless_add_sprocedure(prog, Vdot_sos, scale_input.*model.inputLimits(scale_input_inv.*u, scale_inv.*x),[V_vars;u],[]);
+[prog, Vdot_sos] = spotless_add_sprocedure(prog, Vdot_sos, model.inputLimits(scale_input_inv.*u, scale_inv.*x),[V_vars;u],[]);
 
 input_equality_constraints = model.inputEqualityConstraints(scale_input_inv.*u, scale_inv.*x);
 input_equality_constraint_degree = even_degree(input_equality_constraints,[x;u]);
