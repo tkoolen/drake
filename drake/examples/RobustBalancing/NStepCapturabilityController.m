@@ -1,5 +1,5 @@
 classdef NStepCapturabilityController < DrakeSystem
-  
+  % augmented state with [t_offset;x_stance;y_stance]
   properties
     dVdotdu_coeffs
     dVdotdu_pows
@@ -10,7 +10,7 @@ classdef NStepCapturabilityController < DrakeSystem
   methods
     function obj = NStepCapturabilityController(plant,dVdotdu_coeffs,dVdotdu_pows)
       sos_plant = plant.sos_plant;
-      obj = obj@DrakeSystem(0,0,sos_plant.num_states,sos_plant.num_inputs);
+      obj = obj@DrakeSystem(0,0,sos_plant.num_states+3,sos_plant.num_inputs);
       obj.dVdotdu_coeffs = dVdotdu_coeffs;
       obj.dVdotdu_pows = dVdotdu_pows;
       obj.sos_plant = sos_plant;
@@ -19,8 +19,9 @@ classdef NStepCapturabilityController < DrakeSystem
     end
     
     function u = output(obj,t,~,x)
+      t = t - x(end-2);
+      x = x(1:end-3);
       dVdotdu = obj.dVdotdu_coeffs*prod(repmat([t;x]',length(obj.dVdotdu_coeffs),1).^obj.dVdotdu_pows,2);
-      
       % incorporate input limits
       [umin, umax, A] = obj.sos_plant.simpleInputLimits(x);
       if isempty(A)

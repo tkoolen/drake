@@ -88,6 +88,10 @@ classdef VariableHeightPointMass2D < NStepCapturabilitySOSSystem
       smin = -obj.step_max;
       smax = obj.step_max;
     end
+
+    function rp = stanceUpdate(obj,x,r,s)
+      rp = r + [s;0];
+    end
     
     function plotfun(obj, n, Vsol, Wsol, h_X, R_diag, t, x)
       q = x(1 : 2);
@@ -123,12 +127,13 @@ classdef VariableHeightPointMass2D < NStepCapturabilitySOSSystem
     end
     
     function draw(obj,t,x)
+      x_stance = x(end-1);
       % draw line from origin to COM
-      h=line([0;x(1)],[0;x(2) + obj.z_nom]);
+      h=line(x_stance+[0;x(1)],[0;x(2) + obj.z_nom]);
       set(h,'LineWidth',3,'Color','red')
       radius = .1;
-      rectangle('Position',[x(1)-radius/2,x(2)+obj.z_nom-radius/2,radius,radius],'Curvature',[1,1], 'FaceColor','k')
-      xlim([-1 1])
+      rectangle('Position',[x_stance+x(1)-radius/2,x(2)+obj.z_nom-radius/2,radius,radius],'Curvature',[1,1], 'FaceColor','k')
+      xlim([-3 3])
       ylim([-.1 1.5])
     end
   end

@@ -85,7 +85,7 @@ else
   x_sim = traj.eval(t_sim);
   V_sim = msubs(Vsol,[t;x],[t_sim;x_sim]);
   figure(1)
-  % subplot(2,1,1)
+  subplot(2,1,1)
   plot(t_sim,x_sim)
   legend('x_1','x_2','x_3','x_4')
   

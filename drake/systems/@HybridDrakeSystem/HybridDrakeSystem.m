@@ -239,7 +239,8 @@ classdef (InferiorClasses = {?DrakeSystem}) HybridDrakeSystem < DrakeSystem
     end
 
     function y = output(obj,t,x,u)
-      m = x(1); nX = getNumStates(obj.modes{m});
+      m = x(1); 
+      nX = getNumStates(obj.modes{m});
       if (nX>0) xm = x(1+(1:nX)); else xm=[]; end
       y = output(obj.modes{m},t,xm,u);
     end

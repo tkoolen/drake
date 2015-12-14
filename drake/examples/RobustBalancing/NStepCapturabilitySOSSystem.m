@@ -47,6 +47,10 @@ classdef NStepCapturabilitySOSSystem
       smin = [];
       smax = [];
     end
+    
+    function rp = stanceUpdate(obj,x,r,s)
+      rp = r;
+    end
   end
   
 end
