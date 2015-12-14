@@ -4,7 +4,7 @@
 #include <lcm/lcm-cpp.hpp>
 #include <Eigen/Dense>
 #include "../DrakeSystem.h"
-#include "RigidBodyManipulator.h"
+#include "RigidBodyTree.h"
 
 // these could all go in the cpp file:
 #include "lcmtypes/drake/lcmt_viewer_load_robot.hpp"
@@ -108,7 +108,7 @@ public:
     draw_msg.timestamp = static_cast<int64_t>(t*1000.0);
 
     auto q = u.head(manip.num_positions);
-    KinematicsCache<double> cache = manip.doKinematics(q, 0);
+    KinematicsCache<double> cache = manip.doKinematics(q);
 
     Eigen::Vector3d points = Eigen::Vector3d::Zero();
     int i,j;
@@ -127,7 +127,7 @@ public:
 
 
 private:
-  mutable RigidBodyManipulator manip;  // todo: remove mutable tag after RBM cleanup
+  mutable RigidBodyTree manip;  // todo: remove mutable tag after RBM cleanup
   std::shared_ptr<lcm::LCM> lcm;
   mutable drake::lcmt_viewer_draw draw_msg;
 };
