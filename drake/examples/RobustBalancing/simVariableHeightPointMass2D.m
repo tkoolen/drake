@@ -1,19 +1,22 @@
 function simVariableHeightPointMass2D
 model_name = 'VariableHeightPointMass2D';
 n = 1;
-sample_slice = true;
+sample_slice = false;
 
 V_data = load(solutionFileName(model_name,n));
 V0_data = load(solutionFileName(model_name,n-1));
 
 model = V_data.model;
 step_time = V_data.T;
+step_max = model.step_max;
 Vsol = V_data.Vsol;
 
 t = msspoly('t',1);
 x = msspoly('x',model.num_states);
 u = msspoly('u',model.num_inputs);
 s = msspoly('s',model.num_reset_inputs);
+
+
 xdot = model.dynamics(t,x,u);
 
 Vdot = diff(Vsol,x)*xdot + diff(Vsol,t);
@@ -23,7 +26,7 @@ dVdotdu = diff(Vdot,u);
 
 plant = NStepCapturabilityPlant(model);
 controller = NStepCapturabilityController(plant,coeffs,pows);
-
+v = NStepCapturabilityVisualizer(plant);
 
 sys_cl = plant.feedback(controller);
 
@@ -41,7 +44,7 @@ if sample_slice
   sub_inds = [2;4];
   sub_val = 0*sub_inds;
   sample_inds = [1;3];
-  N_sample = 100;
+  N_sample = 30;
   [XS_1,XS_2] = meshgrid(linspace(-V_data.R_diag(sample_inds(1)),V_data.R_diag(sample_inds(1)),N_sample),...
     linspace(-V_data.R_diag(sample_inds(2)),V_data.R_diag(sample_inds(2)),N_sample));
   XS_1 = XS_1(:);
@@ -73,50 +76,52 @@ if sample_slice
   plot(XS_1(Ip),XS_2(Ip),'go',XS_1(In),XS_2(In),'rx')
   hold off
 else
-x0 = [0;0;.9;0];
-
-
-t_sim = traj.pp.breaks;
-x_sim = traj.eval(t_sim);
-V_sim = msubs(Vsol,[t;x],[t_sim;x_sim]);
-figure(1)
-subplot(2,1,1)
-plot(t_sim,x_sim)
-legend('x_1','x_2','x_3','x_4')
-
-
-V0p_sim = subs(V0p,x,x_sim(:,end));
-S = linspace(-step_max,step_max,1000);
-V0p_vals = msubs(V0p_sim,s,S);
-[V0_opt,i_opt] = max(V0p_vals);
-V0_opt
-s_opt = S(i_opt)
-
+  x0 = [0;0;.9;0];
+  x0 = [-.26;0;1.8;0];
+  
+  traj = sys_cl.simulate([0 step_time],x0);
+  v.playback(traj)
+  t_sim = traj.pp.breaks;
+  x_sim = traj.eval(t_sim);
+  V_sim = msubs(Vsol,[t;x],[t_sim;x_sim]);
+  figure(1)
+  % subplot(2,1,1)
+  plot(t_sim,x_sim)
+  legend('x_1','x_2','x_3','x_4')
+  
+  
+  V0p_sim = subs(V0p,x,x_sim(:,end));
+  S = linspace(-step_max,step_max,1000);
+  V0p_vals = msubs(V0p_sim,s,S);
+  [V0_opt,i_opt] = max(V0p_vals);
+  V0_opt
+  s_opt = S(i_opt)
+  
 end
 
-%% 
-% x0_0step = double(subs(xp,[x;s],[x_sim(:,end);s_opt]));
-% % x0_0step = [0-.5;0;1.623;0];
-% Vdot_0step = diff(V0.Vsol,x)*xdot + diff(V0.Vsol,t);
-% dVdotdu_0step = diff(Vdot_0step,u);
-% 
-% [pows_0step,coeffs_0step] = decomp_ordered(dVdotdu_0step,[t;x]);
-% controller_0step =  NStepCapturabilityController(plant,coeffs_0step,pows_0step);
-% 
-% sys_cl_0step = plant.feedback(controller_0step);
-% sys_cl_0step = sys_cl_0step.setSimulinkParam('Solver','ode4');
-% sys_cl_0step = sys_cl_0step.setSimulinkParam('FixedStep','.001');
-% traj_0step = sys_cl_0step.simulate([0 1],x0_0step);
-% 
-% t_sim_0step = traj_0step.pp.breaks;
-% x_sim_0step = traj_0step.eval(t_sim_0step);
-% 
-% V0_sim_0step = msubs(V0.Vsol,[t;x],[t_sim_0step;x_sim_0step]);
-% 
-% figure(1)
-% subplot(2,1,2)
-% plot(t_sim_0step,x_sim_0step)
-% legend('x_1','x_2','x_3','x_4')
+%%
+x0_0step = double(subs(xp,[x;s],[x_sim(:,end);s_opt]));
+% x0_0step = [0-.5;0;1.623;0];
+Vdot_0step = diff(V0_data.Vsol,x)*xdot + diff(V0_data.Vsol,t);
+dVdotdu_0step = diff(Vdot_0step,u);
+
+[pows_0step,coeffs_0step] = decomp_ordered(dVdotdu_0step,[t;x]);
+controller_0step =  NStepCapturabilityController(plant,coeffs_0step,pows_0step);
+
+sys_cl_0step = plant.feedback(controller_0step);
+sys_cl_0step = sys_cl_0step.setSimulinkParam('Solver','ode4');
+sys_cl_0step = sys_cl_0step.setSimulinkParam('FixedStep','.001');
+traj_0step = sys_cl_0step.simulate([0 1],x0_0step);
+
+t_sim_0step = traj_0step.pp.breaks;
+x_sim_0step = traj_0step.eval(t_sim_0step);
+
+V0_sim_0step = msubs(V0_data.Vsol,[t;x],[t_sim_0step;x_sim_0step]);
+
+figure(1)
+subplot(2,1,2)
+plot(t_sim_0step,x_sim_0step)
+legend('x_1','x_2','x_3','x_4')
 end
 
 

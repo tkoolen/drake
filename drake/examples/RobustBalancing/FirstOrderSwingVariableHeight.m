@@ -92,5 +92,18 @@ classdef FirstOrderSwingVariableHeight < NStepCapturabilitySOSSystem
         createRotatingVideo([class(obj) '_V' num2str(n)], filename);
       end
     end
+    
+    function draw(obj,t,x)
+      % draw line from origin to COM
+      h=line([0;x(1)],[0;x(2) + obj.z_nom]);
+      set(h,'LineWidth',3,'Color','red')
+      
+      % draw line from COM to swing
+      h=line([x(1);x(1)+x(3)],[x(2)+obj.z_nom;0]);
+      set(h,'LineWidth',3,'Color','black')
+      
+      xlim([-1 1])
+      ylim([-1 1])
+    end
   end
 end

@@ -84,6 +84,11 @@ classdef VariableHeightPointMass2D < NStepCapturabilitySOSSystem
       ret = obj.step_max^2 - s'*s;
     end
     
+    function [smin,smax] = simpleResetInputLimits(obj,x)
+      smin = -obj.step_max;
+      smax = obj.step_max;
+    end
+    
     function plotfun(obj, n, Vsol, Wsol, h_X, R_diag, t, x)
       q = x(1 : 2);
       v = x(3 : 4);
@@ -115,6 +120,16 @@ classdef VariableHeightPointMass2D < NStepCapturabilitySOSSystem
       if create_video
         createRotatingVideo(hFig,[class(obj) '_V' num2str(n)]);
       end
+    end
+    
+    function draw(obj,t,x)
+      % draw line from origin to COM
+      h=line([0;x(1)],[0;x(2) + obj.z_nom]);
+      set(h,'LineWidth',3,'Color','red')
+      radius = .1;
+      rectangle('Position',[x(1)-radius/2,x(2)+obj.z_nom-radius/2,radius,radius],'Curvature',[1,1], 'FaceColor','k')
+      xlim([-1 1])
+      ylim([-.1 1.5])
     end
   end
 end

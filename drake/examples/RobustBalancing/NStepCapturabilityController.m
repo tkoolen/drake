@@ -4,7 +4,7 @@ classdef NStepCapturabilityController < DrakeSystem
     dVdotdu_coeffs
     dVdotdu_pows
     sos_plant
-    dVdotdu_interp_bound = 1e-3;
+    dVdotdu_interp_bound = 1e-6;
   end
   
   methods

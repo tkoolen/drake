@@ -4,7 +4,7 @@ g = 10;
 step_max = .7;
 step_time = 0.3;
 z_nom = 1;
-R_diag = [2, 2 2, 2];
+R_diag = [2, .5 2, 2];
 
 f_max = 1.5;
 f_min = .5;
@@ -16,11 +16,11 @@ if n > 0
 else
   T = 1;
 end
-options.degree = 4;
+options.degree = 6;
 options.do_backoff = false;
 options.backoff_ratio = 1.02;
-options.scale = 1/5;
-options.scale_input = 5;
+options.scale = 1/2;
+options.scale_input = 2;
 
 % R_diag = 2 * ones(1, model.num_states);
 

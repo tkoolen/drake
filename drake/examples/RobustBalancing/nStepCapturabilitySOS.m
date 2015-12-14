@@ -67,6 +67,7 @@ end
 if n > 0
   filename = solutionFileName(model, n - 1);
   if ~exist(filename, 'file')
+    display(sprintf('Solving for %d-step first',n-1))
     nStepCapturabilitySOS(model, T, R_diag, target, n - 1, options);
   end
   data = load(filename);
