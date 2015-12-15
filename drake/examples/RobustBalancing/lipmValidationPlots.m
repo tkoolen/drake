@@ -36,7 +36,7 @@ end
 
 set(gca,'LooseInset',get(gca,'TightInset'))
 
-  xlabel('q_1','FontSize',24)
-  ylabel('v_1','FontSize',24)
+xlabel('x_c_m','FontSize',24)
+ylabel('xdot_c_m','FontSize',24)
   title('Capture Regions','FontSize',24)
 hold off
