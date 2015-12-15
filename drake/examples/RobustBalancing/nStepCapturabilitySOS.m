@@ -28,7 +28,6 @@ else
   scale = options.scale;
 end
 scale_inv = 1./scale;
-R_diag = scale'.*R_diag;
 
 %scaling of input vector
 if ~isfield(options,'scale_input')
@@ -53,7 +52,8 @@ prog = spotsosprog;
 if model.num_inputs > 0
   [prog,u]=prog.newIndeterminate('u', model.num_inputs); % input
 else
-  u = msspoly;
+%   u = msspoly;
+  u = zeros(0,1);
 end
 if n > 0
   if model.num_reset_inputs > 0
@@ -73,6 +73,9 @@ if n > 0
   data = load(filename);
   V0 = subs(data.Vsol,x,x.*scale_inv);
 end
+
+%% Scale r_diag
+R_diag = scale'.*R_diag;
 
 %% Create polynomials V(t,x) and W(x)
 if time_varying

@@ -40,8 +40,12 @@ for i = 1 : length(h)
   eqn = eqn - h(i) * mult_i;
   mult = [mult; mult_i]; %#ok<AGROW>
   coefmult = [coefmult; coefmult_i]; %#ok<AGROW>
-  
-  display(sprintf('S-proc ineq. SOS deg: %d, h deg: %d, mult deg: %d',original_deg, deg(h(i)), degree(i)))
+  if isnumeric(h(i))
+    deg_h = 0;
+  else
+    deg_h = deg(h(i));
+  end
+  display(sprintf('S-proc ineq. SOS deg: %d, h deg: %d, mult deg: %d',original_deg, deg_h, degree(i)))
   if original_deg ~= even_degree(h(i),vars) + degree(i);
     warning('S-procedure degree mismatch')
   end

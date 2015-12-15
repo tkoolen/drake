@@ -35,7 +35,7 @@ classdef VariableHeightandPitch2D < NStepCapturabilitySOSSystem
       x_com = x(1);
       z_com = x(2) + obj.z_nom;
       v_com = x(4:6);
-      vdot_com = [u_Fx;u_Fz*obj.g-obj.g; (obj.g/obj.inertia_ratio)*(u_Fz*x_com - u_Fx*z_com)];
+      vdot_com = [u_Fx*obj.g;u_Fz*obj.g-obj.g; (obj.g/obj.inertia_ratio)*(u_Fz*x_com - u_Fx*z_com)];
       xdot = [v_com;vdot_com];
     end
     
@@ -52,8 +52,11 @@ classdef VariableHeightandPitch2D < NStepCapturabilitySOSSystem
       mu = 1;
       f_z = u(2);
       f_x = u(1);
-%       ret = [obj.f_max^2 - force_squared; -obj.f_min^2 + force_squared; mu^2*u(2)^2 - u(1)^2];
-      ret = [obj.f_max - f_z;f_z - obj.f_min; mu^2*f_z^2 - f_x^2];
+      ret = [obj.f_max^2 - force_squared; -obj.f_min^2 + force_squared];%; mu^2*u(2)^2 - u(1)^2];
+%       ret = [obj.f_max - f_z;f_z - obj.f_min; mu^2*f_z^2 - f_x^2];
+%       lim_avg = (obj.f_max + obj.f_min)/2;
+%       delta_lim = (obj.f_max - obj.f_min)/2;
+%       ret = [delta_lim^2 - (f_z - lim_avg)^2];
     end
     
     function[umin,umax,A] = simpleInputLimits(obj,x)

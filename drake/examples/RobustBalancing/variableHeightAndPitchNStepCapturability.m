@@ -15,7 +15,7 @@ options.degree = 4;
 options.do_backoff = false;
 options.backoff_ratio = 1.05;
 options.free_final_time = false;
-options.scale = 1/2;
+options.scale = 1/4;
 options.scale_input = 2;
 
 target = [];
