@@ -143,7 +143,7 @@ classdef VariableHeightandPitch2D < NStepCapturabilitySOSSystem
       h=line(x_stance+[0;x(1)],[0;x(2) + obj.z_nom]);
       set(h,'LineWidth',3,'Color','red')
       axis_major = .3;
-      axis_minor = .1;
+      axis_minor = .2;
       theta = linspace(0,2*pi,100);
       x_ellipse = axis_minor*cos(theta);
       z_ellipse = axis_major*sin(theta);
@@ -151,8 +151,16 @@ classdef VariableHeightandPitch2D < NStepCapturabilitySOSSystem
       z_body = obj.z_nom + x(2) - x_ellipse*sin(x(3)) + z_ellipse*cos(x(3));
       patch(x_body,z_body,'k')
 %       rectangle('Position',[x_stance+x(1)-radius/2,x(2)+obj.z_nom-radius/2,radius,2*radius],'Curvature',[1,1], 'FaceColor','k')
-      xlim([-3 3])
-      ylim([-.1 1.5])
+%       xlim([-3 3])
+%       ylim([-.1 1.5])
+      
+            h=line([-10 10],[0 0]);
+      set(h,'LineWidth',5,'Color','black')
+      radius = .1;
+      rectangle('Position',[x_stance+x(1)-radius/2,x(2)+obj.z_nom-radius/2,radius,radius],'Curvature',[1,1], 'FaceColor','k')
+      xlim([-.5 1.5])
+      ylim([-.5 1.5])
+      axis off
     end
   end
 end
