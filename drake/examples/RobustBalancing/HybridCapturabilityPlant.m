@@ -11,7 +11,11 @@ classdef HybridCapturabilityPlant < HybridDrakeSystem
   end
   
   methods
-    function obj = HybridCapturabilityPlant(sos_plant,data)
+    function obj = HybridCapturabilityPlant(sos_plant,data,free_final_time)
+      if nargin < 3
+        free_final_time = false;
+      end
+      
       obj = obj@HybridDrakeSystem(sos_plant.num_inputs,sos_plant.num_states+3);
       obj.sos_plant = sos_plant;
       
@@ -34,18 +38,31 @@ classdef HybridCapturabilityPlant < HybridDrakeSystem
 %         ol_plant = ol_plant.setOutputFrame(ol_plant.getOutputFrame);
 %         ol_plant = ol_plant.setInputFrame(ol_plant.getInputFrame);
         
-        Vdot = diff(data{i}.Vsol,x)*xdot + diff(data{i}.Vsol,t);
-        dVdotdu = diff(Vdot,u);
-        [pows,coeffs] = decomp_ordered(dVdotdu,[t;x]);
+        if i > 1 && sos_plant.num_reset_inputs == 0 && true
+          V0p = subs(data{i-1}.Vsol,[x;t],[xp;0]);
+          V0pdot = diff(V0p,x)*xdot;
+          dV0pdotdu = diff(V0pdot,u);
+          [pows,coeffs] = decomp_ordered(dV0pdotdu,[t;x]);
+        else
+          Vdot = diff(data{i}.Vsol,x)*xdot + diff(data{i}.Vsol,t);
+          dVdotdu = diff(Vdot,u);
+          [pows,coeffs] = decomp_ordered(dVdotdu,[t;x]);
+        end
         controller = NStepCapturabilityController(ol_plant,coeffs,pows);
         plant = ol_plant.feedback(controller);
         obj = obj.addMode(plant);
         
         if i > 1
           data{i}.V0p = subs(data{i-1}.Vsol,[x;t],[xp;0]);
+          data{i}.dV0pdx = diff(data{i}.V0p,x);
           
           time_guard_i = @(obj,t,x,u) time_guard(obj,t,x,u,data{i}.T);
           obj = obj.addTransition(i,time_guard_i,@transition,false,false);
+          
+          if free_final_time
+            v0p_guard_i = @(obj,t,x,u) v0p_guard(obj,t,x,u,i);
+            obj = obj.addTransition(i,v0p_guard_i,@transition,false,false);
+          end
         end
       end
       
@@ -63,6 +80,23 @@ classdef HybridCapturabilityPlant < HybridDrakeSystem
     function phi = time_guard(obj,t,x,u,T_max)
       t = t - x(end-2);
       phi = T_max - t;
+    end
+    
+    function phi = v0p_guard(obj,t,x,u,mode)
+      if obj.sos_plant.num_reset_inputs > 0
+        error('Not yet implemented')
+      end
+      V0p = double(subs(obj.data{mode}.V0p,obj.x,x(1:end-3)));
+      dV0pdx = double(subs(obj.data{mode}.dV0pdx,obj.x,x(1:end-3)));
+      xdot = obj.modes{mode}.dynamics(t,x,u);
+      
+      V0p_dot = dV0pdx * xdot(1:end-3);
+      
+      % transition when V0p > 0 and V0p_dot < 0
+      phi = max(-V0p,V0p_dot);
+      phi = max(phi,.3/2-t);
+%       phi = -V0p;
+      display(sprintf('t: %f V0p: %f, V0pdot: %f',t,V0p,V0p_dot));
     end
     
     function [to_mode_xn,to_mode_num,status] = transition(obj,from_mode_num,t,x,u)

@@ -52,11 +52,11 @@ classdef VariableHeightandPitch2D < NStepCapturabilitySOSSystem
       mu = 1;
       f_z = u(2);
       f_x = u(1);
-      ret = [obj.f_max^2 - force_squared; -obj.f_min^2 + force_squared];%; mu^2*u(2)^2 - u(1)^2];
+%       ret = [obj.f_max^2 - force_squared; -obj.f_min^2 + force_squared];%; mu^2*u(2)^2 - u(1)^2];
 %       ret = [obj.f_max - f_z;f_z - obj.f_min; mu^2*f_z^2 - f_x^2];
-%       lim_avg = (obj.f_max + obj.f_min)/2;
-%       delta_lim = (obj.f_max - obj.f_min)/2;
-%       ret = [delta_lim^2 - (f_z - lim_avg)^2];
+      lim_avg = (obj.f_max + obj.f_min)/2;
+      delta_lim = (obj.f_max - obj.f_min)/2;
+      ret = [delta_lim^2 - (f_z - lim_avg)^2;  mu^2*f_z^2 - f_x^2];
     end
     
     function[umin,umax,A] = simpleInputLimits(obj,x)
@@ -89,11 +89,13 @@ classdef VariableHeightandPitch2D < NStepCapturabilitySOSSystem
       sub_val = [0;0;0;0;0];
       plot_vars = [q(1);v(1)];
       
-      figure(1)
-      contourSpotless([Wsol;h_X],plot_vars(1),plot_vars(2),[-R_diag(1) R_diag(1)],[-R_diag(4) R_diag(4)],sub_vars,sub_val,[1 0],{'b','r'});
-      xlabel('q_1')
-      ylabel('v_1')
-      title('W(x)')
+      if ~isempty(Wsol)
+        figure(1)
+        contourSpotless([Wsol;h_X],plot_vars(1),plot_vars(2),[-R_diag(1) R_diag(1)],[-R_diag(4) R_diag(4)],sub_vars,sub_val,[1 0],{'b','r'});
+        xlabel('q_1')
+        ylabel('v_1')
+        title('W(x)')
+      end
       
       figure(n*10+2)
       contourSpotless([Vsol;h_X],plot_vars(1),plot_vars(2),[-R_diag(1) R_diag(1)],[-R_diag(4) R_diag(4)],sub_vars,sub_val,[0 0],{'b','r'});
@@ -102,15 +104,17 @@ classdef VariableHeightandPitch2D < NStepCapturabilitySOSSystem
       title('V(0,x)')
       
       % 3d plot for t = 0, zdot = 0
+      contour_inds = [1 4 2];
+      sub_inds = setdiff(1:6,contour_inds);
       hFig = figure(n * 10 + 3);
       clf;
-      contourSpotless3D(subs(Vsol,  [t;x(2);x(5:6)], [0;0;0;0]), [x(1); x(4); x(3)], 0, [R_diag(1); R_diag(4); R_diag(3)]);
-      xlabel('q_1'); ylabel('v_1'); zlabel('theta');
+      contourSpotless3D(subs(Vsol,  [t;x(sub_inds)], [0;0;0;0]), x(contour_inds), 0, R_diag(contour_inds));
+      xlabel('x_c_m'); ylabel('xdot_c_m'); zlabel('z_c_m');
 
       % video of rotating ROA
       create_video = false;
       if create_video
-        createRotatingVideo([class(obj) '_V' num2str(n)], filename);
+        createRotatingVideo(hFig,[class(obj) '_V' num2str(n)]);
       end
     end
     

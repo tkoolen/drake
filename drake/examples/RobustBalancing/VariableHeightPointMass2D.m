@@ -108,11 +108,11 @@ classdef VariableHeightPointMass2D < NStepCapturabilitySOSSystem
       title('W(x)')
       
       figure(n*10+2)
-      contourSpotless([Vsol;h_X],plot_vars(1),plot_vars(2),[-R_diag(1) R_diag(1)],[-R_diag(3) R_diag(3)],sub_vars,sub_val,[0 0],{'b','r'});
+      h=contourSpotless([Vsol;h_X],plot_vars(1),plot_vars(2),[-R_diag(1) R_diag(1)],[-R_diag(3) R_diag(3)],sub_vars,sub_val,[0 0],{'k','r'});
       xlabel('q_1')
       ylabel('v_1')
       title('V(0,x)')
-      
+      set(h,'LineWidth',4)
       % 3d plot for t = 0, zdot = 0
       hFig = figure(n * 10 + 3);
       clf;
@@ -131,10 +131,13 @@ classdef VariableHeightPointMass2D < NStepCapturabilitySOSSystem
       % draw line from origin to COM
       h=line(x_stance+[0;x(1)],[0;x(2) + obj.z_nom]);
       set(h,'LineWidth',3,'Color','red')
+      h=line([-10 10],[0 0]);
+      set(h,'LineWidth',5,'Color','black')
       radius = .1;
       rectangle('Position',[x_stance+x(1)-radius/2,x(2)+obj.z_nom-radius/2,radius,radius],'Curvature',[1,1], 'FaceColor','k')
-      xlim([-3 3])
-      ylim([-.1 1.5])
+      xlim([-.5 1.5])
+      ylim([-.5 1.5])
+      axis off
     end
   end
 end

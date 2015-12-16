@@ -6,6 +6,7 @@ model = data_0.model;
 p = HybridCapturabilityPlant(model,data);
 %%
 x0 = [2;-.7;0;0;1.4;0;0];
+x0 = [2;.0;0;0;1;0;0];
 % x0 = [2;0;0;0;0];
 % x0 = [3;-.9;0;1.4;0];
 % x0 = [3;0;0;1;0];

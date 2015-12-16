@@ -31,7 +31,7 @@ classdef NStepCapturabilityController < DrakeSystem
           
           if abs(dVdotdu(i)) < obj.dVdotdu_interp_bound
             % interpolate between the two
-            u = interp1([-obj.dVdotdu_interp_bound;obj.dVdotdu_interp_bound], [umin(i);umax(i)],dVdotdu(i));
+            u(i) = interp1([-obj.dVdotdu_interp_bound;obj.dVdotdu_interp_bound], [umin(i);umax(i)],dVdotdu(i));
           else
             if dVdotdu(i) < 0
               u(i) = umin(i);
@@ -53,6 +53,7 @@ classdef NStepCapturabilityController < DrakeSystem
 %         end
       end
     end
+    
   end
   
 end

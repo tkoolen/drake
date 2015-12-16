@@ -1,5 +1,5 @@
 function createRotatingVideo(hFig, filename)
-writer = VideoWriter(filename, 'MPEG-4');
+writer = VideoWriter(filename);
 set(writer, 'Quality', 90)
 
 open(writer);

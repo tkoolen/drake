@@ -35,7 +35,7 @@ classdef FirstOrderSwingVariableHeightandPitch < NStepCapturabilitySOSSystem
       x_com = x(1);
       z_com = x(2) + obj.z_nom;
       v_com = x(5:7);
-      vdot_com = [u_Fx;u_Fz*obj.g-obj.g; (obj.g/obj.inertia_ratio)*(u_Fz*x_com - u_Fx*z_com)];
+      vdot_com = [u_Fx*obj.g;u_Fz*obj.g-obj.g; (obj.g/obj.inertia_ratio)*(u_Fz*x_com - u_Fx*z_com)];
       xdot = [v_com;u_swing;vdot_com];
     end
     
@@ -52,9 +52,16 @@ classdef FirstOrderSwingVariableHeightandPitch < NStepCapturabilitySOSSystem
     
     function ret = inputLimits(obj, u, x)
       limits_swing = [obj.u_max^2 - u(1)^2];
-      force_squared = u(2:3)'*u(2:3);
-      limits_force = [obj.f_max^2 - force_squared; -obj.f_min^2 + force_squared];
-      % HERE
+
+      mu = 1;
+      f_z = u(3);
+      f_x = u(2);
+      
+      lim_avg = (obj.f_max + obj.f_min)/2;
+      delta_lim = (obj.f_max - obj.f_min)/2;
+      limits_force = [delta_lim^2 - (f_z - lim_avg)^2;  mu^2*f_z^2 - f_x^2];
+      
+%       limits_force = [obj.f_max^2 - force_squared; -obj.f_min^2 + force_squared];
       ret = [limits_swing;limits_force];
     end
     
@@ -87,10 +94,12 @@ classdef FirstOrderSwingVariableHeightandPitch < NStepCapturabilitySOSSystem
       title('V(0,x)')
       
       % 3d plot for t = 0, zdot = 0
-%       hFig = figure(n * 10 + 3);
-%       clf;
-%       contourSpotless3D(subs(Vsol,  t, 0), [x(1); x(3); x(2)], 0, [R_diag(1); R_diag(3); R_diag(2)]);
-%       xlabel('q_1'); ylabel('v_1'); zlabel('q_2');
+      contour_inds = [1 5 2];
+      sub_inds = setdiff(1:7,contour_inds);
+      hFig = figure(n * 10 + 3);
+      clf;
+      contourSpotless3D(subs(Vsol,  [t;x(sub_inds)], [0;0;0;0;0]), x(contour_inds), 0, R_diag(contour_inds));
+      xlabel('x_c_m'); ylabel('xdot_c_m'); zlabel('z_c_m');      
 
       % video of rotating ROA
       create_video = false;

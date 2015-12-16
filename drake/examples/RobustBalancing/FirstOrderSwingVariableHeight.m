@@ -52,12 +52,16 @@ classdef FirstOrderSwingVariableHeight < NStepCapturabilitySOSSystem
       A = [];
       z = x(2) + obj.z_nom;
       
-      umin = [-obj.umin;obj.f_min/z];
-      umax = [obj.umax;obj.f_max/z];      
+      umin = [-obj.u_max;obj.f_min/z];
+      umax = [obj.u_max;obj.f_max/z];      
     end
     
     function ret = resetInputLimits(obj, s)
       ret = [];
+    end
+    
+    function rp = stanceUpdate(obj,x,r,s)
+      rp = r + [x(1)+x(3);0];
     end
     
     function plotfun(obj, n, Vsol, Wsol, h_X, R_diag, t, x)
@@ -68,6 +72,8 @@ classdef FirstOrderSwingVariableHeight < NStepCapturabilitySOSSystem
       sub_val = [0;0;0;0];
       plot_vars = [q(1);v(1)];
       
+%       Vsol = subs(Vsol,x(3),-x(1));
+      
       figure(1)
       contourSpotless([Wsol;h_X],plot_vars(1),plot_vars(2),[-R_diag(1) R_diag(1)],[-R_diag(4) R_diag(4)],sub_vars,sub_val,[1 0],{'b','r'});
       xlabel('q_1')
@@ -75,16 +81,17 @@ classdef FirstOrderSwingVariableHeight < NStepCapturabilitySOSSystem
       title('W(x)')
       
       figure(n*10+2)
-      contourSpotless([Vsol;h_X],plot_vars(1),plot_vars(2),[-R_diag(1) R_diag(1)],[-R_diag(4) R_diag(4)],sub_vars,sub_val,[0 0],{'b','r'});
+      h=contourSpotless([Vsol;h_X],plot_vars(1),plot_vars(2),[-R_diag(1) R_diag(1)],[-R_diag(4) R_diag(4)],sub_vars,sub_val,[0 0],{'b','r'});
       xlabel('q_1')
       ylabel('v_1')
-      title('V(0,x)')
-      
+      title('V(0,x)')      
       % 3d plot for t = 0, zdot = 0
-%       hFig = figure(n * 10 + 3);
-%       clf;
-%       contourSpotless3D(subs(Vsol,  t, 0), [x(1); x(3); x(2)], 0, [R_diag(1); R_diag(3); R_diag(2)]);
-%       xlabel('q_1'); ylabel('v_1'); zlabel('q_2');
+      contour_inds = [1 4 2];
+      sub_inds = setdiff(1:5,contour_inds);
+      hFig = figure(n * 10 + 3);
+      clf;
+      contourSpotless3D(subs(Vsol,  [t;x(sub_inds)], [0;0;0]), x(contour_inds), 0, R_diag(contour_inds));
+      xlabel('x_c_m'); ylabel('xdot_c_m'); zlabel('z_c_m');      
 
       % video of rotating ROA
       create_video = false;
@@ -94,16 +101,24 @@ classdef FirstOrderSwingVariableHeight < NStepCapturabilitySOSSystem
     end
     
     function draw(obj,t,x)
+      x_stance = x(end-1);
       % draw line from origin to COM
-      h=line([0;x(1)],[0;x(2) + obj.z_nom]);
+      h=line([0;x(1)]+x_stance,[0;x(2) + obj.z_nom]);
       set(h,'LineWidth',3,'Color','red')
       
       % draw line from COM to swing
-      h=line([x(1);x(1)+x(3)],[x(2)+obj.z_nom;0]);
+      h=line([x(1);x(1)+x(3)]+x_stance,[x(2)+obj.z_nom;0]);
       set(h,'LineWidth',3,'Color','black')
       
-      xlim([-1 1])
-      ylim([-1 1])
+      radius = .1;
+      rectangle('Position',[x_stance+x(1)-radius/2,x(2)+obj.z_nom-radius/2,radius,radius],'Curvature',[1,1], 'FaceColor','k')
+      
+      xlim([-.5 1])
+      ylim([-.2 1.3])
+      h=line([-10 10],[0 0]);
+      set(h,'LineWidth',5,'Color','black')
+      
+      axis off
     end
   end
 end

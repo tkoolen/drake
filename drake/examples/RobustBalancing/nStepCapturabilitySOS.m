@@ -156,7 +156,12 @@ else
     
     sos = [sos; goal_sos];
   else
-    prog = prog.withPos(subs(subs(V,t,T),x,zeros(model.num_states,1)));
+    if options.free_final_time
+      [prog, goal_sos] = spotless_add_sprocedure(prog, subs(V,x,zeros(model.num_states,1)), t*(T-t),t,degree-2);
+      sos = [sos; goal_sos];
+    else
+      prog = prog.withPos(subs(subs(V,t,T),x,zeros(model.num_states,1)));      
+    end
   end
 end
 
