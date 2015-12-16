@@ -7,12 +7,13 @@ R_diag = [2, 1, 1, 2, 2, 2];
 % f_max = 1.5;
 f_min = .9;
 f_max = 1.1;
+div_max = .1;
 % inertia_ratio = .3^2/2; 
 inertia_ratio = .6^2/2; 
 step_max = .7;
 step_time = .3;
 
-model = VariableHeightandPitch2D(g, z_nom, step_max, step_time, inertia_ratio, f_max, f_min);
+model = VariableHeightandPitch2D(g, z_nom, step_max, step_time, inertia_ratio, f_max, f_min, div_max);
 
 options.degree = 4;
 options.do_backoff = false;

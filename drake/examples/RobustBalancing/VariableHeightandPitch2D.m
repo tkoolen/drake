@@ -9,11 +9,12 @@ classdef VariableHeightandPitch2D < NStepCapturabilitySOSSystem
     f_max; % max 'leg force'. Really f_max / weight
     f_min; % min 'leg force'. Really f_min / weight
     step_max; % max step distance
+    div_max
     T; % step time
   end
   
   methods
-    function obj = VariableHeightandPitch2D(g, z_nom, step_max, step_time, inertia_ratio, f_max, f_min)
+    function obj = VariableHeightandPitch2D(g, z_nom, step_max, step_time, inertia_ratio, f_max, f_min, div_max)
       obj@NStepCapturabilitySOSSystem(6, 2, 1);
       obj.g = g;
       obj.inertia_ratio = inertia_ratio;
@@ -22,6 +23,7 @@ classdef VariableHeightandPitch2D < NStepCapturabilitySOSSystem
       obj.f_min = f_min;
       obj.step_max = step_max;
       obj.T = step_time;
+      obj.div_max = div_max;
     end
     
     % x = [q;v]
@@ -30,13 +32,21 @@ classdef VariableHeightandPitch2D < NStepCapturabilitySOSSystem
     % vdot_com = [0; -g; 0] + [fx/m;fz/m;fz*x/I - fx*z/I]
     % u = f / mg
     function xdot = dynamics(obj, t, x, u)
-      u_Fx = u(1);
-      u_Fz = u(2);
-      x_com = x(1);
-      z_com = x(2) + obj.z_nom;
-      v_com = x(4:6);
-      vdot_com = [u_Fx*obj.g;u_Fz*obj.g-obj.g; (obj.g/obj.inertia_ratio)*(u_Fz*x_com - u_Fx*z_com)];
-      xdot = [v_com;vdot_com];
+%       u_Fx = u(1);
+%       u_Fz = u(2);
+%       x_com = x(1);
+%       z_com = x(2) + obj.z_nom;
+%       v_com = x(4:6);
+%       vdot_com = [u_Fx*obj.g;u_Fz*obj.g-obj.g; (obj.g/obj.inertia_ratio)*(u_Fz*x_com - u_Fx*z_com)];
+%       xdot = [v_com;vdot_com];
+      
+      % u_1 = F_z
+      % u_2 = F_x
+      q = x(1 : 3);
+      q(2) = q(2) + obj.z_nom;
+      v = x(4 : 6);
+      vdot = [0; -obj.g;0] + u(1) * [q(1:2) * obj.g;0] + u(2) * obj.g * [1; 0; q(2)/obj.inertia_ratio];
+      xdot = [v; vdot];
     end
     
     function xp = reset(obj, t, xm, s)
@@ -48,24 +58,33 @@ classdef VariableHeightandPitch2D < NStepCapturabilitySOSSystem
     end
     
     function ret = inputLimits(obj, u, x)
-      force_squared = u'*u;
-      mu = 1;
-      f_z = u(2);
-      f_x = u(1);
-%       ret = [obj.f_max^2 - force_squared; -obj.f_min^2 + force_squared];%; mu^2*u(2)^2 - u(1)^2];
-%       ret = [obj.f_max - f_z;f_z - obj.f_min; mu^2*f_z^2 - f_x^2];
-      lim_avg = (obj.f_max + obj.f_min)/2;
-      delta_lim = (obj.f_max - obj.f_min)/2;
-      ret = [delta_lim^2 - (f_z - lim_avg)^2;  mu^2*f_z^2 - f_x^2];
+%       force_squared = u'*u;
+%       mu = 1;
+%       f_z = u(2);
+%       f_x = u(1);
+% %       ret = [obj.f_max^2 - force_squared; -obj.f_min^2 + force_squared];%; mu^2*u(2)^2 - u(1)^2];
+% %       ret = [obj.f_max - f_z;f_z - obj.f_min; mu^2*f_z^2 - f_x^2];
+%       lim_avg = (obj.f_max + obj.f_min)/2;
+%       delta_lim = (obj.f_max - obj.f_min)/2;
+%       ret = [delta_lim^2 - (f_z - lim_avg)^2;  mu^2*f_z^2 - f_x^2];
+
+
+      q = x(1 : 2);
+      z = q(2) + obj.z_nom;            
+      
+      ret = [(obj.f_max - obj.f_min)^2 - 4 *(u(1)*z - (obj.f_max + obj.f_min)/2)^2; obj.div_max^2 - u(2)^2];
     end
     
     function[umin,umax,A] = simpleInputLimits(obj,x)
       % Au <= umax
-      umin = [];
-      mu = 1;
-      A = [0 1;0 -1;1 -mu;-1 -mu];
-      b = [obj.f_max;-obj.f_min;0;0];
-      umax = b;
+%       umin = [];
+%       mu = 1;
+%       A = [0 1;0 -1;1 -mu;-1 -mu];
+%       b = [obj.f_max;-obj.f_min;0;0];
+%       umax = b;
+      umin = [obj.f_min;-obj.div_max];
+      umax = [obj.f_max;obj.div_max];
+      A = [];
     end
     
     function ret = resetInputLimits(obj, s)
@@ -123,8 +142,15 @@ classdef VariableHeightandPitch2D < NStepCapturabilitySOSSystem
       % draw line from origin to COM
       h=line(x_stance+[0;x(1)],[0;x(2) + obj.z_nom]);
       set(h,'LineWidth',3,'Color','red')
-      radius = .1;
-      rectangle('Position',[x_stance+x(1)-radius/2,x(2)+obj.z_nom-radius/2,radius,2*radius],'Curvature',[1,1], 'FaceColor','k')
+      axis_major = .3;
+      axis_minor = .1;
+      theta = linspace(0,2*pi,100);
+      x_ellipse = axis_minor*cos(theta);
+      z_ellipse = axis_major*sin(theta);
+      x_body = x_stance + x(1) + x_ellipse*cos(x(3)) + z_ellipse*sin(x(3));
+      z_body = obj.z_nom + x(2) - x_ellipse*sin(x(3)) + z_ellipse*cos(x(3));
+      patch(x_body,z_body,'k')
+%       rectangle('Position',[x_stance+x(1)-radius/2,x(2)+obj.z_nom-radius/2,radius,2*radius],'Curvature',[1,1], 'FaceColor','k')
       xlim([-3 3])
       ylim([-.1 1.5])
     end
