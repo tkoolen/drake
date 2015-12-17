@@ -19,6 +19,10 @@ if ~isfield(options,'free_final_time')
   options.free_final_time = false; % goal region is not restricted to t=T if true
 end
 
+if ~isfield(options,'control_design')
+  options.control_design = false;
+end
+
 %scaling of state vector
 if ~isfield(options,'scale')
   scale = ones(model.num_states,1);
@@ -30,7 +34,7 @@ end
 scale_inv = 1./scale;
 
 %scaling of input vector
-if ~isfield(options,'scale_input')
+if ~isfield(options,'scale_input') || options.control_design
   scale_input = ones(model.num_inputs,1);
 elseif length(options.scale_input) == 1
   scale_input = ones(model.num_inputs,1)*options.scale_input;
@@ -50,7 +54,11 @@ prog = spotsosprog;
 [prog,t]=prog.newIndeterminate('t',1); % time
 [prog,x]=prog.newIndeterminate('x', model.num_states); % state
 if model.num_inputs > 0
-  [prog,u]=prog.newIndeterminate('u', model.num_inputs); % input
+  if ~options.control_design
+    [prog,u]=prog.newIndeterminate('u', model.num_inputs); % input
+  else
+    u = msspoly('u',model.num_inputs);
+  end
 else
 %   u = msspoly;
   u = zeros(0,1);
@@ -99,7 +107,23 @@ T = 1;
 
 Vdot = diff(V,x)*f + diff(V,t);
 
-Vdot_degree = even_degree(Vdot,[x;u]);
+if options.control_design && model.num_inputs > 0
+  Vdot_degree = even_degree(Vdot,x);
+  
+  [prog,p] = prog.newFreePoly(monomials(V_vars,0:Vdot_degree),model.num_inputs);
+  [A_u,b_u,C_u,d_u] = model.unitBoxInputTransform();
+  Vdot = subs(Vdot,u,C_u*u + d_u);
+  
+  dVdotdu = diff(Vdot,u);
+  if deg(Vdot,u) ~= 1
+    error('System must be control affine');
+  end
+  
+  
+  Vdot = subs(Vdot,u,u*0) + sum(p);  
+else
+  Vdot_degree = even_degree(Vdot,[x;u]);
+end
 
 
 %% Goal region
@@ -121,7 +145,6 @@ A = diag(1./(R_diag.^2));
 h_X = 1 - x'*A*x;
 
 %% SOS constraints
-sos = msspoly;
 if n > 0
   % (1) V(T,x) >= 0 for x in goal region
   % goal region
@@ -144,7 +167,7 @@ if n > 0
     [prog, goal_sos] = spotless_add_sprocedure(prog, goal_sos, t * (T - t),goal_vars,degree);
   end
   
-  sos = [sos; goal_sos];
+  prog = prog.withSOS(goal_sos);
 else
   if ~isempty(target)
     % (1) V(t,x) >= 0 for x in goal region
@@ -154,11 +177,11 @@ else
       [prog, goal_sos] = spotless_add_sprocedure(prog, goal_sos, t * (T - t),V_vars,degree-2);
     end
     
-    sos = [sos; goal_sos];
+    prog = prog.withSOS(goal_sos);
   else
     if options.free_final_time
       [prog, goal_sos] = spotless_add_sprocedure(prog, subs(V,x,zeros(model.num_states,1)), t*(T-t),t,degree-2);
-      sos = [sos; goal_sos];
+      prog = prog.withSOS(goal_sos);
     else
       prog = prog.withPos(subs(subs(V,t,T),x,zeros(model.num_states,1)));      
     end
@@ -167,34 +190,66 @@ end
 
 
 % (2) -Vdot(t,x,u) <= 0 for x in X
-[prog, Vdot_sos] = spotless_add_sprocedure(prog, -Vdot, h_X,[V_vars;u],Vdot_degree-2);
+if options.control_design
+  Vdot_vars = V_vars;
+else
+  Vdot_vars = [V_vars;u];
+end
 
-% input limits
-[prog, Vdot_sos] = spotless_add_sprocedure(prog, Vdot_sos, model.inputLimits(scale_input_inv.*u, scale_inv.*x),[V_vars;u],[]);
+[prog, Vdot_sos] = spotless_add_sprocedure(prog, -Vdot, h_X,Vdot_vars,Vdot_degree-2);
 
-input_equality_constraints = model.inputEqualityConstraints(scale_input_inv.*u, scale_inv.*x);
-input_equality_constraint_degree = even_degree(input_equality_constraints,[x;u]);
-for i = 1 : length(input_equality_constraints) % TODO iteration in spotless_add_eq_sprocedure
-  [prog, Vdot_sos] = spotless_add_eq_sprocedure(prog, Vdot_sos, input_equality_constraints(i), [V_vars; u], input_equality_constraint_degree); % TODO: degree
+if ~options.control_design
+  % input limits
+  [prog, Vdot_sos] = spotless_add_sprocedure(prog, Vdot_sos, model.inputLimits(scale_input_inv.*u, scale_inv.*x),Vdot_vars,[]);
+  
+  input_equality_constraints = model.inputEqualityConstraints(scale_input_inv.*u, scale_inv.*x);
+  input_equality_constraint_degree = even_degree(input_equality_constraints,[x;u]);
+  
+  for i = 1 : length(input_equality_constraints) % TODO iteration in spotless_add_eq_sprocedure
+    [prog, Vdot_sos] = spotless_add_eq_sprocedure(prog, Vdot_sos, input_equality_constraints(i), Vdot_vars, input_equality_constraint_degree); % TODO: degree
+  end
 end
 
 % 0 <= t < = T
 % could also write this with two constraints
 if time_varying
-  [prog, Vdot_sos] = spotless_add_sprocedure(prog, Vdot_sos, t * (T - t),[V_vars;u],Vdot_degree-2);
+  [prog, Vdot_sos] = spotless_add_sprocedure(prog, Vdot_sos, t * (T - t),Vdot_vars,Vdot_degree-2);
 end
-sos = [sos; Vdot_sos];
+[prog,Vdot_ind] = prog.withSOS(Vdot_sos);
+
+if options.control_design
+  p_pos_sos = msspoly;
+  p_neg_sos = msspoly;
+  p_pos_ind = [];
+  p_neg_ind = [];
+  for i=1:model.num_inputs,
+    p_pos_sos_i = p(i) - dVdotdu(i);
+    [prog, p_pos_sos_i] = spotless_add_sprocedure(prog, p_pos_sos_i, h_X,V_vars,Vdot_degree-2);
+    if time_varying
+      [prog, p_pos_sos_i] = spotless_add_sprocedure(prog, p_pos_sos_i,  t * (T - t),V_vars,Vdot_degree-2);
+    end
+    [prog,p_pos_ind(i)] = prog.withSOS(p_pos_sos_i);
+    
+    p_neg_sos_i = p(i) + dVdotdu(i);
+    [prog, p_neg_sos_i] = spotless_add_sprocedure(prog, p_neg_sos_i, h_X,V_vars,Vdot_degree-2);
+    if time_varying
+      [prog, p_neg_sos_i] = spotless_add_sprocedure(prog, p_neg_sos_i,  t * (T - t),V_vars,Vdot_degree-2);
+    end
+    [prog,p_neg_ind(i)] = prog.withSOS(p_neg_sos_i);
+    
+    p_pos_sos = [p_pos_sos;p_pos_sos_i];
+    p_neg_sos = [p_neg_sos;p_neg_sos_i];
+  end
+end
+  
 
 % (3) W(x) >= 0 for x in X
-[prog, sos(end + 1)] = spotless_add_sprocedure(prog, W, h_X,W_vars,degree-2);
+[prog, W_sos] = spotless_add_sprocedure(prog, W, h_X,W_vars,degree-2);
+prog = prog.withSOS(W_sos);
 
 % (4) W(x) >= V(0,x) + 1 for x in X
-[prog, sos(end + 1)] = spotless_add_sprocedure(prog, W - subs(V,t,0) - 1, h_X,W_vars,degree-2);
-
-for i=1:length(sos)
-  prog = prog.withSOS(sos(i));
-end
-
+[prog, WminusV_sos] = spotless_add_sprocedure(prog, W - subs(V,t,0) - 1, h_X,W_vars,degree-2);
+prog = prog.withSOS(WminusV_sos);
 %% Set up cost function -- integration over a sphere
 cost = spotlessIntegral(prog,W,x,R_diag,[],[]);
 
@@ -210,7 +265,46 @@ if options.do_backoff
   % resolve problem with cost replaced by a constraint
   prog = prog.withPos(sol.eval(cost)*options.backoff_ratio - cost);
   sol = prog.minimize(0,solver,spot_options);
- end
+end
+
+%% controller extraction (Majumdar et al. Mark's old code)
+if options.control_design
+  % get sos decomps  
+  y_vdot = sol.prog.sosEqsDualVars{Vdot_ind};
+  basis_vdot = sol.prog.sosEqsBasis{Vdot_ind};
+  mu_vdot = double(sol.dualEval(y_vdot));
+  [M_vdot,G] = momentMatrix(mu_vdot,basis_vdot);
+  
+  M_sig = cell(model.num_inputs,1);
+  u_sol = msspoly;
+  for i=1:model.num_inputs,
+    y_p_pos = sol.prog.sosEqsDualVars{p_pos_ind(i)};
+    basis_p_pos = sol.prog.sosEqsBasis{p_pos_ind(i)};
+    y_p_neg = sol.prog.sosEqsDualVars{p_neg_ind(i)};
+    basis_p_neg = sol.prog.sosEqsBasis{p_neg_ind(i)};
+    
+    if length(basis_vdot) ~= length(basis_p_pos)
+      err1 = 1;
+    elseif length(basis_p_neg) ~= length(basis_p_pos)
+      err2 = 1;
+    else
+      [~,err1] = double(basis_vdot-basis_p_pos);
+      [~,err2] = double(basis_p_neg-basis_p_pos);
+    end
+    if err1 || err2
+      warning(['Same basis did not come out of SOS ' ...
+        'Decomposition.']);
+      keyboard
+    end
+    
+    y_sig = double(sol.dualEval(y_p_pos-y_p_neg));
+    M_sig{i} = momentMatrix(y_sig,basis_vdot);
+    
+    u_sol = [u_sol;solveController(M_vdot,M_sig{i},G)];
+  end
+  u_sol = C_u*u_sol + d_u;
+  u_sol = subs(u_sol,x,scale.*x);
+end
 
 %% Plotting
 Vsol = subs(sol.eval(V),x,scale.*x);
@@ -220,8 +314,11 @@ model.plotfun(n, Vsol, Wsol, subs(h_X,x,scale.*x), R_diag, t, x);
 
 %%
 T = T_init;
-save(solutionFileName(model, n),'Vsol','model','T','R_diag')
-
+if options.control_design
+  save(solutionFileName(model, n),'Vsol','model','T','R_diag','u_sol')
+else
+  save(solutionFileName(model, n),'Vsol','model','T','R_diag')
+end
 end
 
 function filename = solutionFileName(model, n)

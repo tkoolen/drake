@@ -63,7 +63,7 @@ for i=1:n_contour
   else
     [cl,h(i)]=contour(X_VALS,Y_VALS,POLY_VAL);
   end
-%   clabel(cl,h);
+  clabel(cl);
   
   if i == 1
     hold on

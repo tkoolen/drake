@@ -38,17 +38,24 @@ classdef HybridCapturabilityPlant < HybridDrakeSystem
 %         ol_plant = ol_plant.setOutputFrame(ol_plant.getOutputFrame);
 %         ol_plant = ol_plant.setInputFrame(ol_plant.getInputFrame);
         
-        if i > 1 && sos_plant.num_reset_inputs == 0 && true
-          V0p = subs(data{i-1}.Vsol,[x;t],[xp;0]);
-          V0pdot = diff(V0p,x)*xdot;
-          dV0pdotdu = diff(V0pdot,u);
-          [pows,coeffs] = decomp_ordered(dV0pdotdu,[t;x]);
+        if isfield(data{i},'u_sol'),
+          u_sol = subs(data{i}.u_sol,t,t*data{i}.T);
+          [pows,coeffs] = decomp_ordered(u_sol,[t;x]);
+          controller = PolyController(ol_plant,coeffs,pows);
         else
-          Vdot = diff(data{i}.Vsol,x)*xdot + diff(data{i}.Vsol,t);
-          dVdotdu = diff(Vdot,u);
-          [pows,coeffs] = decomp_ordered(dVdotdu,[t;x]);
+          if i > 1 && sos_plant.num_reset_inputs == 0 && false
+            V0p = subs(data{i-1}.Vsol,[x;t],[xp;0]);
+            V0pdot = diff(V0p,x)*xdot;
+            dV0pdotdu = diff(V0pdot,u);
+            [pows,coeffs] = decomp_ordered(dV0pdotdu,[t;x]);
+          else
+            Vdot = diff(data{i}.Vsol,x)*xdot + diff(data{i}.Vsol,t);
+            Vdot = subs(Vdot,t,t*data{i}.T);
+            dVdotdu = diff(Vdot,u);
+            [pows,coeffs] = decomp_ordered(dVdotdu,[t;x]);
+          end
+          controller = NStepCapturabilityController(ol_plant,coeffs,pows);
         end
-        controller = NStepCapturabilityController(ol_plant,coeffs,pows);
         plant = ol_plant.feedback(controller);
         obj = obj.addMode(plant);
         

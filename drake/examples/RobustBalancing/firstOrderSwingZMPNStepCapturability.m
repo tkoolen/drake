@@ -17,6 +17,7 @@ options.degree = 4;
 options.do_backoff = false;
 options.backoff_ratio = 1.05;
 options.free_final_time = true;
+options.control_design = true;
 
 target = [];
 % goal_radius = 0.01;

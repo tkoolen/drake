@@ -34,8 +34,19 @@ classdef FirstOrderSwingZMP < NStepCapturabilitySOSSystem
     end
     
     function[umin,umax,A] = simpleInputLimits(obj,x)
-      umin = -obj.umin;
-      umax = obj.umax;
+      umin = -obj.u_max;
+      umax = obj.u_max;
+    end
+    
+    function [A,b,C,d] = unitBoxInputTransform(obj)
+      [u_min,u_max] = obj.simpleInputLimits();
+      u_avg = (u_max+u_min)/2;
+      u_div = u_max - u_avg;
+      
+      C = diag(u_div);
+      d = u_avg;
+      A = inv(C);
+      b = -A*d;
     end
     
     function ret = resetInputLimits(obj, s)

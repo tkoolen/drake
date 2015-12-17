@@ -9,12 +9,13 @@ f_max = 1.5;
 
 model = FirstOrderSwingVariableHeight(g, z_nom, u_max, f_max, f_min);
 
-options.degree = 6;
+options.degree = 4;
 options.do_backoff = false;
 options.backoff_ratio = 1.05;
 options.free_final_time = true;
 options.scale = 1/2;
 options.scale_input = 2;
+options.control_design = true;
 
 target = [];
 % goal_radius = 0.01;

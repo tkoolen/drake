@@ -20,7 +20,8 @@ options.degree = 4;
 options.do_backoff = false;
 options.backoff_ratio = 1.02;
 options.scale = 1/2;
-options.scale_input = 2;
+options.scale_input = 1;
+options.control_design = true;
 
 % R_diag = 2 * ones(1, model.num_states);
 

@@ -51,6 +51,13 @@ classdef NStepCapturabilitySOSSystem
     function rp = stanceUpdate(obj,x,r,s)
       rp = r;
     end
+    
+    % Transform u
+    % y = A*u + b s.t. limits on y are |y_i| <= 1
+    % u = C*y + d inverse transform
+    function [A,b,C,d] = unitBoxInputTransform(obj)
+      error('Implement for subclasses, throw an error if not applicable')
+    end
   end
   
 end
