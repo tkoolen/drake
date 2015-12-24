@@ -1,7 +1,6 @@
 #ifndef _PENDULUM_H_
 #define _PENDULUM_H_
 
-#include <iostream>
 #include <cmath>
 #include "LCMSystem.h"
 
