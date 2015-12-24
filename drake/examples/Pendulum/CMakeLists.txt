@@ -24,6 +24,7 @@ if (LCM_FOUND)
   target_link_libraries(runPendulumLQR drakeRBM drakeLCMSystem)
   add_test(NAME runPendulumLQR COMMAND runPendulumLQR WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/examples/Pendulum)
 
+  add_executable(wrappableSystemDemo wrappableSystemDemo.cpp)
 #  write_procman(Pendulum.pmd
 #      GROUP "Simulate"
 #        NAME "dynamics (cpp)" COMMAND "bash -c 'cd ${CMAKE_CURRENT_SOURCE_DIR} && ${CMAKE_BINARY_DIR}/bin/runPendulumDynamics'"

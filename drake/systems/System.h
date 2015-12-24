@@ -324,7 +324,12 @@ namespace Drake {
    * @ingroup modeling
    */
   template <typename System1, typename System2>
-  std::shared_ptr<CascadeSystem<System1,System2>> cascade(const std::shared_ptr<System1>& sys1, const std::shared_ptr<System2>& sys2)
+  struct CascadeReturnType {
+    typedef std::shared_ptr<CascadeSystem<System1,System2>> type;
+  };
+
+  template <typename System1, typename System2>
+  typename CascadeReturnType<System1, System2>::type cascade(const std::shared_ptr<System1>& sys1, const std::shared_ptr<System2>& sys2)
   {
     return std::make_shared<CascadeSystem<System1,System2> >(sys1,sys2);
   };
