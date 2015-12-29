@@ -23,7 +23,7 @@ namespace Drake {
         dynamics_double([=](const double& t, const StateVector<double> &x, const InputVector<double> &u) {
           auto x_sys = createStateVector<double>(*system_ptr);
           x_sys = x;
-          typename SystemType::template InputVector<double> u_sys;
+          auto u_sys = createInputVector<double>(*system_ptr);
           u_sys = u;
           auto xdot_sys = system_ptr->dynamics(t, x_sys, u_sys);
           return toEigen(xdot_sys);
@@ -31,7 +31,7 @@ namespace Drake {
         output_double([=](double t, const StateVector<double> &x, const InputVector<double> &u) {
           auto x_sys = createStateVector<double>(*system_ptr);
           x_sys = x;
-          typename SystemType::template InputVector<double> u_sys;
+          auto u_sys = createInputVector<double>(*system_ptr);
           u_sys = u;
           return toEigen(system_ptr->output(t, x_sys, u_sys));
         }),

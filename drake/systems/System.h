@@ -152,6 +152,45 @@ namespace Drake {
     return internal::CreateStateVectorDispatch<System, Scalar>::eval(sys);
   };
 
+  /** @brief Create a new, uninitialized input vector for the system.
+ * @concept{system_concept}
+ * @return a new, uninitialized input vector for the system.
+ */
+  template <typename Scalar, typename System>
+  typename System::template InputVector<Scalar> createInputVector(const System &sys);
+
+  namespace internal {
+    template <typename System, typename Scalar, class Enable = void>
+    struct CreateInputVectorDispatch {
+      static typename System::template InputVector<Scalar> eval(const System& sys) {
+        return typename System::template InputVector<Scalar>();
+      }
+    };
+
+    // case: Eigen vector
+    template <typename System, typename Scalar>
+    struct CreateInputVectorDispatch<System, Scalar, typename std::enable_if<is_eigen_vector<typename System::template InputVector<Scalar>>::value>::type >{
+      static typename System::template InputVector<Scalar> eval(const System& sys) {
+        return typename System::template InputVector<Scalar>(Drake::getNumInputs(sys));
+      }
+    };
+
+    // case: Combined vector
+    template<typename System, typename Scalar>
+    struct CreateInputVectorDispatch<System, Scalar, typename std::enable_if< is_combined_vector<typename System::template InputVector<Scalar>>::value>::type > {
+      static typename System::template InputVector<Scalar> eval(const System& sys) {
+        auto x1 = createInputVector<Scalar>(*sys.getSys1());
+        auto x2 = createInputVector<Scalar>(*sys.getSys2());
+        return typename System::template InputVector<Scalar>(x1, x2);
+      }
+    };
+  }
+
+  template <typename Scalar, typename System>
+  typename System::template InputVector<Scalar> createInputVector(const System& sys) {
+    return internal::CreateInputVectorDispatch<System, Scalar>::eval(sys);
+  };
+
 /** FeedbackSystem<System1,System2>
  * @brief Builds a new system from the feedback connection of two simpler systems
  * @concept{system_concept}
