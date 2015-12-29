@@ -12,10 +12,10 @@ using namespace Drake;
 int main() {
 
   auto pendulum = make_shared<Pendulum>();
-  shared_ptr<WrappableSystemInterface> pendulum_wrapped = make_shared<WrappableSystem>(pendulum);
+  shared_ptr<WrappableSystem> pendulum_wrapped = make_shared<WrappableSystem>(pendulum);
 
   auto controller = make_shared<PendulumEnergyShapingController>(*pendulum);
-  shared_ptr<WrappableSystemInterface> controller_wrapped = make_shared<WrappableSystem>(controller);
+  shared_ptr<WrappableSystem> controller_wrapped = make_shared<WrappableSystem>(controller);
 
   PendulumState<double> x;
   x.theta = 0.0; x.thetadot = 0.0;
