@@ -165,10 +165,9 @@ namespace Drake {
   public:
     template <typename ScalarType> using StateVector1 = typename System1::template StateVector<ScalarType>;
     template <typename ScalarType> using StateVector2 = typename System2::template StateVector<ScalarType>;
-    template <typename ScalarType> using StateVector = typename CombinedVectorUtil<System1::template StateVector, System2::template StateVector>::template type<ScalarType>;
+    template <typename ScalarType> using StateVector = CombinedVector<ScalarType, System1::template StateVector, System2::template StateVector>;
     template <typename ScalarType> using InputVector = typename System1::template InputVector<ScalarType>;
     template <typename ScalarType> using OutputVector = typename System1::template OutputVector<ScalarType>;
-    typedef CombinedVectorUtil<StateVector1,StateVector2> util;
 
     typedef std::shared_ptr<System1> System1Ptr;
     typedef std::shared_ptr<System2> System2Ptr;
@@ -182,24 +181,23 @@ namespace Drake {
     StateVector<ScalarType> dynamics(const ScalarType& t, const StateVector<ScalarType>& x, const InputVector<ScalarType>& u) const {
       OutputVector<ScalarType> y1;
       InputVector<ScalarType> y2;
-      auto x1 = util::first(x);
-      auto x2 = util::second(x);
+      auto x1 = x.first();
+      auto x2 = x.second();
       subsystemOutputs(t,x1,x2,u,y1,y2);
 
-      StateVector<ScalarType> xdot = util::combine(sys1->dynamics(t,x1,static_cast<InputVector<ScalarType> >(toEigen(y2)+toEigen(u))),
-                                   sys2->dynamics(t,x2,y1));
+      StateVector<ScalarType> xdot(sys1->dynamics(t,x1,static_cast<InputVector<ScalarType> >(toEigen(y2)+toEigen(u))), sys2->dynamics(t,x2,y1));
       return xdot;
     }
 
     template <typename ScalarType>
     OutputVector<ScalarType> output(const ScalarType& t, const StateVector<ScalarType>& x, const InputVector<ScalarType>& u) const {
       OutputVector<ScalarType> y1;
-      auto x1 = util::first(x);
+      auto x1 = x.first();
       if (!sys1->isDirectFeedthrough()) {
         y1 = sys1->output(t,x1,u);   // then don't need u+y2 here, u will be ignored
       } else {
         InputVector<ScalarType> y2;
-        auto x2 = util::second(x);
+        auto x2 = x.second();
         y2 = sys2->output(t,x2,y1); // y1 might be uninitialized junk, but has to be ok
         y1 = sys1->output(t,x1,static_cast<InputVector<ScalarType> >(toEigen(y2)+toEigen(u)));
       }
@@ -222,7 +220,7 @@ namespace Drake {
     }
 
     friend StateVector<double> getInitialState(const FeedbackSystem<System1,System2>& sys) {
-      return util::combine( getInitialState(*(sys.sys1)), getInitialState(*(sys.sys2)));
+      return StateVector<double>(getInitialState(*(sys.sys1)), getInitialState(*(sys.sys2)));
     }
 
   private:
@@ -262,7 +260,7 @@ namespace Drake {
   template <class System1, class System2>
   class CascadeSystem {
   public:
-    template <typename ScalarType> using StateVector = typename CombinedVectorUtil<System1::template StateVector, System2::template StateVector>::template type<ScalarType>;
+    template <typename ScalarType> using StateVector = CombinedVector<ScalarType, System1::template StateVector, System2::template StateVector>;
     template <typename ScalarType> using StateVector1 = typename System1::template StateVector<ScalarType>;
     template <typename ScalarType> using StateVector2 = typename System2::template StateVector<ScalarType>;
     template <typename ScalarType> using InputVector = typename System1::template InputVector<ScalarType>;
@@ -270,7 +268,6 @@ namespace Drake {
     template <typename ScalarType> using OutputVector = typename System2::template OutputVector<ScalarType>;
     typedef std::shared_ptr<System1> System1Ptr;
     typedef std::shared_ptr<System2> System2Ptr;
-    typedef CombinedVectorUtil<StateVector1,StateVector2> util;
 
     static_assert(std::is_same<typename System1::template OutputVector<double>,typename System2::template InputVector<double>>::value,"System 2 input vector must match System 1 output vector");
 
@@ -278,18 +275,18 @@ namespace Drake {
 
     template <typename ScalarType>
     StateVector<ScalarType> dynamics(const ScalarType& t, const StateVector<ScalarType>& x, const InputVector<ScalarType>& u) const {
-      auto x1 = util::first(x);
-      auto x2 = util::second(x);
+      auto x1 = x.first();
+      auto x2 = x.second();
       System1OutputVector<ScalarType> y1 = sys1->output(t,x1,u);
-      StateVector<ScalarType> xdot = util::combine(sys1->dynamics(t,x1,u),
-                                                   sys2->dynamics(t,x2,y1));
+      StateVector<ScalarType> xdot(sys1->dynamics(t, x1, u),
+                                   sys2->dynamics(t, x2, y1));
       return xdot;
     }
 
     template <typename ScalarType>
     OutputVector<ScalarType> output(const ScalarType& t, const StateVector<ScalarType>& x, const InputVector<ScalarType>& u) const {
-      auto x1 = util::first(x);
-      auto x2 = util::second(x);
+      auto x1 = x.first();
+      auto x2 = x.second();
       System1OutputVector<ScalarType> y1 = sys1->output(t,x1,u);
       OutputVector<ScalarType> y2 = sys2->output(t,x2,y1);
       return y2;
@@ -311,7 +308,7 @@ namespace Drake {
     }
 
     friend StateVector<double> getInitialState(const CascadeSystem<System1,System2>& sys) {
-      return util::combine( getInitialState(*(sys.sys1)), getInitialState(*(sys.sys2)));
+      return StateVector<double>(getInitialState(*(sys.sys1)), getInitialState(*(sys.sys2)));
     }
 
   private:

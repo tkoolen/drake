@@ -1,4 +1,3 @@
-
 #include "Pendulum.h"  // to get some types
 #include <iostream>
 #include "testUtil.h"
@@ -53,26 +52,26 @@ int main(int argc, char* argv[])
     valuecheck(test.first().thetadot,4.0);
     valuecheck(test.second().tau,6.0);
   }
-  {
-    CombinedVectorUtil<PendulumState,PendulumInput>::type<double> test(abc);
-    test=2*abc;
-    valuecheck(test.first().theta,2.0);
-    valuecheck(test.first().thetadot,4.0);
-    valuecheck(test.second().tau,6.0);
-  }
-  {
-    // combining a vector with an unused or empty vector should return the original type
-    {
-      CombinedVectorUtil<PendulumState, NullVector>::type<double> test;
-      if (!is_same<PendulumState<double>,decltype(test)>::value)
-	throw std::runtime_error("combined vector builder returned " + static_cast<string>(typeid(test).name()));
-    }
-    {
-      CombinedVectorUtil<NullVector, PendulumState>::type<double> test;
-      if (!is_same<PendulumState<double>,decltype(test)>::value)
-	throw std::runtime_error("combined vector builder returned " + static_cast<string>(typeid(test).name()));
-    }
-  }
+//  {
+//    CombinedVectorUtil<PendulumState,PendulumInput>::type<double> test(abc);
+//    test=2*abc;
+//    valuecheck(test.first().theta,2.0);
+//    valuecheck(test.first().thetadot,4.0);
+//    valuecheck(test.second().tau,6.0);
+//  }
+//  {
+//    // combining a vector with an unused or empty vector should return the original type
+//    {
+//      CombinedVectorUtil<PendulumState, NullVector>::type<double> test;
+//      if (!is_same<PendulumState<double>,decltype(test)>::value)
+//	throw std::runtime_error("combined vector builder returned " + static_cast<string>(typeid(test).name()));
+//    }
+//    {
+//      CombinedVectorUtil<NullVector, PendulumState>::type<double> test;
+//      if (!is_same<PendulumState<double>,decltype(test)>::value)
+//	throw std::runtime_error("combined vector builder returned " + static_cast<string>(typeid(test).name()));
+//    }
+//  }
 
   static_assert(Eigen::Matrix<double,2,1>::RowsAtCompileTime == 2,"failed to evaluate RowsAtCompileTime");
 
