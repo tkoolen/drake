@@ -256,7 +256,7 @@ cost = spotlessIntegral(prog,W,x,R_diag,[],[]);
 %% Solve
 spot_options = spotprog.defaultOptions;
 spot_options.verbose = true;
-spot_options.do_fr = true;
+spot_options.do_fr = false;
 solver = @spot_mosek;
 % solver = @spot_sedumi;
 sol = prog.minimize(cost,solver,spot_options);

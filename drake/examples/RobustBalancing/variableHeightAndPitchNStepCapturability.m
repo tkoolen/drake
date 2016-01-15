@@ -16,11 +16,11 @@ step_time = .3;
 model = VariableHeightandPitch2D(g, z_nom, step_max, step_time, inertia_ratio, f_max, f_min, div_max);
 
 options.degree = 4;
-options.do_backoff = false;
-options.backoff_ratio = 1.05;
+options.do_backoff = true;
+options.backoff_ratio = 1.02;
 options.free_final_time = false;
-options.scale = 1;
-options.scale_input = 2;
+options.scale = 1/3;
+options.scale_input = 1;
 options.control_design = true;
 
 target = [];
