@@ -7,7 +7,7 @@ function cost = spotlessIntegral(prog,poly,sphere_vars,A_diag,box_vars,box_lims)
 n_sphere = length(sphere_vars);
 
 if n_sphere > 0
-  valuecheck(length(A_diag),n_sphere)
+  valuecheck(length(A_diag),n_sphere);
 end
 
 sphere_inds = [];

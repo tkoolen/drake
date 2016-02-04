@@ -38,7 +38,7 @@ classdef HybridCapturabilityPlant < HybridDrakeSystem
 %         ol_plant = ol_plant.setOutputFrame(ol_plant.getOutputFrame);
 %         ol_plant = ol_plant.setInputFrame(ol_plant.getInputFrame);
         
-        if isfield(data{i},'u_sol'),
+        if isfield(data{i},'u_sol') 
           u_sol = subs(data{i}.u_sol,t,t*data{i}.T);
           [pows,coeffs] = decomp_ordered(u_sol,[t;x]);
           controller = PolyController(ol_plant,coeffs,pows);

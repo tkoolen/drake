@@ -1,11 +1,13 @@
 data_0 = load('V0_VariableHeightPointMass2D');
-data_1 = load('V1_VariableHeightPointMass2D');
+% data_1 = load('V1_VariableHeightPointMass2D');
 data = {data_0;data_1};
+data = {data_0};
 % data = {data_1};
 model = data_0.model;
 p = HybridCapturabilityPlant(model,data);
 %%
-x0 = [1;-.17;0;.57;0];
+% x0 = [1;-.17;0;.57;0];
+x0 = [1;-.1;0;.3;0];
 % x0 = [2;-.26;0;1.8;0];
 % x0 = [2;.0;0;1;0];
 % x0 = [2;0;0;0;0];
