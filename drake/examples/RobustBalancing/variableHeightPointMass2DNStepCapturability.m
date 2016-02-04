@@ -1,5 +1,9 @@
 function variableHeightPointMass2DNStepCapturability(n)
 
+if nargin < 1
+  n = 0;
+end
+
 g = 10;
 step_max = .7;
 step_time = 0.3;
