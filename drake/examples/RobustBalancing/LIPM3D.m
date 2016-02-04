@@ -59,7 +59,7 @@ classdef LIPM3D < NStepCapturabilitySOSSystem
 %       A = eye(2)/obj.cop_max^2;
 A = [];
     end
-    
+
     % Transform u
     % y = A*u + b s.t. limits on y are |y_i| <= 1
     % u = C*y + d inverse transform
@@ -100,8 +100,8 @@ A = [];
       xlabel('q_1')
       ylabel('v_1')
       title('V(0,x)')
-      
-      
+
+
       figure(n*10+4)
       hold off
       h=contourSpotless([Vsol;h_X],plot_vars(1),plot_vars(2),[-R_diag(1) R_diag(1)],[-R_diag(3) R_diag(3)],sub_vars,sub_val,[0 0],{'k','r'});
@@ -111,7 +111,7 @@ A = [];
       ylabel('v_1')
       title('u(0,x)')
     end
-    
+
     function draw(obj,t,x)
       x_stance = x(end-2:end-1);
       % draw line from origin to COM

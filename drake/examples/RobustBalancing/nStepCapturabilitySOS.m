@@ -220,7 +220,7 @@ else
       [prog, goal_sos] = spotless_add_sprocedure(prog, subs(V-V_goal_min,x,zeros(model.num_states,1)), t*(T-t),t,degree-2);
       prog = prog.withSOS(goal_sos);
     else
-      prog = prog.withPos(subs(subs(V-V_goal_min,t,T),x,zeros(model.num_states,1)));      
+      prog = prog.withPos(subs(subs(V-V_goal_min,t,T),x,zeros(model.num_states,1)));
     end
   end
 end
@@ -268,20 +268,20 @@ if options.control_design
       end
       [prog,p_pos_ind(i)] = prog.withSOS(p_pos_sos_i);
       p_pos_sos = [p_pos_sos;p_pos_sos_i];
-      
+
       if options.korda_control_design
         p_neg_sos_i = p(i);
       else
-        p_neg_sos_i = p(i) + dVdotdu(i);        
+        p_neg_sos_i = p(i) + dVdotdu(i);
       end
       [prog, p_neg_sos_i] = spotless_add_sprocedure(prog, p_neg_sos_i, h_X,V_vars,Vdot_degree-2);
       if time_varying
         [prog, p_neg_sos_i] = spotless_add_sprocedure(prog, p_neg_sos_i,  t * (T - t),V_vars,Vdot_degree-2);
       end
       [prog,p_neg_ind(i)] = prog.withSOS(p_neg_sos_i);
-      
+
       p_neg_sos = [p_neg_sos;p_neg_sos_i];
-      
+
       if ~options.korda_control_design
         [prog, p_sos_i] = spotless_add_sprocedure(prog, p, h_X,V_vars,Vdot_degree-2);
         if time_varying
@@ -301,7 +301,7 @@ else
   % (3) W(x) >= 0 for x in X
   [prog, W_sos] = spotless_add_sprocedure(prog, W, h_X,W_vars,degree-2);
   [prog, W_ind] = prog.withSOS(W_sos);
-  
+
   % (4) W(x) >= V(0,x) + 1 for x in X
   [prog, WminusV_sos] = spotless_add_sprocedure(prog, W - subs(V,t,0) - 1, h_X,W_vars,degree-2);
   [prog, WminusV_ind] = prog.withSOS(WminusV_sos);
@@ -341,7 +341,7 @@ if options.control_design
   for i=1:model.num_inputs,
     y_p_pos = sol.prog.sosEqsDualVars{p_pos_ind(i)};
     basis_p_pos = sol.prog.sosEqsBasis{p_pos_ind(i)};
-    
+
     y_p_neg = sol.prog.sosEqsDualVars{p_neg_ind(i)};
     basis_p_neg = sol.prog.sosEqsBasis{p_neg_ind(i)};
     
@@ -373,7 +373,7 @@ if options.control_design
   end
   u_sol = C_u*u_sol + d_u;
   u_sol = subs(u_sol,x,scale.*x);
-  
+
   if options.korda_control_design
     u_sol = 2*u_sol - 1;
   end
@@ -400,11 +400,14 @@ Vsol = subs(Vsol,t,t/T);
 if options.control_design
   u_sol = subs(u_sol,t,t/T);
 end
+
+vars_to_save = {'t', 'x', 'Vsol', 'model', 'T', 'R_diag'};
 if options.control_design
   save(solutionFileName(model, n),'Vsol','model','T','R_diag','u_sol','uMomentBasis', 'uCoeff')
 else
   save(solutionFileName(model, n),'Vsol','model','T','R_diag')
 end
+save(solutionFileName(model, n), vars_to_save{:});
 end
 
 function filename = solutionFileName(model, n)
