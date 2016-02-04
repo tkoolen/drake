@@ -24,9 +24,8 @@ classdef NStepCapturabilitySOSSystem
     %@return >= 0 for valid inputs
     ret = resetInputLimits(obj, s);
     
-    
     % get umin, umax for a given state
-    [umin,umax,A] = simpleInputLimits(obj,x);       
+    [umin,umax,A] = simpleInputLimits(obj,x);
     
     plotfun(obj, n, Vsol, Wsol, h_X, R_diag, t, x);
   end
@@ -34,7 +33,7 @@ classdef NStepCapturabilitySOSSystem
   methods
     %@return 0 for valid inputs
     function ret = inputEqualityConstraints(obj, u, x)
-      ret = msspoly * zeros(0, 1);
+      ret = zeros(0, 1) * x;
     end
     
     function draw(obj,t,y)

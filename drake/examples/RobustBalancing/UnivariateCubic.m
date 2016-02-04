@@ -18,6 +18,12 @@ classdef UnivariateCubic < NStepCapturabilitySOSSystem
       ret = zeros(1, 1, 'like', u);
     end
     
+    function [umin,umax,A] = simpleInputLimits(obj,x)
+      umin = zeros(0, 1);
+      umax = zeros(0, 1);
+      A = [];
+    end
+    
     function ret = resetInputLimits(obj, s)
       ret = zeros(1, 1, 'like', s);
     end
