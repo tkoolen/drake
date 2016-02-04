@@ -38,7 +38,7 @@ if n == 0 && options.control_design
     v = x(3 : 4);
     omega0 = sqrt(g / z_nom);
     ric = q + v / omega0;
-    k = 3;
+    k = 3; % >= 1 works
     u = k * ric;
   else
     u = clean(sol.u_sol);
@@ -46,7 +46,8 @@ if n == 0 && options.control_design
 
   B = barrierFunctionForClosedLoopSystem(model, R_diag, t, x, u, struct('B_degree', 4));
   figure(4);
-  contourSpotless(B, x(1), x(3), [-1 1], [-1 1], [x(2); x(4)], [0; 0], 0);
+  contourSpotless(B, x(1), x(3), [-1 1], [-1 1], [x(2); x(4); t], [0; 0; 0], 0);
+  xlabel('q_1'); ylabel('v_1'); legend('B(x)');
 end
 
 end
@@ -57,6 +58,7 @@ xdot_closed_loop = model.dynamics(t, x, u);
 
 prog = spotsosprog;
 prog = prog.withIndeterminate(x);
+prog = prog.withIndeterminate(t);
 [prog, B] = prog.newFreePoly(monomials(x, 0 : options.B_degree));
 
 % initial condition (and fix scaling of problem)
@@ -70,13 +72,13 @@ h_X = 1 - x'*A*x; % < 0 for failed states
 prog = prog.withSOS(B_failed_sos); % - 1e-5);
 
 % Barrier function derivative constraint
-Bdot = diff(B, x) * xdot_closed_loop;
+Bdot = diff(B, x) * xdot_closed_loop + diff(B, t);
 prog = prog.withSOS(-Bdot);
 
 % Solve
 spot_options = spotprog.defaultOptions;
 spot_options.verbose = true;
-spot_options.do_fr = false;
+spot_options.do_fr = true;
 solver = @spot_mosek;
 % solver = @spot_sedumi;
 sol = prog.minimize(subs(B, x, x0), solver, spot_options);
