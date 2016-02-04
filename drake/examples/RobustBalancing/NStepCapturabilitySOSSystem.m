@@ -33,7 +33,7 @@ classdef NStepCapturabilitySOSSystem
   methods
     %@return 0 for valid inputs
     function ret = inputEqualityConstraints(obj, u, x)
-      ret = zeros(0, 1) * x;
+      ret = zeros(0, 1) * msspoly(1);
     end
     
     function draw(obj,t,y)
