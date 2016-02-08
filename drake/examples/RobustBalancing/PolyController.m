@@ -23,15 +23,6 @@ classdef PolyController < DrakeSystem
       [umin, umax, A] = obj.sos_plant.simpleInputLimits(x);
       u = max(u,umin);
       u = min(u,umax);
-      
-      if t < .25
-        u = 1;
-      elseif t < .75
-        u = -1;
-      else
-        u = -1;
-      end
-%       u=1;
     end
   end
 end

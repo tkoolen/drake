@@ -23,6 +23,10 @@ if ~isfield(options,'control_design')
   options.control_design = false;
 end
 
+if ~isfield(options,'korda_control_design')
+  options.korda_control_design = false;
+end
+
 %scaling of state vector
 if ~isfield(options,'scale')
   scale = ones(model.num_states,1);
@@ -119,8 +123,11 @@ if options.control_design && model.num_inputs > 0
     error('System must be control affine');
   end
   
-  
-  Vdot = subs(Vdot,u,u*0) + sum(p);  
+  if options.korda_control_design
+    Vdot = subs(Vdot,u,u*0) + 2*sum(p) - dVdotdu; % u <--- u + 1, plus setting u_bar = 2 (from paper).
+  else
+    Vdot = subs(Vdot,u,u*0) + sum(p);
+  end
 else
   Vdot_degree = even_degree(Vdot,[x;u]);
 end
@@ -218,28 +225,34 @@ end
 [prog,Vdot_ind] = prog.withSOS(Vdot_sos);
 
 if options.control_design
-  p_pos_sos = msspoly;
-  p_neg_sos = msspoly;
-  p_pos_ind = [];
-  p_neg_ind = [];
-  for i=1:model.num_inputs,
-    p_pos_sos_i = p(i) - dVdotdu(i);
-    [prog, p_pos_sos_i] = spotless_add_sprocedure(prog, p_pos_sos_i, h_X,V_vars,Vdot_degree-2);
-    if time_varying
-      [prog, p_pos_sos_i] = spotless_add_sprocedure(prog, p_pos_sos_i,  t * (T - t),V_vars,Vdot_degree-2);
+    p_pos_sos = msspoly;
+    p_neg_sos = msspoly;
+    p_pos_ind = [];
+    p_neg_ind = [];
+    for i=1:model.num_inputs,
+      p_pos_sos_i = p(i) - dVdotdu(i);
+      [prog, p_pos_sos_i] = spotless_add_sprocedure(prog, p_pos_sos_i, h_X,V_vars,Vdot_degree-2);
+      if time_varying
+        [prog, p_pos_sos_i] = spotless_add_sprocedure(prog, p_pos_sos_i,  t * (T - t),V_vars,Vdot_degree-2);
+      end
+      [prog,p_pos_ind(i)] = prog.withSOS(p_pos_sos_i);
+      
+      
+      if options.korda_control_design
+        p_neg_sos_i = p(i);
+      else
+        p_neg_sos_i = p(i) + dVdotdu(i);
+      end
+      
+      [prog, p_neg_sos_i] = spotless_add_sprocedure(prog, p_neg_sos_i, h_X,V_vars,Vdot_degree-2);
+      if time_varying
+        [prog, p_neg_sos_i] = spotless_add_sprocedure(prog, p_neg_sos_i,  t * (T - t),V_vars,Vdot_degree-2);
+      end
+      [prog,p_neg_ind(i)] = prog.withSOS(p_neg_sos_i);
+      
+      p_pos_sos = [p_pos_sos;p_pos_sos_i];
+      p_neg_sos = [p_neg_sos;p_neg_sos_i];
     end
-    [prog,p_pos_ind(i)] = prog.withSOS(p_pos_sos_i);
-    
-    p_neg_sos_i = p(i) + dVdotdu(i);
-    [prog, p_neg_sos_i] = spotless_add_sprocedure(prog, p_neg_sos_i, h_X,V_vars,Vdot_degree-2);
-    if time_varying
-      [prog, p_neg_sos_i] = spotless_add_sprocedure(prog, p_neg_sos_i,  t * (T - t),V_vars,Vdot_degree-2);
-    end
-    [prog,p_neg_ind(i)] = prog.withSOS(p_neg_sos_i);
-    
-    p_pos_sos = [p_pos_sos;p_pos_sos_i];
-    p_neg_sos = [p_neg_sos;p_neg_sos_i];
-  end
 end
   
 
@@ -304,13 +317,17 @@ if options.control_design
   end
   u_sol = C_u*u_sol + d_u;
   u_sol = subs(u_sol,x,scale.*x);
+  
+  if options.korda_control_design
+    u_sol = u_sol - 1;
+  end
 end
 
 %% Plotting
 Vsol = subs(sol.eval(V),x,scale.*x);
 Wsol = subs(sol.eval(W),x,scale.*x);
 R_diag = scale_inv'.*R_diag;
-model.plotfun(n, Vsol, Wsol, subs(h_X,x,scale.*x), R_diag, t, x);
+model.plotfun(n, Vsol, Wsol, subs(h_X,x,scale.*x), R_diag, t, x, u_sol);
 
 %%
 T = T_init;

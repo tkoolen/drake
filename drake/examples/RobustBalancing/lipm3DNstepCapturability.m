@@ -4,7 +4,7 @@ g = 10;
 z_nom = 1;
 step_max = .7;
 step_time = 0.3;
-cop_max = 0.0; % set to 0 to get point foot model with no continuous inputs
+cop_max = 0.1; % set to 0 to get point foot model with no continuous inputs
 
 model = LIPM3D(g, z_nom, step_max, step_time, cop_max);
 R_diag = 2 * ones(1, model.num_states);
@@ -13,9 +13,9 @@ if n > 0
 else
   T = 2;
 end
-options.degree = 6;
+options.degree = 2;
 options.scale = 1/2;
-
+options.control_design = true;
 
 % radius of ball around the origin used as goal for 0-step capturability
 % goal_radius = 0.01;
