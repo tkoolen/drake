@@ -1,10 +1,10 @@
-function [M,G] = momentMatrix(y,b)
+function [M,G] = momentMatrix(y, basis)
 % 
-%   y -- d-by-1  blah
-%   b -- d-by-1  msspoly monomials.
-    [x,p,C] = decomp(b);
+%   y -- d-by-1 moments ordered to correspond to grlex(basis)
+%   basis -- d-by-1  msspoly monomial basis.
+    [x,p,C] = decomp(basis);
     
-    if any(sum(C,2) > 1), error('b must be monomials.'); end
+    if any(sum(C,2) > 1), error('basis must be monomials.'); end
 
     pow2 = unique(floor(p/2),'rows');
     phi = recomp(x,pow2,eye(size(pow2,1)));
@@ -12,7 +12,7 @@ function [M,G] = momentMatrix(y,b)
     G = phi*phi';
     g = mss_s2v(G);
     
-    I = match_monomials(g,b);
+    I = match_monomials(g,basis);
     if any(I == 0), error('Missing monomials.'); end
     m = y(I);
     M = mss_v2s(m);
