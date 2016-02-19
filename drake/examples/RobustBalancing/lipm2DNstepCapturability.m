@@ -36,19 +36,43 @@ R_diag = 1 - x'*[3.25 2.75; 2.75 3.25]*x;
 % keyboard
 %%
 
-% 
-% 
+%
+%
 % options.beta = [10 1 .1 .01 .001];
 % % options.beta = .1;
 % V_inner = innerApproximation(model,u_sol,R_diag,target,options);
-% 
+%
 % x = msspoly('x',model.num_states);
 % data{1}.u_sol = u_sol;
 % data{1}.T = T;
 % plant = HybridCapturabilityPlant(model,data);
-% 
+%
 % figure(1)
 % kordaPlot2d(model,plant, x,1 - x'*diag(1./R_diag.^2)*x,target(x), Vsol, sum(V_inner), R_diag);
-% 
+%
 % % keyboard
+
+if n == 0 && options.control_design
+  sol = load(['V0_' class(model) '.mat']);
+  t = sol.t;
+  x = sol.x;
+
+  test_manual_controller = true;
+  if test_manual_controller
+    q = x(1);
+    v = x(2);
+    omega0 = sqrt(g / z_nom);
+    ric = q + v / omega0;
+    k = 3; % >= 1 works
+    u = k * ric / model.cop_max;
+  else
+    u = clean(sol.u_sol);
+  end
+
+  B = barrierFunctionForClosedLoopSystem(model, R_diag, t, x, u, struct('B_degree', 4));
+  figure(5);
+  contourSpotless(B, x(1), x(2), [-1 1], [-1 1], t, 0, 0);
+  xlabel('q'); ylabel('v'); legend('B(x)');
+end
+
 end
