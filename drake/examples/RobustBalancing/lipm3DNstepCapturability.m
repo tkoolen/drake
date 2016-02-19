@@ -39,7 +39,7 @@ if n == 0 && options.control_design
     omega0 = sqrt(g / z_nom);
     ric = q + v / omega0;
     k = 3; % >= 1 works
-    u = k * ric;
+    u = k * ric / model.cop_max;
   else
     u = clean(sol.u_sol);
   end
