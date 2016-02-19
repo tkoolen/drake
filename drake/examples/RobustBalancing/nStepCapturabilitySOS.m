@@ -321,16 +321,25 @@ if options.control_design
   if options.korda_control_design
     u_sol = u_sol - 1;
   end
+  clean(u_sol,1e-4)
 end
 
 %% Plotting
 Vsol = subs(sol.eval(V),x,scale.*x);
 Wsol = subs(sol.eval(W),x,scale.*x);
 R_diag = scale_inv'.*R_diag;
-model.plotfun(n, Vsol, Wsol, subs(h_X,x,scale.*x), R_diag, t, x, u_sol);
+if options.control_design
+  model.plotfun(n, Vsol, Wsol, subs(h_X,x,scale.*x), R_diag, t, x, u_sol);
+else
+  model.plotfun(n, Vsol, Wsol, subs(h_X,x,scale.*x), R_diag, t, x, []);
+end
 
 %%
 T = T_init;
+Vsol = subs(Vsol,t,t/T);
+if options.control_design
+  u_sol = subs(u_sol,t,t/T);
+end
 if options.control_design
   save(solutionFileName(model, n),'Vsol','model','T','R_diag','u_sol')
 else

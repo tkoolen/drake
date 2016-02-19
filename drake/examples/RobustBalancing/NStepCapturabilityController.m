@@ -52,6 +52,7 @@ classdef NStepCapturabilityController < DrakeSystem
 %           u = u * norm(dVdotdu)/(obj.dVdotdu_interp_bound);
 %         end
       end
+      u
     end
     
   end

@@ -81,7 +81,7 @@ classdef HybridCapturabilityPlant < HybridDrakeSystem
       obj.xp = xp;
       
       obj = obj.setSimulinkParam('Solver','ode4');
-      obj = obj.setSimulinkParam('FixedStep','.001');
+      obj = obj.setSimulinkParam('FixedStep','.005');
     end
     
     function phi = time_guard(obj,t,x,u,T_max)

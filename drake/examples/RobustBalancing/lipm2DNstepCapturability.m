@@ -1,21 +1,21 @@
-function lipm3DNstepCapturability(n)
+function lipm2DNstepCapturability(n)
 if nargin < 1
   n = 0;
 end
-g = 10;
+g = 1;
 z_nom = 1;
 step_max = .7;
 step_time = 0.3;
-cop_max = 0.1; % set to 0 to get point foot model with no continuous inputs
+cop_max = .1; % set to 0 to get point foot model with no continuous inputs
 
-model = LIPM3D(g, z_nom, step_max, step_time, cop_max);
-R_diag = [.5 .5 2 2];
+model = LIPM2D(g, z_nom, step_max, step_time, cop_max);
+R_diag = [1 1];
 if n > 0
   T = step_time;
 else
-  T = 1;
+  T = 5;
 end
-options.degree = 6;
+options.degree = 8;
 options.scale = 1;
 options.control_design = true;
 % options.free_final_time = true;
