@@ -55,7 +55,7 @@ for i=1:n_contour
   POLY_VAL = reshape(msubs(poly(i),[x_var;y_var],[X_VALS(:)';Y_VALS(:)']),size(X_VALS,1),[]) + offset;
   
   if ~isempty(color) && ~isempty(contour_value)
-    [cl,h(i)]=contour(X_VALS,Y_VALS,POLY_VAL,[contour_value(i) contour_value(i)]+offset,color{i});
+    [cl,h(i)]=contour(X_VALS,Y_VALS,POLY_VAL,[contour_value(i) contour_value(i)]+offset,'Color',color{i});
   elseif ~isempty(color)
     [cl,h(i)]=contour(X_VALS,Y_VALS,POLY_VAL,color{i});
   elseif ~isempty(contour_value)
