@@ -154,7 +154,7 @@ for i = 1 : m
   lambda_min = min(eig(P));
   if lambda_min < 0
     if lambda_min > -1e-5
-      P = P + (abs(lambda_min) + 10 * eps) * eye(size(P));
+      P = P + 1.1 * abs(lambda_min) * eye(size(P));
     else
       error('P is not positive definite');
     end
@@ -214,7 +214,7 @@ cost = spotlessIntegral(prog, w, x, R_diag, [], []);
 
 spot_options = spotprog.defaultOptions;
 spot_options.verbose = true;
-spot_options.do_fr = false;
+spot_options.do_fr = true;
 solver = @spot_mosek;
 sol = prog.minimize(cost, solver, spot_options);
 vs_inner_sol = sol.eval(vs);
