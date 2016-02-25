@@ -15,11 +15,12 @@ ubar = 1;
 x = msspoly('x', model.num_states);
 g_X = 1 - x' * diag(1./(R_diag.^2)) * x;
 g_X_target = target(x);
-u = msspoly('u', model.num_inputs);
-u_minus_1_to_1 = 2 * u / ubar - 1;
-xdot = model.dynamics(0, x, u_minus_1_to_1);
-G = diff(xdot, u); % TODO: check control affine
-f = xdot - G * u;
+u_0_to_ubar = msspoly('u', model.num_inputs);
+[umin, umax] = model.simpleInputLimits(); % TODO: check that input limits are simple
+u = umin + u_0_to_ubar / ubar * (umax - umin);
+xdot = model.dynamics(0, x, u);
+G = diff(xdot, u_0_to_ubar); % TODO: check control affine
+f = xdot - G * u_0_to_ubar;
 
 out = struct;
 out.x = x;
@@ -115,16 +116,16 @@ for i = 1 : m
 %     error('logic mistake')
 %   end
   % (14) in Korda, Henrion, Jones 2014
-  u_hat_coeffs{i} = M \ y_sigma_grlex_sol(1 : size(M, 1));
+%   u_hat_coeffs{i} = M \ y_sigma_grlex_sol(1 : size(M, 1));
   
-%   M_sigma = momentMatrix(y_sigma_grlex_sol, basis_y_sigma_grlex);
-%   [U,S,V] = svd(M);
-%   s = diag(S);
-%   condTh = 1e6;
-%   keep = find((s(1)./s) < condTh,1,'last');
-%   v = U\M_sigma(:,1);
-%   v = diag(1./s(1:keep))*v(1:keep,:);
-%   u_hat_coeffs{i} = V(:,1:keep)*v;
+  M_sigma = momentMatrix(y_sigma_grlex_sol, basis_y_sigma_grlex);
+  [U,S,V] = svd(M);
+  s = diag(S);
+  condTh = 1e6;
+  keep = find((s(1)./s) < condTh,1,'last');
+  v = U\M_sigma(:,1);
+  v = diag(1./s(1:keep))*v(1:keep,:);
+  u_hat_coeffs{i} = V(:,1:keep)*v;
   
   u_sol_basis = basis_y_sigma_grlex(1 : size(M, 1));
   u_hat_sol(i) = u_sol_basis' * u_hat_coeffs{i}; % controller violating input constraints
@@ -151,7 +152,7 @@ for i = 1 : m
   lambda_min = min(eig(P));
   if lambda_min < 0
     if lambda_min > -1e-5
-      P = P + (abs(lambda_min) + eps) * eye(size(P));
+      P = P + (abs(lambda_min) + 10 * eps) * eye(size(P));
     else
       error('P is not positive definite');
     end
