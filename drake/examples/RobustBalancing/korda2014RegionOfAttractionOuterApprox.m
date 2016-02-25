@@ -1,4 +1,4 @@
-function out = korda2014RegionOfAttractionOuterApprox(model, R_diag, target, options)
+function out = korda2014RegionOfAttractionOuterApprox(model, target, options)
 
 % dependencies
 checkDependency('spotless');
@@ -8,6 +8,7 @@ checkDependency('mosek');
 v_degree = options.v_degree;
 betas = options.betas;
 betas_outer = betas(options.beta_outer_ind);
+R_diag = options.R_diag;
 
 % shared problem setup
 ubar = 1;
