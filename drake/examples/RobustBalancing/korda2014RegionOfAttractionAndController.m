@@ -1,4 +1,4 @@
-function out = korda2014RegionOfAttractionOuterApprox(model, target, options)
+function out = korda2014RegionOfAttractionAndController(model, target, options)
 
 % dependencies
 checkDependency('spotless');
@@ -27,8 +27,10 @@ out.x = x;
 out.g_X = g_X;
 out.g_X_target = g_X_target;
 [outer_sol, out.v_outer, mu_ind, sigma_inds] = regionOfAttractionOuterApprox(f, G, ubar, g_X, R_diag, g_X_target, v_degree, betas_outer);
-[out.u, out.u_hat] = extractController(outer_sol, ubar, g_X, mu_ind, sigma_inds);
-out.fbar = f + G * out.u; % closed loop dynamics
+[out.u_0_to_ubar, out.u_hat_0_to_ubar] = extractController(outer_sol, ubar, g_X, mu_ind, sigma_inds);
+out.u = (out.u_0_to_ubar - umin) / (umax - umin) * ubar;
+out.u_hat = (out.u_hat_0_to_ubar - umin) / (umax - umin) * ubar;
+out.fbar = f + G * out.u_0_to_ubar; % closed loop dynamics
 out.fbar_hat = f + G * out.u_hat; % closed loop dynamics for controller without input limits
 out.vs_inner = regionOfAttractionInnerApprox(out.fbar, g_X, R_diag, g_X_target, betas, options.w_v_degree);
 
