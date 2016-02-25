@@ -23,11 +23,11 @@ out = struct;
 out.x = x;
 out.g_X = g_X;
 out.g_X_target = g_X_target;
-[outer_sol, out.v_outer, mu_ind, sigma_inds] = regionOfAttractionOuterApprox(f, G, ubar, g_X, R_diag, g_X_target, v_degree, betas(3));
+[outer_sol, out.v_outer, mu_ind, sigma_inds] = regionOfAttractionOuterApprox(f, G, ubar, g_X, R_diag, g_X_target, v_degree, betas(end));
 [out.u, out.u_hat] = extractController(outer_sol, ubar, g_X, mu_ind, sigma_inds);
 out.fbar = f + G * out.u; % closed loop dynamics
 out.fbar_hat = f + G * out.u_hat; % closed loop dynamics for controller without input limits
-out.vs_inner = regionOfAttractionInnerApprox(out.fbar_hat, g_X, R_diag, g_X_target, betas, options.w_v_degree);
+out.vs_inner = regionOfAttractionInnerApprox(out.fbar, g_X, R_diag, g_X_target, betas, options.w_v_degree);
 
 end
 
@@ -149,7 +149,7 @@ for i = 1 : m
   lambda_min = min(eig(P));
   if lambda_min < 0
     if lambda_min > -1e-5
-      P = P + abs(lambda_min) * eye(size(P));
+      P = P + (abs(lambda_min) + eps) * eye(size(P));
     else
       error('P is not positive definite');
     end
