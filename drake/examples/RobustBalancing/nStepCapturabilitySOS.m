@@ -27,6 +27,15 @@ if ~isfield(options,'korda_control_design')
   options.korda_control_design = false;
 end
 
+if ~isfield(options,'beta')
+  options.beta = 0;
+end
+
+% then don't use W at all
+if ~isfield(options,'infinite_time')
+  options.infinite_time = false;
+end
+
 %scaling of state vector
 if ~isfield(options,'scale')
   scale = ones(model.num_states,1);
@@ -49,13 +58,17 @@ scale_input_inv = 1./scale_input;
 
 %% Solution method settings
 degree = options.degree; % degree of V,W
-time_varying = n > 0 || model.num_inputs; % Let V depend on t--probably want it true for this problem class
+time_varying = (n > 0 || model.num_inputs) && ~options.infinite_time; % Let V depend on t--probably want it true for this problem class
 
 %% Create SOS program
 prog = spotsosprog;
 
 %% Create indeterminates
-[prog,t]=prog.newIndeterminate('t',1); % time
+if time_varying
+  [prog,t]=prog.newIndeterminate('t',1); % time
+else
+  t = msspoly('t',1);
+end
 [prog,x]=prog.newIndeterminate('x', model.num_states); % state
 if model.num_inputs > 0
   if ~options.control_design
@@ -95,9 +108,12 @@ if time_varying
 else
   V_vars = x;
 end
-W_vars = x;
 [prog,V] = prog.newFreePoly(monomials(V_vars,0:degree));
-[prog,W] = prog.newFreePoly(monomials(W_vars,0:degree));
+
+if ~options.infinite_time
+  W_vars = x;
+  [prog,W] = prog.newFreePoly(monomials(W_vars,0:degree));
+end
 
 %% Dynamics
 f = scale.*model.dynamics(t, scale_inv.*x, scale_input_inv.*u);
@@ -105,6 +121,7 @@ f = scale.*model.dynamics(t, scale_inv.*x, scale_input_inv.*u);
 % Time rescaling
 % tau = t / T
 % dx/dtau = dx/dt * dt/dtau = dx/dt*T
+
 T_init = T;
 f = f*T;
 T = 1;
@@ -124,7 +141,8 @@ if options.control_design && model.num_inputs > 0
   end
   
   if options.korda_control_design
-    Vdot = subs(Vdot,u,u*0) + 2*sum(p) - dVdotdu; % u <--- u + 1, plus setting u_bar = 2 (from paper).
+    Vdot = subs(Vdot,u,-ones(model.num_inputs,1)) + sum(p) - options.beta*V; % u <--- (u + 1)/2, plus setting u_bar = 1 (from paper).
+    dVdotdu = 2*dVdotdu;
   else
     Vdot = subs(Vdot,u,u*0) + sum(p);
   end
@@ -152,14 +170,20 @@ A = diag(1./(R_diag.^2));
 h_X = 1 - x'*A*x;
 
 %% SOS constraints
+if options.infinite_time
+  V_goal_min = 1;
+else
+  V_goal_min = 0;
+end
+
 if n > 0
-  % (1) V(T,x) >= 0 for x in goal region
+  % (1) V(T,x) >= V_goal_min for x in goal region
   % goal region
   if options.free_final_time
-    V_goal_eqn = V*(1+[V_vars;s]'*[V_vars;s]);
+    V_goal_eqn = (V-V_goal_min)*(1+[V_vars;s]'*[V_vars;s]);
     goal_vars = [V_vars;s];
   else
-    V_goal_eqn = subs(V,t,T)*(1+[x;s]'*[x;s]);
+    V_goal_eqn = subs(V,t,T)-V_goal_min;%*(1+[x;s]'*[x;s]);
     goal_vars = [W_vars;s];
   end
   [prog, goal_sos] = spotless_add_sprocedure(prog, V_goal_eqn, V0p,goal_vars,2);
@@ -178,7 +202,7 @@ if n > 0
 else
   if ~isempty(target)
     % (1) V(t,x) >= 0 for x in goal region
-    [prog, goal_sos] = spotless_add_sprocedure(prog, V, V0p,V_vars,degree-2);
+    [prog, goal_sos] = spotless_add_sprocedure(prog, V-V_goal_min, V0p,V_vars,degree-2);
     
     if time_varying
       [prog, goal_sos] = spotless_add_sprocedure(prog, goal_sos, t * (T - t),V_vars,degree-2);
@@ -187,10 +211,10 @@ else
     prog = prog.withSOS(goal_sos);
   else
     if options.free_final_time
-      [prog, goal_sos] = spotless_add_sprocedure(prog, subs(V,x,zeros(model.num_states,1)), t*(T-t),t,degree-2);
+      [prog, goal_sos] = spotless_add_sprocedure(prog, subs(V-V_goal_min,x,zeros(model.num_states,1)), t*(T-t),t,degree-2);
       prog = prog.withSOS(goal_sos);
     else
-      prog = prog.withPos(subs(subs(V,t,T),x,zeros(model.num_states,1)));      
+      prog = prog.withPos(subs(subs(V-V_goal_min,t,T),x,zeros(model.num_states,1)));      
     end
   end
 end
@@ -229,6 +253,7 @@ if options.control_design
     p_neg_sos = msspoly;
     p_pos_ind = [];
     p_neg_ind = [];
+    p_sos_ind = [];
     for i=1:model.num_inputs,
       p_pos_sos_i = p(i) - dVdotdu(i);
       [prog, p_pos_sos_i] = spotless_add_sprocedure(prog, p_pos_sos_i, h_X,V_vars,Vdot_degree-2);
@@ -236,40 +261,57 @@ if options.control_design
         [prog, p_pos_sos_i] = spotless_add_sprocedure(prog, p_pos_sos_i,  t * (T - t),V_vars,Vdot_degree-2);
       end
       [prog,p_pos_ind(i)] = prog.withSOS(p_pos_sos_i);
-      
+      p_pos_sos = [p_pos_sos;p_pos_sos_i];
       
       if options.korda_control_design
         p_neg_sos_i = p(i);
       else
-        p_neg_sos_i = p(i) + dVdotdu(i);
+        p_neg_sos_i = p(i) + dVdotdu(i);        
       end
-      
       [prog, p_neg_sos_i] = spotless_add_sprocedure(prog, p_neg_sos_i, h_X,V_vars,Vdot_degree-2);
       if time_varying
         [prog, p_neg_sos_i] = spotless_add_sprocedure(prog, p_neg_sos_i,  t * (T - t),V_vars,Vdot_degree-2);
       end
       [prog,p_neg_ind(i)] = prog.withSOS(p_neg_sos_i);
       
-      p_pos_sos = [p_pos_sos;p_pos_sos_i];
       p_neg_sos = [p_neg_sos;p_neg_sos_i];
+      
+      if ~options.korda_control_design
+        [prog, p_sos_i] = spotless_add_sprocedure(prog, p, h_X,V_vars,Vdot_degree-2);
+        if time_varying
+          [prog, p_sos_i] = spotless_add_sprocedure(prog, p_sos_i,  t * (T - t),V_vars,Vdot_degree-2);
+        end
+        [prog,p_sos_ind(i)] = prog.withSOS(p_sos_i);
+      end
     end
 end
   
 
-% (3) W(x) >= 0 for x in X
-[prog, W_sos] = spotless_add_sprocedure(prog, W, h_X,W_vars,degree-2);
-prog = prog.withSOS(W_sos);
-
-% (4) W(x) >= V(0,x) + 1 for x in X
-[prog, WminusV_sos] = spotless_add_sprocedure(prog, W - subs(V,t,0) - 1, h_X,W_vars,degree-2);
-prog = prog.withSOS(WminusV_sos);
+if options.infinite_time
+  % (3) V(x) >= -1 for x in X
+  [prog, V_min_sos] = spotless_add_sprocedure(prog, V+1, h_X,V_vars,degree-2);
+  prog = prog.withSOS(V_min_sos);
+else
+  % (3) W(x) >= 0 for x in X
+  [prog, W_sos] = spotless_add_sprocedure(prog, W, h_X,W_vars,degree-2);
+  [prog, W_ind] = prog.withSOS(W_sos);
+  
+  % (4) W(x) >= V(0,x) + 1 for x in X
+  [prog, WminusV_sos] = spotless_add_sprocedure(prog, W - subs(V,t,0) - 1, h_X,W_vars,degree-2);
+  [prog, WminusV_ind] = prog.withSOS(WminusV_sos);
+end
 %% Set up cost function -- integration over a sphere
-cost = spotlessIntegral(prog,W,x,R_diag,[],[]);
+
+if options.infinite_time
+  cost = spotlessIntegral(prog,V,x,R_diag,[],[]);
+else
+  cost = spotlessIntegral(prog,W,x,R_diag,[],[]);
+end
 
 %% Solve
 spot_options = spotprog.defaultOptions;
 spot_options.verbose = true;
-spot_options.do_fr = true;
+spot_options.do_fr = false;
 solver = @spot_mosek;
 % solver = @spot_sedumi;
 sol = prog.minimize(cost,solver,spot_options);
@@ -293,6 +335,7 @@ if options.control_design
   for i=1:model.num_inputs,
     y_p_pos = sol.prog.sosEqsDualVars{p_pos_ind(i)};
     basis_p_pos = sol.prog.sosEqsBasis{p_pos_ind(i)};
+    
     y_p_neg = sol.prog.sosEqsDualVars{p_neg_ind(i)};
     basis_p_neg = sol.prog.sosEqsBasis{p_neg_ind(i)};
     
@@ -310,7 +353,11 @@ if options.control_design
       keyboard
     end
     
-    y_sig = double(sol.dualEval(y_p_pos-y_p_neg));
+    if options.korda_control_design
+      y_sig = double(sol.dualEval(y_p_pos));
+    else
+      y_sig = double(sol.dualEval(y_p_pos-y_p_neg));
+    end
     M_sig{i} = momentMatrix(y_sig,basis_vdot);
     
     u_sol = [u_sol;solveController(M_vdot,M_sig{i},G)];
@@ -319,14 +366,18 @@ if options.control_design
   u_sol = subs(u_sol,x,scale.*x);
   
   if options.korda_control_design
-    u_sol = u_sol - 1;
+    u_sol = 2*u_sol - 1;
   end
   clean(u_sol,1e-4)
 end
 
 %% Plotting
 Vsol = subs(sol.eval(V),x,scale.*x);
-Wsol = subs(sol.eval(W),x,scale.*x);
+if options.infinite_time
+  Wsol = subs(sol.eval(V),x,scale.*x);
+else
+  Wsol = subs(sol.eval(W),x,scale.*x);
+end
 R_diag = scale_inv'.*R_diag;
 if options.control_design
   model.plotfun(n, Vsol, Wsol, subs(h_X,x,scale.*x), R_diag, t, x, u_sol);

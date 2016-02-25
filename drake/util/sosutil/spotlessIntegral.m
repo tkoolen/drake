@@ -51,16 +51,21 @@ for i=1:length(box_inds)
 end
 
 if n_sphere > 0
-  sphere_betas = 0.5*(sphere_alphas + 1);
-  Ra = (1.^(sum(sphere_alphas,2) + n_sphere))./(sum(sphere_alphas,2) + n_sphere);
-  IS = 2*prod(gamma(sphere_betas),2)./(gamma(sum(sphere_betas,2)));
-  l = Ra.*IS;
-  alphaszero = (mod(sphere_alphas,2) ~= 0);
-  alphaszero = any(alphaszero,2);
-  l(alphaszero) = 0;
-  l = l.*prod(repmat(A_diag,size(sphere_alphas,1),1).^(sphere_alphas+1),2);
-  
-  cost = coeff*l;
+  if isempty(alphas)
+    cost = prod(A_diag);
+  else
+    
+    sphere_betas = 0.5*(sphere_alphas + 1);
+    Ra = (1.^(sum(sphere_alphas,2) + n_sphere))./(sum(sphere_alphas,2) + n_sphere);
+    IS = 2*prod(gamma(sphere_betas),2)./(gamma(sum(sphere_betas,2)));
+    l = Ra.*IS;
+    alphaszero = (mod(sphere_alphas,2) ~= 0);
+    alphaszero = any(alphaszero,2);
+    l(alphaszero) = 0;
+    l = l.*prod(repmat(A_diag,size(sphere_alphas,1),1).^(sphere_alphas+1),2);
+    
+    cost = coeff*l;
+  end
 else
   cost = sum(coeff);
 end

@@ -21,8 +21,8 @@ classdef PolyController < DrakeSystem
       u = obj.u_coeffs*prod(repmat([t;x]',length(obj.u_coeffs),1).^obj.u_pows,2)
       
       [umin, umax, A] = obj.sos_plant.simpleInputLimits(x);
-      u = max(u,umin);
-      u = min(u,umax);
+%       u = max(u,umin);
+%       u = min(u,umax);
     end
   end
 end
