@@ -6,7 +6,6 @@ checkDependency('mosek');
 
 % options
 v_degree = options.v_degree;
-p_degree = v_degree;
 betas = options.betas;
 
 % shared problem setup
@@ -24,7 +23,7 @@ out = struct;
 out.x = x;
 out.g_X = g_X;
 out.g_X_target = g_X_target;
-[outer_sol, out.v_outer, mu_ind, sigma_inds] = regionOfAttractionOuterApprox(f, G, ubar, g_X, R_diag, g_X_target, v_degree, p_degree, betas(end));
+[outer_sol, out.v_outer, mu_ind, sigma_inds] = regionOfAttractionOuterApprox(f, G, ubar, g_X, R_diag, g_X_target, v_degree, betas(3));
 [out.u, out.u_hat] = extractController(outer_sol, ubar, g_X, mu_ind, sigma_inds);
 out.fbar = f + G * out.u; % closed loop dynamics
 out.fbar_hat = f + G * out.u_hat; % closed loop dynamics for controller without input limits
@@ -32,7 +31,7 @@ out.vs_inner = regionOfAttractionInnerApprox(out.fbar_hat, g_X, R_diag, g_X_targ
 
 end
 
-function [sol, v_sol, mu_ind, sigma_inds] = regionOfAttractionOuterApprox(f, G, ubar, g_X, R_diag, g_X_target, v_degree, p_degree, beta)
+function [sol, v_sol, mu_ind, sigma_inds] = regionOfAttractionOuterApprox(f, G, ubar, g_X, R_diag, g_X_target, v_degree, beta)
 % sos program setup
 prog = spotsosprog;
 x = decomp(g_X);
@@ -40,6 +39,7 @@ prog = prog.withIndeterminate(x);
 [prog, v] = prog.newFreePoly(monomials(x, 0 : v_degree));
 
 dynamics_sos = beta * v - diff(v, x) * f;
+p_degree = even_degree(dynamics_sos, x);
 m = size(G, 2);
 sigma_inds = zeros(m, 1);
 for i = 1 : m
@@ -114,6 +114,7 @@ for i = 1 : m
 %   end
   % (14) in Korda, Henrion, Jones 2014
   u_hat_coeffs{i} = M \ y_sigma_grlex_sol(1 : size(M, 1));
+  
 %   M_sigma = momentMatrix(y_sigma_grlex_sol, basis_y_sigma_grlex);
 %   [U,S,V] = svd(M);
 %   s = diag(S);
@@ -122,6 +123,7 @@ for i = 1 : m
 %   v = U\M_sigma(:,1);
 %   v = diag(1./s(1:keep))*v(1:keep,:);
 %   u_hat_coeffs{i} = V(:,1:keep)*v;
+  
   u_sol_basis = basis_y_sigma_grlex(1 : size(M, 1));
   u_hat_sol(i) = u_sol_basis' * u_hat_coeffs{i}; % controller violating input constraints
 end
@@ -144,6 +146,14 @@ for i = 1 : m
   %prog = prog.withPos(slack - cost); % doesn't work
   
   P = 2 * M1;
+  lambda_min = min(eig(P));
+  if lambda_min < 0
+    if lambda_min > -1e-5
+      P = P + abs(lambda_min) * eye(size(P));
+    else
+      error('P is not positive definite');
+    end
+  end
   q = -2 * (u_hat_coeffs{i}' * M2)';
   W = chol(P)';
   [prog, t] = prog.newFree(1, 1);
