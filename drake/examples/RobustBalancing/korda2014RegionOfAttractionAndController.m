@@ -14,7 +14,7 @@ R_diag = options.R_diag;
 ubar = 1;
 x = msspoly('x', model.num_states);
 g_X = 1 - x' * diag(1./(R_diag.^2)) * x;
-g_X_target = target(x);
+
 u_0_to_ubar = msspoly('u', model.num_inputs);
 [umin, umax] = model.simpleInputLimits(); % TODO: check that input limits are simple
 u = umin + u_0_to_ubar / ubar * (umax - umin);
@@ -25,18 +25,17 @@ f = xdot - G * u_0_to_ubar;
 out = struct;
 out.x = x;
 out.g_X = g_X;
-out.g_X_target = g_X_target;
-[outer_sol, out.v_outer, mu_ind, sigma_inds] = regionOfAttractionOuterApprox(f, G, ubar, g_X, R_diag, g_X_target, v_degree, betas_outer);
+[outer_sol, out.v_outer, mu_ind, sigma_inds] = regionOfAttractionOuterApprox(f, G, ubar, g_X, R_diag, target, v_degree, betas_outer);
 [out.u_0_to_ubar, out.u_hat_0_to_ubar] = extractController(outer_sol, ubar, g_X, mu_ind, sigma_inds);
 out.u = (out.u_0_to_ubar - umin) / (umax - umin) * ubar;
 out.u_hat = (out.u_hat_0_to_ubar - umin) / (umax - umin) * ubar;
 out.fbar = f + G * out.u_0_to_ubar; % closed loop dynamics
 out.fbar_hat = f + G * out.u_hat; % closed loop dynamics for controller without input limits
-out.vs_inner = regionOfAttractionInnerApprox(out.fbar, g_X, R_diag, g_X_target, betas, options.w_v_degree);
+out.vs_inner = regionOfAttractionInnerApprox(out.fbar, g_X, R_diag, target, betas, options.w_v_degree);
 
 end
 
-function [sol, v_sol, mu_ind, sigma_inds] = regionOfAttractionOuterApprox(f, G, ubar, g_X, R_diag, g_X_target, v_degree, beta)
+function [sol, v_sol, mu_ind, sigma_inds] = regionOfAttractionOuterApprox(f, G, ubar, g_X, R_diag, target, v_degree, beta)
 % sos program setup
 prog = spotsosprog;
 x = decomp(g_X);
@@ -63,8 +62,12 @@ end
 [prog, mu_ind] = prog.withSOS(dynamics_sos);
 
 v_target_sos = v - 1;
-[prog, v_target_sos] = spotless_add_sprocedure(prog, v_target_sos, g_X_target, x, v_degree - 2);
-prog = prog.withSOS(v_target_sos);
+if isnumeric(target)
+  prog = prog.withPos(subs(v_target_sos, x, target));
+else
+  [prog, v_target_sos] = spotless_add_sprocedure(prog, v_target_sos, g_X_target, x, v_degree - 2);
+  prog = prog.withSOS(v_target_sos);
+end
 
 v_sos = v + 1;
 [prog, v_sos] = spotless_add_sprocedure(prog, v_sos, g_X, x, v_degree - 2);
@@ -79,6 +82,9 @@ spot_options.do_fr = true;
 solver = @spot_mosek;
 sol = prog.minimize(cost, solver, spot_options);
 v_sol = sol.eval(v);
+xlabel('x_1')
+ylabel('x_2')
+
 end
 
 function [u_sol, u_hat_sol] = extractController(sol, ubar, g_X, mu_ind, sigma_inds)
@@ -188,6 +194,12 @@ prog = spotsosprog;
 x = decomp(g_X);
 prog = prog.withIndeterminate(x);
 [prog, w] = prog.newFreePoly(monomials(x, 0 : w_v_degree));
+
+if isnumeric(g_X_target)
+%   g_X_target = -(x - g_X_target)' * (x - g_X_target);
+  g_X_target = -g_X;
+end
+
 [prog, w_sos] = spotless_add_sprocedure(prog, w, -g_X_target, x, w_v_degree - 2);
 prog = prog.withSOS(w_sos);
 

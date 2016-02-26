@@ -11,8 +11,10 @@ handles = [];
 handles = [handles; contourSpotless(sol.g_X, sol.x(1), sol.x(2), xlim, ylim, [], [], 0, {'k'})];
 legend_strings{end + 1} = 'g_X';
 
-handles = [handles; contourSpotless(sol.g_X_target, sol.x(1), sol.x(2), xlim, ylim, [], [], 0, {'g'})];
-legend_strings{end + 1} = 'g_X^T';
+if isfield(sol, 'g_X_target')
+  handles = [handles; contourSpotless(sol.g_X_target, sol.x(1), sol.x(2), xlim, ylim, [], [], 0, {'g'})];
+  legend_strings{end + 1} = 'g_X^T';
+end
 
 handles = [handles; contourSpotless(sol.v_outer, sol.x(1), sol.x(2), xlim, ylim, [], [], 0, {'b'})];
 legend_strings{end + 1} = 'v (outer)';
