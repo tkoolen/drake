@@ -62,6 +62,14 @@ subplot(3, 1, 3);
 plot(xs, xds);
 xlabel('q_x'); ylabel('v_x');
 
+[n_sym, d_sym] = numden(u_val);
+
+q_spot = msspoly('q', length(q));
+v_spot = msspoly('v', length(v));
+n = sym2msspoly([q; v], [q_spot; v_spot], n_sym);
+d = sym2msspoly([q; v], [q_spot; v_spot], d_sym);
+
+
 end
 
 function [f_sol, u_sol] = cubicCaptureHeightTrajectory(g, q, v, q0, v0, zf)
@@ -155,4 +163,18 @@ end
 function us = computeInputs(u, q, v, xs, zs, xds, zds)
 fun = matlabFunction(u, 'Vars', [q; v]);
 us = fun(xs, zs, xds, zds);
+end
+
+function spot_poly = sym2msspoly(sym_vars, spot_vars, sym_poly)
+[coefficients, monomials] = coeffs(sym_poly, sym_vars);
+coefficients = double(coefficients);
+spot_poly = msspoly(0);
+for i = 1 : length(coefficients)
+  term = msspoly(coefficients(i));
+  for j = 1 : length(sym_vars)
+    degree = double(feval(symengine, 'degree', monomials(i), sym_vars(j)));
+    term = term * spot_vars(j)^degree;
+  end
+  spot_poly = spot_poly + term;
+end
 end
