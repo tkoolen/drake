@@ -1,8 +1,8 @@
 function orbitalEnergySym()
 n = 3;
 syms g real;
-syms x real;
-syms xd real;
+syms x z real;
+syms xd zd real;
 a = sym('a', [n + 1, 1]);
 assumeAlso(a, 'real');
 
@@ -57,8 +57,14 @@ orbital_energy_w = simplify(subs(orbital_energy, [x; xd; a], [x0; xd0; a_particu
 w = solve(orbital_energy_w == 0, w); % just a linear equation
 a_sol = simplify(a_particular + N * w);
 f_sol = simplify(subs(f, a, a_sol));
-u = (g + fpp * xd^2) / (f - fp * x);
-u_sol = simplify(subs(u, [x; xd; a], [x0; xd0; a_sol]));
+u = (g + fpp * xd^2) / (z - fp * x);
+
+u_sol = simplify(subs(u, a, a_sol));
+u_sol = simplify(subs(u_sol, [x0; z0; xd0; zd0], [x; z; xd; zd]));
+q = [x; z];
+v = [xd; zd];
+vdot_sol = [0; -g] + u_sol * q;
+xdot_sol = simplify([v; vdot_sol]);
 
 g_val = 9.8;
 x0_val = -1;
@@ -69,6 +75,36 @@ zd0_val = 0;
 zf_val = 1;
 
 a_val = double(subs(a_sol, [g; x0; z0; xd0; zd0; zf], [g_val; x0_val; z0_val; xd0_val; zd0_val; zf_val]));
+xs = linspace(x0_val, 0, 100);
+zs = polyval(flipud(a_val), xs);
+xdsquared_numerator = 2 * (3 * g * fint - g * x^2 * f);
+xdsquared_denominator = h^2;
 
+xdsquared_numerator_val = polyval(sym2poly(subs(xdsquared_numerator, [g; a], [g_val; a_val])), xs);
+xdsquared_denominator_val = polyval(sym2poly(subs(xdsquared_denominator, [g; a], [g_val; a_val])), xs);
+xds = abs(sqrt(xdsquared_numerator_val ./ xdsquared_denominator_val)) * sign(xd0_val);
+dzdxs = polyval(sym2poly(subs(fp, a, a_val)), xs);
+zds = dzdxs .* xds;
+
+half_index = floor(length(xs) / 2);
+a_half_val = double(subs(a_sol, [g; x0; z0; xd0; zd0; zf], [g_val; xs(half_index); zs(half_index); xds(half_index); zds(half_index); zf_val]));
+valuecheck(a_half_val, a_val);
+
+xdot_fun = matlabFunction(subs(xdot_sol, [g; zf], [g_val; zf_val]), 'Vars', [q; v]);
+T = 3 / omega0;
+x_init = [x0_val; z0_val; xd0_val; zd0_val];
+[ttraj, xtraj] = ode45(@(t, x) xdot_fun(x(1), x(2), x(3), x(4)), [0, T], x_init);
+
+figure(1);
+clf;
+
+% subplot(3, 1, 1);
+hold on;
+plot(xs, zs, 'b');
+plot(xtraj(:, 1), xtraj(:, 2), 'r');
+xlabel('q_x'); ylabel('q_z');
+legend({'trajectory', 'simulation'});
+% axis(1.2 * [min(x0, 0), max(x0, 0), 0, max([z'; xtraj(:, 2)])]);
+hold off;
 
 end
