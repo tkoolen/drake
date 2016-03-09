@@ -63,7 +63,7 @@ while true
   x0(3) = -1.1 * x0(1);
   lastwarn('');
   T = 5;
-  [~, x_traj] = ode45(@(t, x) sol.fbar(x), [0 T], x0);
+  [~, x_traj] = ode4(@(t, x) sol.fbar(x), 0 : 0.01 : T, x0);
   if strcmp(lastwarn, '');
     plot(x_traj(:, 1), x_traj(:, 2), 'k-');
     axis([xlim, ylim]);
