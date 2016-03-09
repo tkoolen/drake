@@ -27,13 +27,13 @@ if options.split_inputs
   u_0_to_ubar_pos = u_0_to_ubar(1 : model.num_inputs);
   u_0_to_ubar_neg = u_0_to_ubar(model.num_inputs + 1 : end);
   
-  u_pos = u_0_to_ubar_pos / ubar * umax;
-  u_neg = u_0_to_ubar_neg / ubar * -umin;
+  u_pos = u_0_to_ubar_pos / ubar .* umax;
+  u_neg = u_0_to_ubar_neg / ubar .* -umin;
   
   u = u_pos - u_neg;
 else
   u_0_to_ubar = msspoly('u', model.num_inputs);
-  u = umin + u_0_to_ubar / ubar * (umax - umin);
+  u = umin + u_0_to_ubar / ubar .* (umax - umin);
 end
 
 xdot = model.dynamics(0, x, u);
@@ -94,9 +94,9 @@ out.fbar = @(x_val) closedLoopDynamics(f, G, out.sigma, out.rho, x, x_val);
 end
 
 function xdot = closedLoopDynamics(f, G, sigma, rho, x, x_val)
-f = msubs(f, x, x_val);
-G = reshape(msubs(G(:), x, x_val), size(G));
-sigma = msubs(sigma, x, x_val);
-rho = msubs(rho, x, x_val);
-xdot = f + G * sigma ./ rho;
+f = dmsubs(f, x, x_val);
+G = reshape(dmsubs(G(:), x, x_val), size(G));
+sigma = dmsubs(sigma, x, x_val);
+rho = dmsubs(rho, x, x_val);
+xdot = f + G * (sigma ./ rho);
 end
