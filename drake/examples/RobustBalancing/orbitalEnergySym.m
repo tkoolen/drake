@@ -28,10 +28,10 @@ f_val = subs(f_sol, [g; x0; z0; xd0; zd0; zf], [g_val; x0_val; z0_val; xd0_val; 
 u_val = subs(u_sol, [g; zf], [g_val; zf_val]);
 xs = linspace(x0_val, 0, 100);
 zs = polyval(sym2poly(f_val), xs);
-xds = computeHorizontalVelocities(f_val, g_val, xd0_val, xs);
+xds = horizontalVelocities(f_val, g_val, xd0_val, xs);
 dzdxs = polyval(sym2poly(diff(f_val, x)), xs);
 zds = dzdxs .* xds;
-us = computeInputs(u_val, q, v, xs, zs, xds, zds);
+us = inputs(u_val, q, v, xs, zs, xds, zds);
 
 half_index = floor(length(xs) / 2);
 f_half_val = subs(f_sol, [g; x0; z0; xd0; zd0; zf], [g_val; xs(half_index); zs(half_index); xds(half_index); zds(half_index); zf_val]);
@@ -147,7 +147,7 @@ u_sol = simplify(subs(u_sol, [x0; z0; xd0; zd0], [x; z; xd; zd]));
 % % then it is trivially positive semidefinite
 end
 
-function xds = computeHorizontalVelocities(f, g, xd0, xs)
+function xds = horizontalVelocities(f, g, xd0, xs)
 x = symvar(f);
 fp = diff(f, x);
 h = f - fp * x;
@@ -160,7 +160,7 @@ xdsquared_denominator_val = polyval(sym2poly(xdsquared_denominator), xs);
 xds = abs(sqrt(xdsquared_numerator_val ./ xdsquared_denominator_val)) * sign(xd0);
 end
 
-function us = computeInputs(u, q, v, xs, zs, xds, zds)
+function us = inputs(u, q, v, xs, zs, xds, zds)
 fun = matlabFunction(u, 'Vars', [q; v]);
 us = fun(xs, zs, xds, zds);
 end
