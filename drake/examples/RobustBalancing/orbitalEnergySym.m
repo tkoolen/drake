@@ -12,8 +12,12 @@ q0 = [x0; z0];
 v0 = [xd0; zd0];
 n = 5;
 
+g_val = 9.8;
+zf_val = 1;
+
 [fw, uw, w] = captureHeightTrajectory(g, q, v, q0, v0, zf, n);
-[nw, d] = numden(uw);
+uw = subs(uw, [g; zf], [g_val; zf_val]);
+u = captureHeightControlSOS(uw, q, v, w, inf);
 
 
 w_val = 0 * ones(size(w));
@@ -24,13 +28,12 @@ vdot_sol = [0; -g] + u_sol * q;
 xdot_sol = simplify([v; vdot_sol]);
 % [nxdot, dxdot] = numden(xdot_sol);
 
-g_val = 9.8;
 x0_val = -1;
-z0_val = 0.75; %0.95;
+z0_val = 1; %0.95;
 omega0 = sqrt(g_val / z0_val);
-xd0_val = -omega0 * x0_val * 1.03; %1.05;
+xd0_val = -omega0 * x0_val; % * 1.03; %1.05;
 zd0_val = 0;
-zf_val = 1;
+
 
 f_val = subs(f_sol, [g; x0; z0; xd0; zd0; zf], [g_val; x0_val; z0_val; xd0_val; zd0_val; zf_val]);
 u_val = subs(u_sol, [g; zf], [g_val; zf_val]);
@@ -71,11 +74,6 @@ plot(xs, xds);
 xlabel('q_x'); ylabel('v_x');
 
 [n_sym, d_sym] = numden(u_val);
-
-q_spot = msspoly('q', length(q));
-v_spot = msspoly('v', length(v));
-n = sym2msspoly([q; v], [q_spot; v_spot], n_sym);
-d = sym2msspoly([q; v], [q_spot; v_spot], d_sym);
 
 end
 
@@ -193,6 +191,46 @@ end
 function f_legs = legForce(u, q, v, xs, zs, xds, zds)
 fun = matlabFunction(u * norm(q), 'Vars', [q; v]);
 f_legs = fun(xs, zs, xds, zds);
+end
+
+function u = captureHeightControlSOS(uw_sym, q_sym, v_sym, w_sym, u_max)
+checkDependency('spotless');
+checkDependency('mosek');
+
+prog = spotsosprog;
+[prog, x] = prog.newIndeterminate('q', length(q_sym) + length(v_sym));
+[prog, w] = prog.newFree(length(w_sym));
+
+[nw_sym, d_sym] = numden(uw_sym);
+nw = sym2msspoly([q_sym; v_sym; w_sym], [x; w], nw_sym);
+d = sym2msspoly([q_sym; v_sym], x, d_sym);
+
+% g_x = 1 - x' * x / 0.1^2; % TODO
+x0 = [-1; 1; 3.1305; 0];
+g_x = 1 - (x - x0)' * (x - x0) / 0.1^2;
+
+[prog, nw_pos_sos] = spotless_add_sprocedure(prog, nw, g_x, x, even_degree(nw, x) - even_degree(g_x, x));
+[prog, nw_pos_sos] = spotless_add_sprocedure(prog, nw_pos_sos, d, x, even_degree(nw, x) - even_degree(d, x));
+prog = prog.withSOS(nw_pos_sos);
+
+[prog, nw_neg_sos] = spotless_add_sprocedure(prog, -nw, g_x, x, even_degree(nw, x) - even_degree(g_x, x));
+[prog, nw_neg_sos] = spotless_add_sprocedure(prog, nw_neg_sos, -d, x, even_degree(nw, x) - even_degree(d, x));
+prog = prog.withSOS(nw_neg_sos);
+
+if ~isinf(u_max)
+  u_max_sos = -(nw - u_max * d);
+  [prog, u_max_sos] = spotless_add_sprocedure(prog, u_max_sos, g_x, x, even_degree(nw, x) - even_degree(g_x, x));
+  prog = prog.withSOS(u_max_sos);
+end
+
+cost = 0;
+
+spot_options = spotprog.defaultOptions;
+spot_options.verbose = true;
+spot_options.do_fr = true;
+solver = @spot_mosek;
+sol = prog.minimize(cost, solver, spot_options);
+
 end
 
 function spot_poly = sym2msspoly(sym_vars, spot_vars, sym_poly)
