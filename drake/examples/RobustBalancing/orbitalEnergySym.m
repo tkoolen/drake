@@ -10,9 +10,15 @@ q = [x; z];
 v = [xd; zd];
 q0 = [x0; z0];
 v0 = [xd0; zd0];
-n = 3;
+n = 5;
 
-[f_sol, u_sol] = captureHeightTrajectory(g, q, v, q0, v0, zf, n);
+[fw, uw, w] = captureHeightTrajectory(g, q, v, q0, v0, zf, n);
+[nw, d] = numden(uw);
+
+
+w_val = 0 * ones(size(w));
+f_sol = subs(fw, w, w_val);
+u_sol = subs(uw, w, w_val);
 
 vdot_sol = [0; -g] + u_sol * q;
 xdot_sol = simplify([v; vdot_sol]);
@@ -73,7 +79,7 @@ d = sym2msspoly([q; v], [q_spot; v_spot], d_sym);
 
 end
 
-function [f_sol, u_sol] = captureHeightTrajectory(g, q, v, q0, v0, zf, n)
+function [f_sol, u_sol, w] = captureHeightTrajectory(g, q, v, q0, v0, zf, n)
 x = q(1);
 z = q(2);
 xd = v(1);
@@ -83,8 +89,7 @@ z0 = q0(2);
 xd0 = v0(1);
 zd0 = v0(2);
 
-a = sym('a', [n + 1, 1]);
-assumeAlso(a, 'real');
+a = sym('a', [n + 1, 1], 'real');
 
 mons = sym.zeros(n + 1, 1);
 for i = 0 : n
@@ -107,14 +112,16 @@ b = [...
   zf;
   z0;
   zd0 / xd0;
-  xd0^2 * (z0 - zd0 / xd0 * x0)^2]; % note: xd0^2 is xd0 in paper, but that's wrong.
+  (xd0 * z0 - zd0 * x0)^2]; % same as xd0^2 * (z0 - zd0 / xd0 * x0)^2]; % note: xd0^2 is xd0 in paper, but that's wrong.
 
-a_sol = A \ b;
+w = sym('w', [length(a) - size(A, 1), 1], 'real');
 
-% h = f - fp * x;
-% fint = int(f * x, x);
-% 
-% orbital_energy = simplify(1/2 * xd^2 * h^2 + g * x^2 * f - 3 * g * fint);
+a_sol = A \ b + null(A) * w;
+
+h = f - fp * x;
+fint = int(f * x, x);
+orbital_energy = simplify(1/2 * xd^2 * h^2 + g * x^2 * f - 3 * g * fint);
+
 % 
 % dzdx0 = zd0 / xd0;
 % 
@@ -140,7 +147,6 @@ u_sol = simplify(subs(u_sol, [x0; z0; xd0; zd0], [x; z; xd; zd]));
 % sh = diag(double(jacobian([ah(1); 0; ah(2:end)], a)));
 % assert(all(all(simplify(simplify(xd^2 * (sh .* mons) * (sh .* mons)' - jacobian(jacobian(orbital_energy, a)', a)) == 0))));
 % assert(logical(simplify(dot(N, sh .* subs(mons, x, x0))) == 0));
-
 
 % ap = coeffs(fp, x)';
 % app = coeffs(fpp, x)';
