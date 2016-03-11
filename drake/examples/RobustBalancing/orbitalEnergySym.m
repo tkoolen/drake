@@ -10,15 +10,16 @@ q = [x; z];
 v = [xd; zd];
 q0 = [x0; z0];
 v0 = [xd0; zd0];
-n = 3;
+n = 4;
 
 g_val = 9.8;
 zf_val = 1;
 
 [fw, u_trajw, controllerw, w] = captureHeightTrajectory(g, q, v, q0, v0, zf, n);
 u_trajw = subs(u_trajw, [g; zf], [g_val; zf_val]);
-uw = subs(u_trajw, [q0; v0], [q; v]);
+uw = controllerw;
 
+w_val = 1 * ones(size(w));
 % w_val = captureHeightControlSOS(uw, q, v, w, inf);
 
 x0_val = -1;
@@ -28,8 +29,11 @@ xd0_val = -omega0 * x0_val * 0.95; %1.05;
 zd0_val = 0;
 q0_val = [x0_val; z0_val];
 v0_val = [xd0_val; zd0_val];
-captureHeightTrajectorySOS(u_trajw, x, w, q0, v0, q0_val, v0_val, inf);
-w_val = 0 * ones(size(w));
+
+u_traj_val = subs(u_trajw, w, w_val);
+u_traj_val = subs(u_traj_val, [q0; v0], [q0_val; v0_val]);
+captureHeightTrajectorySOS(u_traj_val, x, w, x0_val, 2 * g_val);
+
 f_sol = subs(fw, w, w_val);
 u_sol = subs(uw, w, w_val);
 
@@ -51,7 +55,7 @@ f_legs = legForce(u_val, q, v, xs, zs, xds, zds);
 
 half_index = floor(length(xs) / 2);
 f_half_val = subs(f_sol, [g; x0; z0; xd0; zd0; zf], [g_val; xs(half_index); zs(half_index); xds(half_index); zds(half_index); zf_val]);
-% valuecheck(sym2poly(f_val), sym2poly(f_half_val));
+valuecheck(sym2poly(f_val), sym2poly(f_half_val));
 
 xdot_fun = matlabFunction(subs(xdot_sol, [g; zf], [g_val; zf_val]), 'Vars', [q; v]);
 T = 3 / omega0;
@@ -129,11 +133,17 @@ u = simplify(subs(u, a, a_sol));
 controller = simplify(subs(u, [x0; z0; xd0; zd0], [x; z; xd; zd]));
 
 xd_squared = simplify(2 * (3 * g * fint - g * x^2 * f) / h^2);
-% u_traj_den = simplify(subs(h^2 * g + fpp * 2 * (3 * g * fint - g * x^2 * f), a, a_sol));
-% u_traj_num = simplify(subs(h^3, a, a_sol));
-
 u_traj = simplify((g + fpp * xd_squared) / (f - fp * x));
 u_traj = simplify(subs(u_traj, a, a_sol));
+
+% u_traj_den = simplify(h^2 * g + fpp * 2 * (3 * g * fint - g * x^2 * f));
+% u_traj_num = simplify(h^3);
+
+% uhsq_den = g * h^2 + 2 * g * fpp * (int(h * x, x) - subs(int(h * x, x), x, x0)) + fpp * xd0^2 * subs(h, x, x0)^2;
+
+% uh_den
+
+% bla = g * h / (2 * g * (int(h * x, x) - subs(int(h * x, x), x, x0)) + xd0^2 * subs(h^2, x, x0)) + fpp / h;
 
 end
 
@@ -155,7 +165,7 @@ fun = matlabFunction(u * norm(q), 'Vars', [q; v]);
 f_legs = fun(xs, zs, xds, zds);
 end
 
-function captureHeightTrajectorySOS(uwtraj_sym, x_sym, w_sym, q0_sym, v0_sym, q0_val, v0_val, u_max)
+function captureHeightTrajectorySOS(uwtraj_sym, x_sym, w_sym, x0, u_max)
 checkDependency('spotless');
 checkDependency('mosek');
 
@@ -163,7 +173,6 @@ prog = spotsosprog;
 [prog, x] = prog.newIndeterminate('x');
 [prog, w] = prog.newFree(length(w_sym));
 
-uwtraj_sym = subs(uwtraj_sym, [q0_sym; v0_sym], [q0_val; v0_val]);
 [n_sym, d_sym] = numden(uwtraj_sym);
 n = sym2msspoly([x_sym; w_sym], [x; w], n_sym);
 d = sym2msspoly([x_sym; w_sym], [x; w], d_sym);
@@ -179,7 +188,6 @@ scale = double(subs(d, x, 0));
 n = n / scale;
 d = d / scale;
 
-x0 = q0_val(1);
 g_x = -x * (x - x0);
 
 [prog, n_pos_sos] = spotless_add_sprocedure(prog, n, g_x, x, even_degree(n, x) - even_degree(g_x, x));
@@ -189,8 +197,8 @@ prog = prog.withSOS(n_pos_sos);
 prog = prog.withSOS(d_pos_sos);
 
 if ~isinf(u_max)
-  u_max_sos = -(n - u_max * d);
-  [prog, u_max_sos] = spotless_add_sprocedure(prog, u_max_sos, g_x, x, even_degree(n, x) - even_degree(g_x, x));
+  u_max_sos = u_max * d - n;
+  [prog, u_max_sos] = spotless_add_sprocedure(prog, u_max_sos, g_x, x, even_degree(u_max_sos, x) - even_degree(g_x, x));
   prog = prog.withSOS(u_max_sos);
 end
 
