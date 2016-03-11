@@ -10,16 +10,25 @@ q = [x; z];
 v = [xd; zd];
 q0 = [x0; z0];
 v0 = [xd0; zd0];
-n = 5;
+n = 3;
 
 g_val = 9.8;
 zf_val = 1;
 
-[fw, uw, w] = captureHeightTrajectory(g, q, v, q0, v0, zf, n);
-uw = subs(uw, [g; zf], [g_val; zf_val]);
-u = captureHeightControlSOS(uw, q, v, w, inf);
+[fw, u_trajw, controllerw, w] = captureHeightTrajectory(g, q, v, q0, v0, zf, n);
+u_trajw = subs(u_trajw, [g; zf], [g_val; zf_val]);
+uw = subs(u_trajw, [q0; v0], [q; v]);
 
+% w_val = captureHeightControlSOS(uw, q, v, w, inf);
 
+x0_val = -1;
+z0_val = 1; %0.95;
+omega0 = sqrt(g_val / z0_val);
+xd0_val = -omega0 * x0_val * 0.95; %1.05;
+zd0_val = 0;
+q0_val = [x0_val; z0_val];
+v0_val = [xd0_val; zd0_val];
+captureHeightTrajectorySOS(u_trajw, x, w, q0, v0, q0_val, v0_val, inf);
 w_val = 0 * ones(size(w));
 f_sol = subs(fw, w, w_val);
 u_sol = subs(uw, w, w_val);
@@ -28,11 +37,7 @@ vdot_sol = [0; -g] + u_sol * q;
 xdot_sol = simplify([v; vdot_sol]);
 % [nxdot, dxdot] = numden(xdot_sol);
 
-x0_val = -1;
-z0_val = 1; %0.95;
-omega0 = sqrt(g_val / z0_val);
-xd0_val = -omega0 * x0_val; % * 1.03; %1.05;
-zd0_val = 0;
+
 
 
 f_val = subs(f_sol, [g; x0; z0; xd0; zd0; zf], [g_val; x0_val; z0_val; xd0_val; zd0_val; zf_val]);
@@ -73,11 +78,9 @@ subplot(3, 1, 3);
 plot(xs, xds);
 xlabel('q_x'); ylabel('v_x');
 
-[n_sym, d_sym] = numden(u_val);
-
 end
 
-function [f_sol, u_sol, w] = captureHeightTrajectory(g, q, v, q0, v0, zf, n)
+function [height_traj, u_traj, controller, w] = captureHeightTrajectory(g, q, v, q0, v0, zf, n)
 x = q(1);
 z = q(2);
 xd = v(1);
@@ -118,61 +121,20 @@ a_sol = A \ b + null(A) * w;
 
 h = f - fp * x;
 fint = int(f * x, x);
-orbital_energy = simplify(1/2 * xd^2 * h^2 + g * x^2 * f - 3 * g * fint);
+% orbital_energy = simplify(1/2 * xd^2 * h^2 + g * x^2 * f - 3 * g * fint);
 
-% 
-% dzdx0 = zd0 / xd0;
-% 
-% C = [...
-%   jacobian(subs(f, x, x0), a); 
-%   jacobian(subs(fp, x, x0), a);
-%   jacobian(subs(f, x, 0), a)];
-% a_particular = C \ [z0; dzdx0; zf];
-% N = null(C);
-% syms w real;
-% orbital_energy_w = simplify(subs(orbital_energy, [x; xd; a], [x0; xd0; a_particular + N * w]));
-% % [R, m] = coeffs(orbital_energy_w, w);
-% w = solve(orbital_energy_w == 0, w); % just a linear equation
-% a_sol = simplify(a_particular + N * w);
-
-f_sol = simplify(subs(f, a, a_sol));
+height_traj = simplify(subs(f, a, a_sol));
 u = (g + fpp * xd^2) / (z - fp * x);
-u_sol = simplify(subs(u, a, a_sol));
-u_sol = simplify(subs(u_sol, [x0; z0; xd0; zd0], [x; z; xd; zd]));
+u = simplify(subs(u, a, a_sol));
+controller = simplify(subs(u, [x0; z0; xd0; zd0], [x; z; xd; zd]));
 
-% % reason why there's no quadratic term:
-% ah = coeffs(h, x)';
-% sh = diag(double(jacobian([ah(1); 0; ah(2:end)], a)));
-% assert(all(all(simplify(simplify(xd^2 * (sh .* mons) * (sh .* mons)' - jacobian(jacobian(orbital_energy, a)', a)) == 0))));
-% assert(logical(simplify(dot(N, sh .* subs(mons, x, x0))) == 0));
+xd_squared = simplify(2 * (3 * g * fint - g * x^2 * f) / h^2);
+% u_traj_den = simplify(subs(h^2 * g + fpp * 2 * (3 * g * fint - g * x^2 * f), a, a_sol));
+% u_traj_num = simplify(subs(h^3, a, a_sol));
 
-% ap = coeffs(fp, x)';
-% app = coeffs(fpp, x)';
-% ah = coeffs(h, x)';
-% aint = coeffs(fint, x)';
-% 
-% s = diag(eye(n + 1));
-% sp = diag(double(jacobian([0; ap], a)));
-% spp = diag(double(jacobian([0; 0; app], a)));
-% sint = diag(double(jacobian(aint, a)));
-% sh = diag(double(jacobian([ah(1); 0; ah(2:end)], a)));
-% 
-% S = sh * sh';
-% r = g * (s - 3 * sint);
-% 
-% P = simplify(xd^2 * (sh .* mons) * (sh .* mons)'); %S .* (mons * mons'); % diff(diff(orbital_energy, a)', a);
-% q = simplify(x^2 * r .* mons); %diff(orbital_energy - 1/2 * a' * P * a, a)';
-% assert(logical(simplify(1/2 * a' * P * a + q' * a - orbital_energy) == 0));
-% 
-% % for E_orbit = 0:
-% force_numerator_divided_by_g = h^2 + 2 * fpp * (-x^2 * f + 3 * fint); % quadratic in coeffs of a; want this to be >= 0 on [x0, 0]
-% Pf = simplify(jacobian(jacobian(force_numerator_divided_by_g, a)', a));
-% qf = simplify(jacobian(force_numerator_divided_by_g - 1/2 * a' * Pf * a, a)');
-% valuecheck(double(qf), zeros(size(qf)));
-% Sf = s * s' + sp * sp' - s * sp' - sp * s' - s * spp' - spp * s' + 3 * spp * sint' + 3 * sint * spp';
-% assert(logical(simplify(mons' * (Sf .* (a * a')) * mons - force_numerator_divided_by_g) == 0));
-% % having M be positive semidefinite requires that a_n = 0 for n >= 3; if n < 3
-% % then it is trivially positive semidefinite
+u_traj = simplify((g + fpp * xd_squared) / (f - fp * x));
+u_traj = simplify(subs(u_traj, a, a_sol));
+
 end
 
 function xds = horizontalVelocities(f, g, xd0, xs)
@@ -193,7 +155,57 @@ fun = matlabFunction(u * norm(q), 'Vars', [q; v]);
 f_legs = fun(xs, zs, xds, zds);
 end
 
-function u = captureHeightControlSOS(uw_sym, q_sym, v_sym, w_sym, u_max)
+function captureHeightTrajectorySOS(uwtraj_sym, x_sym, w_sym, q0_sym, v0_sym, q0_val, v0_val, u_max)
+checkDependency('spotless');
+checkDependency('mosek');
+
+prog = spotsosprog;
+[prog, x] = prog.newIndeterminate('x');
+[prog, w] = prog.newFree(length(w_sym));
+
+uwtraj_sym = subs(uwtraj_sym, [q0_sym; v0_sym], [q0_val; v0_val]);
+[n_sym, d_sym] = numden(uwtraj_sym);
+n = sym2msspoly([x_sym; w_sym], [x; w], n_sym);
+d = sym2msspoly([x_sym; w_sym], [x; w], d_sym);
+
+% q0 = msspoly('y', length(q0_sym));
+% v0 = msspoly('z', length(q0_sym));
+% n = sym2msspoly([x_sym; q0_sym; v0_sym; w_sym], [x; q0; v0; w], n_sym);
+% d = sym2msspoly([x_sym; q0_sym; v0_sym; w_sym], [x; q0; v0; w], d_sym);
+% n = subs(n, [q0; v0], [q0_val; v0_val]);
+% d = subs(d, [q0; v0], [q0_val; v0_val]);
+
+scale = double(subs(d, x, 0));
+n = n / scale;
+d = d / scale;
+
+x0 = q0_val(1);
+g_x = -x * (x - x0);
+
+[prog, n_pos_sos] = spotless_add_sprocedure(prog, n, g_x, x, even_degree(n, x) - even_degree(g_x, x));
+prog = prog.withSOS(n_pos_sos);
+
+[prog, d_pos_sos] = spotless_add_sprocedure(prog, d, g_x, x, even_degree(d, x) - even_degree(g_x, x));
+prog = prog.withSOS(d_pos_sos);
+
+if ~isinf(u_max)
+  u_max_sos = -(n - u_max * d);
+  [prog, u_max_sos] = spotless_add_sprocedure(prog, u_max_sos, g_x, x, even_degree(n, x) - even_degree(g_x, x));
+  prog = prog.withSOS(u_max_sos);
+end
+
+cost = 0;
+
+spot_options = spotprog.defaultOptions;
+spot_options.verbose = true;
+spot_options.do_fr = true;
+solver = @spot_mosek;
+sol = prog.minimize(cost, solver, spot_options);
+
+% w = sol.eval(w);
+end
+
+function w = captureHeightControlSOS(uw_sym, q_sym, v_sym, w_sym, u_max)
 checkDependency('spotless');
 checkDependency('mosek');
 
@@ -206,8 +218,11 @@ nw = sym2msspoly([q_sym; v_sym; w_sym], [x; w], nw_sym);
 d = sym2msspoly([q_sym; v_sym], x, d_sym);
 
 % g_x = 1 - x' * x / 0.1^2; % TODO
-x0 = [-1; 1; 3.1305; 0];
-g_x = 1 - (x - x0)' * (x - x0) / 0.1^2;
+% x0 = [-1; 1; 3.1305; 0];
+% g_x = 1 - (x - x0)' * (x - x0) / 0.1^2;
+omega = sqrt(9.8 / 1);
+icp = x(1) + x(3) / omega;
+g_x = [(0 * icp - icp^2); 1 - (x(2) - 1)^2 / 0.5^2; 1 - x(4)^2 / 0.5^2];
 
 [prog, nw_pos_sos] = spotless_add_sprocedure(prog, nw, g_x, x, even_degree(nw, x) - even_degree(g_x, x));
 [prog, nw_pos_sos] = spotless_add_sprocedure(prog, nw_pos_sos, d, x, even_degree(nw, x) - even_degree(d, x));
@@ -230,6 +245,8 @@ spot_options.verbose = true;
 spot_options.do_fr = true;
 solver = @spot_mosek;
 sol = prog.minimize(cost, solver, spot_options);
+
+w = sol.eval(w);
 
 end
 
