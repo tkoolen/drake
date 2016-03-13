@@ -33,7 +33,7 @@ vdot = [0; -g_val] + u * q;
 xdot = simplify([v; vdot]);
 
 % boundary function
-[B, state] = captureHeightControlSOS(xdot, u, q, v);
+[B, state, nu, du] = captureHeightControlSOS(xdot, u, q, v, g_val, zf_val);
 
 z0_val = zf_val;
 zd0_val = 0;
@@ -45,24 +45,40 @@ omega = sqrt(g_val / zf_val);
 hold on
 x_range = [-2, 2];
 xd_range = [0, max(x_range) * omega];
-contourSpotless(subs(B, [state(2); state(4)], [z0_val; zd0_val]), state(1), state(3), x_range, xd_range, [], [], 0, {'b'});
+% contourSpotless(subs(B, [state(2); state(4)], [z0_val; zd0_val]), state(1), state(3), x_range, xd_range, [], [], 0, {'b'});
+contourSpotless(subs(nu, [state(2); state(4)], [z0_val; zd0_val]), state(1), state(3), x_range, xd_range, [], [], 0, {'b'});
+% contourSpotless(subs(du, [state(2); state(4)], [z0_val; zd0_val]), state(1), state(3), x_range, xd_range, [], [], 0, {'r'});
 xs = linspace(x_range(1), 0, 100);
 icp_line = -omega * xs;
 plot(xs, icp_line, 'r');
-hold off
 xlabel('q_x');
 ylabel('v_x');
 
 while true
   % evaluate resulting trajectory
   figure(B_fig_num);
-  [x0_val, xd0_val] = ginput(1);
+  [x0_val, xd0_val, button] = ginput(1);
+  if button == 27 % escape
+    break;
+  end
+  
   % x0_val = -1;
   % omega0 = sqrt(g_val / z0_val);
   % xd0_val = -omega0 * x0_val * 0.95; %1.05;
   q0_val = [x0_val; z0_val];
   v0_val = [xd0_val; zd0_val];
-  evaluateTrajectory(f, u_traj, u, xdot, q, v, q0, v0, q0_val, v0_val, g_val);
+  [xs, xds, feasible] = evaluateTrajectory(f, u_traj, u, xdot, q, v, q0, v0, q0_val, v0_val, g_val);
+  
+  figure(B_fig_num)
+  hold on;
+  if feasible
+    color = 'g';
+  else
+    color = 'r';
+  end
+  plot(xs, xds, color);
+  axis([x_range, xd_range]);
+  hold off;
 end
 
 end
@@ -166,17 +182,26 @@ d = sym2msspoly(x_sym, x, d_sym);
 % n = subs(n, [q0; v0], [q0_val; v0_val]);
 % d = subs(d, [q0; v0], [q0_val; v0_val]);
 
-scale = double(subs(d, x, 0));
-n = n / scale;
-d = d / scale;
+% scale = double(subs(d, x, 0));
+% n = n / scale;
+% d = d / scale;
+[n, d] = scaleQuotient(n, d);
+
+% a = min(x0, 0);
+% b = max(x0, 0);
+% [prog, s] = prog.newSOSPoly(monomials(x, 0 : deg(n, x)));
+% [prog, t] = prog.newSOSPoly(monomials(x, 0 : deg(n, x) - 2));
+% prog = prog.withPolyEqs(s + (x - a) * (b - x) * t - n);
 
 g_x = -x * (x - x0);
 
-[prog, n_pos_sos] = spotless_add_sprocedure(prog, n, g_x, x, even_degree(n, x) - even_degree(g_x, x));
-prog = prog.withSOS(n_pos_sos);
+[prog, u_sos_1] = spotless_add_sprocedure(prog, d, g_x, x, even_degree(d, x) - even_degree(g_x, x));
+[prog, u_sos_1] = spotless_add_sprocedure(prog, u_sos_1, n, x, even_degree(d, x) - even_degree(n, x));
+prog = prog.withSOS(u_sos_1);
 
-[prog, d_pos_sos] = spotless_add_sprocedure(prog, d, g_x, x, even_degree(d, x) - even_degree(g_x, x));
-prog = prog.withSOS(d_pos_sos);
+[prog, u_sos_2] = spotless_add_sprocedure(prog, -d, g_x, x, even_degree(d, x) - even_degree(g_x, x));
+[prog, u_sos_2] = spotless_add_sprocedure(prog, u_sos_2, -n, x, even_degree(d, x) - even_degree(n, x));
+prog = prog.withSOS(u_sos_2);
 
 if ~isinf(u_max)
   u_max_sos = u_max * d - n;
@@ -192,10 +217,11 @@ spot_options.do_fr = true;
 solver = @spot_mosek;
 sol = prog.minimize(cost, solver, spot_options);
 
-ret = sol.isPrimalFeasible;
+% ret = sol.isPrimalFeasible;
+ret = sol.status == spotsolstatus.STATUS_PRIMAL_AND_DUAL_FEASIBLE;
 end
 
-function [B, x] = captureHeightControlSOS(xdot_sym, u_sym, q_sym, v_sym)
+function [B, x, nu, du] = captureHeightControlSOS(xdot_sym, u_sym, q_sym, v_sym, g_val, zf_val)
 checkDependency('spotless');
 checkDependency('mosek');
 
@@ -206,6 +232,7 @@ v = x(length(q_sym) + 1 : end);
 xd = [v; vd];
 
 [nu_sym, du_sym] = numden(u_sym);
+du_sym = du_sym / q_sym(1)^4; 
 nu = sym2msspoly([q_sym; v_sym], x, nu_sym);
 du = sym2msspoly([q_sym; v_sym], x, du_sym);
 [nu, du] = scaleQuotient(nu, du);
@@ -216,30 +243,32 @@ for i = 1 : length(v_sym)
   [nf_sym_i, df_sym_i] = numden(xdot_sym(i + length(q_sym)));
   nvd(i) = sym2msspoly([q_sym; v_sym], x, nf_sym_i);
   dvd(i) = sym2msspoly([q_sym; v_sym], x, df_sym_i);
+  [nvd(i), dvd(i)] = scaleQuotient(nvd(i), dvd(i));
 end
-[nvd, dvd] = scaleQuotient(nvd, dvd);
+% dvd(1) = dvd(1) * x(1); nvd(1) = nvd(1) * x(1);
 
 B_degree = 12;
+epsilon = 1e-5;
 [prog, B] = prog.newFreePoly(monomials(x, 0 : B_degree));
 
-% B >= 0 whenever nu >= 0 and du <= 0
-B_unsafe_sos_1 = B;
+% B >= epsilon whenever nu >= 0 and du <= 0
+B_unsafe_sos_1 = B - epsilon;
 [prog, B_unsafe_sos_1] = spotless_add_sprocedure(prog, B_unsafe_sos_1, nu, x, B_degree - even_degree(nu, x));
 [prog, B_unsafe_sos_1] = spotless_add_sprocedure(prog, B_unsafe_sos_1, -du, x, B_degree - even_degree(du, x));
 prog = prog.withSOS(B_unsafe_sos_1);
 
-% B >= 0 whenever nu <= 0 and du >= 0
-B_unsafe_sos_2 = B - 1e-5;
+% B >= epsilon whenever nu <= 0 and du >= 0
+B_unsafe_sos_2 = B - epsilon;
 [prog, B_unsafe_sos_2] = spotless_add_sprocedure(prog, B_unsafe_sos_2, -nu, x, B_degree - even_degree(nu, x));
 [prog, B_unsafe_sos_2] = spotless_add_sprocedure(prog, B_unsafe_sos_2, du, x, B_degree - even_degree(du, x));
 prog = prog.withSOS(B_unsafe_sos_2);
 
 % TODO:
-omega = sqrt(9.8 / 1);
-x0 = [-1; 1; omega; 0];
+omega = sqrt(g_val / zf_val);
+x0 = 1 * [-1; 1; omega; 0];
 prog = prog.withPolyEqs(subs(B, x, x0) + 1);
 
-% g_X0 = 1 - (x - x0)' * (x - x0) / 0.1^2;
+% g_X0 = 1 - (x - x0)' * (x - x0) / 0.01^2;
 % [prog, X0_sos] = spotless_add_sprocedure(prog, -B, g_X0, x, B_degree - even_degree(g_X0, x));
 % prog = prog.withSOS(X0_sos);
 
@@ -250,18 +279,12 @@ for i = 1 : length(vd)
 end
 prog = prog.withSOS(Bdot_sos);
 
-% if ~isinf(u_max)
-%   u_max_sos = -(nu - u_max * du);
-%   [prog, u_max_sos] = spotless_add_sprocedure(prog, u_max_sos, g_x, x, even_degree(nu, x) - even_degree(g_x, x));
-%   prog = prog.withSOS(u_max_sos);
-% end
-
-% cost = 0;
-[prog, W] = prog.newSOSPoly(monomials(x, 0 : B_degree));
-prog = prog.withSOS(W - B - 1);
-
-R_diag = 2 * ones(length(x), 1)';
-cost = spotlessIntegral(prog, W, x, R_diag, [], []);
+cost = 0;
+% [prog, W] = prog.newSOSPoly(monomials(x, 0 : B_degree));
+% prog = prog.withSOS(W - B - 1);
+% 
+% R_diag = 2 * ones(length(x), 1)';
+% cost = spotlessIntegral(prog, W, x, R_diag, [], []);
 
 spot_options = spotprog.defaultOptions;
 spot_options.verbose = true;
@@ -271,7 +294,7 @@ sol = prog.minimize(cost, solver, spot_options);
 B = sol.eval(B);
 end
 
-function evaluateTrajectory(f, u_traj, u, xdot, q, v, q0, v0, q0_val, v0_val, g_val)
+function [xs, xds, feasible] = evaluateTrajectory(f, u_traj, u, xdot, q, v, q0, v0, q0_val, v0_val, g_val)
 u_traj_val = subs(u_traj, [q0; v0], [q0_val; v0_val]);
 feasible = captureHeightTrajectorySOS(u_traj_val, q(1), q0_val(1), inf);
 disp(['feasible: ' num2str(feasible)])
