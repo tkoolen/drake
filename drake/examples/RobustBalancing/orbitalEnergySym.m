@@ -10,7 +10,7 @@ q = [x; z];
 v = [xd; zd];
 q0 = [x0; z0];
 v0 = [xd0; zd0];
-n = 4;
+n = 3;
 
 % find trajectory
 [fw, u_trajw, uw, w] = captureHeightTrajectory(g, q, v, q0, v0, zf, n);
@@ -31,8 +31,9 @@ u_traj = subs(u_trajw, w, w_val);
 % closed loop dynamics
 vdot = [0; -g_val] + u * q;
 xdot = simplify([v; vdot]);
+% xdot = - 1 * [q;v];
 
-% boundary function
+% barrier function
 [B, state, nu, du] = captureHeightControlSOS(xdot, u, q, v, g_val, zf_val);
 
 z0_val = zf_val;
@@ -43,10 +44,10 @@ figure(B_fig_num);
 clf;
 omega = sqrt(g_val / zf_val);
 hold on
-x_range = [-2, 2];
+x_range = [-4, 4];
 xd_range = [0, max(x_range) * omega];
-% contourSpotless(subs(B, [state(2); state(4)], [z0_val; zd0_val]), state(1), state(3), x_range, xd_range, [], [], 0, {'b'});
-contourSpotless(subs(nu, [state(2); state(4)], [z0_val; zd0_val]), state(1), state(3), x_range, xd_range, [], [], 0, {'b'});
+contourSpotless(subs(B, [state(2); state(4)], [z0_val; zd0_val]), state(1), state(3), x_range, xd_range, [], [], 0, {'b'});
+% contourSpotless(subs(nu, [state(2); state(4)], [z0_val; zd0_val]), state(1), state(3), x_range, xd_range, [], [], 0, {'b'});
 % contourSpotless(subs(du, [state(2); state(4)], [z0_val; zd0_val]), state(1), state(3), x_range, xd_range, [], [], 0, {'r'});
 xs = linspace(x_range(1), 0, 100);
 icp_line = -omega * xs;
@@ -61,10 +62,7 @@ while true
   if button == 27 % escape
     break;
   end
-  
-  % x0_val = -1;
-  % omega0 = sqrt(g_val / z0_val);
-  % xd0_val = -omega0 * x0_val * 0.95; %1.05;
+
   q0_val = [x0_val; z0_val];
   v0_val = [xd0_val; zd0_val];
   [xs, xds, feasible] = evaluateTrajectory(f, u_traj, u, xdot, q, v, q0, v0, q0_val, v0_val, g_val);
@@ -135,15 +133,6 @@ xd_squared = simplify(2 * (3 * g * fint - g * x^2 * f) / h^2);
 u_traj = simplify((g + fpp * xd_squared) / (f - fp * x));
 u_traj = simplify(subs(u_traj, a, a_sol));
 
-% u_traj_den = simplify(h^2 * g + fpp * 2 * (3 * g * fint - g * x^2 * f));
-% u_traj_num = simplify(h^3);
-
-% uhsq_den = g * h^2 + 2 * g * fpp * (int(h * x, x) - subs(int(h * x, x), x, x0)) + fpp * xd0^2 * subs(h, x, x0)^2;
-
-% uh_den
-
-% bla = g * h / (2 * g * (int(h * x, x) - subs(int(h * x, x), x, x0)) + xd0^2 * subs(h^2, x, x0)) + fpp / h;
-
 end
 
 function xds = horizontalVelocities(f, g, xd0, xs)
@@ -175,23 +164,7 @@ prog = spotsosprog;
 n = sym2msspoly(x_sym, x, n_sym);
 d = sym2msspoly(x_sym, x, d_sym);
 
-% q0 = msspoly('y', length(q0_sym));
-% v0 = msspoly('z', length(q0_sym));
-% n = sym2msspoly([x_sym; q0_sym; v0_sym; w_sym], [x; q0; v0; w], n_sym);
-% d = sym2msspoly([x_sym; q0_sym; v0_sym; w_sym], [x; q0; v0; w], d_sym);
-% n = subs(n, [q0; v0], [q0_val; v0_val]);
-% d = subs(d, [q0; v0], [q0_val; v0_val]);
-
-% scale = double(subs(d, x, 0));
-% n = n / scale;
-% d = d / scale;
 [n, d] = scaleQuotient(n, d);
-
-% a = min(x0, 0);
-% b = max(x0, 0);
-% [prog, s] = prog.newSOSPoly(monomials(x, 0 : deg(n, x)));
-% [prog, t] = prog.newSOSPoly(monomials(x, 0 : deg(n, x) - 2));
-% prog = prog.withPolyEqs(s + (x - a) * (b - x) * t - n);
 
 g_x = -x * (x - x0);
 
@@ -217,7 +190,6 @@ spot_options.do_fr = true;
 solver = @spot_mosek;
 sol = prog.minimize(cost, solver, spot_options);
 
-% ret = sol.isPrimalFeasible;
 ret = sol.status == spotsolstatus.STATUS_PRIMAL_AND_DUAL_FEASIBLE;
 end
 
@@ -227,6 +199,7 @@ checkDependency('mosek');
 
 prog = spotsosprog;
 [prog, x] = prog.newIndeterminate('x', length(q_sym) + length(v_sym));
+q = x(1 : length(q_sym));
 v = x(length(q_sym) + 1 : end);
 [prog, vd] = prog.newIndeterminate('vd', length(v_sym));
 xd = [v; vd];
@@ -272,7 +245,11 @@ prog = prog.withPolyEqs(subs(B, x, x0) + 1);
 % [prog, X0_sos] = spotless_add_sprocedure(prog, -B, g_X0, x, B_degree - even_degree(g_X0, x));
 % prog = prog.withSOS(X0_sos);
 
+% Bdot <=0
 Bdot_sos = -diff(B, x) * xd;
+% [prog, Bdot_sos] = spotless_add_sprocedure(prog, Bdot_sos, -q(1) * v(1), [x; vd], B_degree - 2);
+% [prog, Bdot_sos] = spotless_add_sprocedure(prog, Bdot_sos, q(2), [x; vd], B_degree - 2);
+% [prog, Bdot_sos] = spotless_add_sprocedure(prog, Bdot_sos, x' * x / 0.1^2 - 1, [x; vd], B_degree - 2);
 for i = 1 : length(vd)
   dynamics_eq = dvd(i) * vd(i) - nvd(i);
   [prog, Bdot_sos] = spotless_add_eq_sprocedure(prog, Bdot_sos, dynamics_eq, [x; vd], B_degree - even_degree(dynamics_eq, [x; vd]));
