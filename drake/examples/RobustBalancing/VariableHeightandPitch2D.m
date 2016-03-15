@@ -117,7 +117,7 @@ classdef VariableHeightandPitch2D < NStepCapturabilitySOSSystem
       rp = r + [s;0];
     end
     
-    function plotfun(obj, n, Vsol, Wsol, h_X, R_diag, t, x)
+    function plotfun(obj, n, Vsol, Wsol, h_X, R_diag, t, x, u)
       q = x(1:3);
       v = x(4:6);
       

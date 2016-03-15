@@ -1,4 +1,7 @@
 function scaledVariableHeightCapturability(n)
+if nargin < 1
+  n = 0;
+end
 
 g = 10;
 step_max = .7;

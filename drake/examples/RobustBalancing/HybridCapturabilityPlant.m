@@ -40,8 +40,7 @@ classdef HybridCapturabilityPlant < HybridDrakeSystem
         
         if isfield(data{i},'u_sol') 
           u_sol = subs(data{i}.u_sol,t,t*data{i}.T);
-          [pows,coeffs] = decomp_ordered(u_sol,[t;x]);
-          controller = PolyController(ol_plant,coeffs,pows);
+          controller = PolyController(ol_plant,t,x,u_sol);
         else
           if i > 1 && sos_plant.num_reset_inputs == 0 && false
             V0p = subs(data{i-1}.Vsol,[x;t],[xp;0]);
@@ -51,7 +50,7 @@ classdef HybridCapturabilityPlant < HybridDrakeSystem
           else
             Vdot = diff(data{i}.Vsol,x)*xdot + diff(data{i}.Vsol,t);
             Vdot = subs(Vdot,t,t*data{i}.T);
-            dVdotdu = diff(Vdot,u);
+            dVdotdu = diff(Vdot,u)
             [pows,coeffs] = decomp_ordered(dVdotdu,[t;x]);
           end
           controller = NStepCapturabilityController(ol_plant,coeffs,pows);
@@ -81,7 +80,7 @@ classdef HybridCapturabilityPlant < HybridDrakeSystem
       obj.xp = xp;
       
       obj = obj.setSimulinkParam('Solver','ode4');
-      obj = obj.setSimulinkParam('FixedStep','.005');
+      obj = obj.setSimulinkParam('FixedStep','.01');
     end
     
     function phi = time_guard(obj,t,x,u,T_max)

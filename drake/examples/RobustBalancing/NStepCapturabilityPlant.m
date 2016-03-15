@@ -1,17 +1,34 @@
-classdef NStepCapturabilityPlant < DrakeSystem
+classdef NStepCapturabilityPlant < PolynomialSystem
   % augmented state with [t_offset;x_stance;y_stance]
   properties
     sos_plant
+    nBaseStates;
   end
   
   methods
-    function obj = NStepCapturabilityPlant(sos_plant)
-      obj = obj@DrakeSystem(sos_plant.num_states+3,0,sos_plant.num_inputs,sos_plant.num_states+3,false,true);
+    function obj = NStepCapturabilityPlant(sos_plant,base_states)
+      if nargin < 2
+        base_states = true;
+      end
+      if base_states
+        nBase = 3;
+      else
+        nBase = 0;
+      end
+      obj = obj@PolynomialSystem(sos_plant.num_states+nBase,0,sos_plant.num_inputs,sos_plant.num_states+nBase,false,true,false);
       obj.sos_plant = sos_plant;
+      obj.nBaseStates = nBase;
     end
     
-    function xdot = dynamics(obj,t,x,u)
-      xdot = [obj.sos_plant.dynamics(t,x,u);0;0;0];
+    function [xdot, dxdot] = dynamicsRHS(obj,t,x,u)
+      if nargout >1
+        [xdot,dxdot] = obj.sos_plant.dynamics(t,x,u);
+        xdot = [xdot;zeros(obj.nBaseStates,1)];
+        dxdot = [dxdot;zeros(obj.nBaseStates,size(dxdot,2))];
+      else
+        xdot = obj.sos_plant.dynamics(t,x,u);
+        xdot = [xdot;zeros(obj.nBaseStates,1)];
+      end      
     end
     
     function y = output(obj,t,x,u)

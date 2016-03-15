@@ -1,4 +1,4 @@
-function lipm2DNstepCapturability(n)
+function transformedLipm2DNstepCapturability(n)
 if nargin < 1
   n = 0;
 end
@@ -6,30 +6,27 @@ g = 10;
 z_nom = 1;
 step_max = .7;
 step_time = 0.3;
-cop_max = .2; % set to 0 to get point foot model with no continuous inputs
+cop_max = .1; % set to 0 to get point foot model with no continuous inputs
 
-model = LIPM2D(g, z_nom, step_max, step_time, cop_max);
-R_diag = [1 1];
+model = TransformedLIPM2D(g, z_nom, step_max, step_time, cop_max);
+R_diag = [1 cop_max*2*sqrt(g/z_nom)];
 if n > 0
   T = step_time;
 else
-  T = 1;
+  T = 2;
 end
-options.degree = 4;
+options.degree = 6;
 options.scale = 1;
 options.control_design = true;
-options.korda_control_design = false;
-options.beta = 0;
-options.infinite_time = false;
+options.korda_control_design = true;
+options.beta = 1;
+options.infinite_time = true;
 options.free_final_time = false;
 
 % radius of ball around the origin used as goal for 0-step capturability
-goal_radius = 0.1;
+goal_radius = 0.01;
 target = @(x) goal_radius^2 - x'*x;
-% target = [];
-
-x = msspoly('x',2);
-R_diag = 1 - x'*[3.25 2.75; 2.75 3.25]*x;
+target = [];
 
 [Vsol,Wsol] = nStepCapturabilitySOS(model, T, R_diag, target, n, options);
 

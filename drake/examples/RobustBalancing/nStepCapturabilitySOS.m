@@ -1,4 +1,4 @@
-function nStepCapturabilitySOS(model, T, R_diag, target, n, options)
+function [Vsol,Wsol,u_sol] = nStepCapturabilitySOS(model, T, R_diag, target, n, options)
 % Run an n-step reachability problem
 % @param R_diag state space ball
 
@@ -90,13 +90,17 @@ end
 
 %% Load previous problem data
 if n > 0
-  filename = solutionFileName(model, n - 1);
-  if ~exist(filename, 'file')
-    display(sprintf('Solving for %d-step first',n-1))
-    nStepCapturabilitySOS(model, T, R_diag, target, n - 1, options);
+  if isfield(options,'V0')
+    V0 = subs(options.V0,x,x.*scale_inv);
+  else
+    filename = solutionFileName(model, n - 1);
+    if ~exist(filename, 'file')
+      display(sprintf('Solving for %d-step first',n-1))
+      nStepCapturabilitySOS(model, T, R_diag, target, n - 1, options);
+    end
+    data = load(filename);
+    V0 = subs(data.Vsol,x,x.*scale_inv);
   end
-  data = load(filename);
-  V0 = subs(data.Vsol,x,x.*scale_inv);
 end
 
 %% Scale r_diag
@@ -113,6 +117,8 @@ end
 if ~options.infinite_time
   W_vars = x;
   [prog,W] = prog.newFreePoly(monomials(W_vars,0:degree));
+else
+  W_vars = V_vars;
 end
 
 %% Dynamics
@@ -183,10 +189,10 @@ if n > 0
     V_goal_eqn = (V-V_goal_min)*(1+[V_vars;s]'*[V_vars;s]);
     goal_vars = [V_vars;s];
   else
-    V_goal_eqn = subs(V,t,T)-V_goal_min;%*(1+[x;s]'*[x;s]);
+    V_goal_eqn = (subs(V,t,T)-V_goal_min)*(1+[x;s]'*[x;s]);
     goal_vars = [W_vars;s];
   end
-  [prog, goal_sos] = spotless_add_sprocedure(prog, V_goal_eqn, V0p,goal_vars,2);
+  [prog, goal_sos] = spotless_add_sprocedure(prog, V_goal_eqn, V0p,goal_vars,degree);
 
   % state constraint
   [prog, goal_sos] = spotless_add_sprocedure(prog, goal_sos, h_X,goal_vars,degree);
@@ -311,7 +317,7 @@ end
 %% Solve
 spot_options = spotprog.defaultOptions;
 spot_options.verbose = true;
-spot_options.do_fr = false;
+spot_options.do_fr = true;
 solver = @spot_mosek;
 % solver = @spot_sedumi;
 sol = prog.minimize(cost,solver,spot_options);
@@ -360,7 +366,10 @@ if options.control_design
     end
     M_sig{i} = momentMatrix(y_sig,basis_vdot);
     
-    u_sol = [u_sol;solveController(M_vdot,M_sig{i},G)];
+    [u_i,u_i_coeff] = solveController(M_vdot,M_sig{i},G);
+    u_sol = [u_sol;u_i];
+    uMomentBasis{i} = G;
+    uCoeff{i} = u_i_coeff;
   end
   u_sol = C_u*u_sol + d_u;
   u_sol = subs(u_sol,x,scale.*x);
@@ -392,7 +401,7 @@ if options.control_design
   u_sol = subs(u_sol,t,t/T);
 end
 if options.control_design
-  save(solutionFileName(model, n),'Vsol','model','T','R_diag','u_sol')
+  save(solutionFileName(model, n),'Vsol','model','T','R_diag','u_sol','uMomentBasis', 'uCoeff')
 else
   save(solutionFileName(model, n),'Vsol','model','T','R_diag')
 end

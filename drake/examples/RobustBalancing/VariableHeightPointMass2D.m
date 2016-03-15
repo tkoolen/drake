@@ -109,7 +109,7 @@ classdef VariableHeightPointMass2D < NStepCapturabilitySOSSystem
       rp = r + [s;0];
     end
     
-    function plotfun(obj, n, Vsol, Wsol, h_X, R_diag, t, x)
+    function plotfun(obj, n, Vsol, Wsol, h_X, R_diag, t, x, ~)
       q = x(1 : 2);
       v = x(3 : 4);
       

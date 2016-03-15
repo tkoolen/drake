@@ -1,4 +1,4 @@
-function innerApproximation(model,u,R_diag,target,options)
+function [Vsol,Wsol] = innerApproximation(model,u,R_diag,target,options)
 
 if ~isfield(options,'beta')
   options.beta = 1;

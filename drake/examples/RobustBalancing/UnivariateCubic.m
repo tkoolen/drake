@@ -22,14 +22,27 @@ classdef UnivariateCubic < NStepCapturabilitySOSSystem
       ret = zeros(1, 1, 'like', s);
     end
     
-    function plotfun(obj, n, Vsol, Wsol, h_X, R_diag, t, x)
+    function plotfun(obj, n, Vsol, Wsol, h_X, R_diag, t, x, ~)
       % figure 1 in http://arxiv.org/pdf/1208.1751.pdf
+      figure(1)
       xs = linspace(-1, 1, 100);
-      Ws = zeros(length(xs));
-      for i = 1 : length(xs)
-        Ws(i) = subs(Wsol, [x; t], [xs(i); 0]);
-      end
+      Ws = msubs(Wsol,[x;t],[xs;zeros(size(xs))]);
+%       Ws = zeros(length(xs),1);
+%       for i = 1 : length(xs)
+%         Ws(i) = subs(Wsol, [x; t], [xs(i); 0]);
+%       end
       plot(xs, Ws);
+      figure(2)
+      Vs = msubs(Vsol,[x;t],[xs;zeros(size(xs))]);
+      plot(xs, Vs);      
+    end
+    
+    function[umin,umax,A] = simpleInputLimits(obj,x)
+%       q = x(1:2);
+%       z = q(2) + obj.z_nom;
+      umin = [];
+      umax = [];
+      A = [];
     end
   end
 end

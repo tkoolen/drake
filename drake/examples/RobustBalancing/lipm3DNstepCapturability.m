@@ -15,7 +15,7 @@ if n > 0
 else
   T = 1;
 end
-options.degree = 6;
+options.degree = 4;
 options.scale = 1;
 options.control_design = true;
 % options.free_final_time = true;

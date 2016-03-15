@@ -1,6 +1,6 @@
 data_0 = load('V0_VariableHeightPointMass2D');
 % data_1 = load('V1_VariableHeightPointMass2D');
-data = {data_0;data_1};
+% data = {data_0;data_1};
 data = {data_0};
 % data = {data_1};
 model = data_0.model;
@@ -20,7 +20,7 @@ plant = NStepCapturabilityPlant(model);
 v = NStepCapturabilityVisualizer(plant);
 v = v.setInputFrame(p.getOutputFrame);
 v.playback_speed = .5;
-
+figure(25)
 v.playback(traj);
 
 
@@ -32,3 +32,5 @@ x = msspoly('x',model.num_states);
 t_sim = traj.pp.breaks;
 x_sim = traj.eval(t_sim);
 V0 = msubs(data_0.Vsol,[t;x],[t_sim;x_sim(1:model.num_states,:)]);
+figure(5)
+plot(t_sim,V0)
