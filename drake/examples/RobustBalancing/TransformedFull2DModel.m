@@ -70,7 +70,7 @@ classdef TransformedFull2DModel < NStepCapturabilitySOSSystem
     function xp = reset(obj, t, xm, s)
       % control input changes x position only
       xp = xm;
-      xp(1:2) = xm(1:2) + sqrt(obj.g/obj.z_nom)*s
+      xp(1:2) = xm(1:2) + sqrt(obj.g/obj.z_nom)*s*obj.step_max;
     end
     
     
