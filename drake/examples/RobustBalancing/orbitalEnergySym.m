@@ -13,20 +13,37 @@ v0 = [xd0; zd0];
 n = 3;
 
 % find trajectory
-[fw, u_trajw, uw, w] = captureHeightTrajectory(g, q, v, q0, v0, zf, n);
+[fw, u_trajw, uw, w, uhsq_trajw] = captureHeightTrajectory(g, q, v, q0, v0, zf, n);
+
+nu = numden(uw);
+syms a real;
+nu_a = numden(simplify(subs(uw, x, a * xd)));
+% nu_a = simplify(nu_a / x^4);
+% nu_a_discriminant = evalin(symengine, ['polylib::discrim(' char(nu_a) ', a)']);
+% nu_traj = simplify(subs(numden(u_trajw), xd0, a * x0));
+
+% assumeAlso(g > 0);
+% assumeAlso(zf > 0);
+% a_roots = solve(nu_a == 0, a, 'MaxDegree', 4);
+
 
 % plug in g and zf
-g_val = 9.8;
+g_val = 1; %9.8;
 zf_val = 1;
 fw = subs(fw, [g; zf], [g_val; zf_val]);
 uw = subs(uw, [g; zf], [g_val; zf_val]);
 u_trajw = subs(u_trajw, [g; zf], [g_val; zf_val]);
+uhsq_trajw = subs(uhsq_trajw, [g; zf], [g_val; zf_val]);
+nu_a = subs(nu_a, [g; zf], [g_val; zf_val]);
+% nu_a_discriminant = subs(nu_a_discriminant, [g; zf], [g_val; zf_val]);
 
 % plug in w
-w_val = 0 * ones(size(w));
+w_val = 1 * ones(size(w));
 f = subs(fw, w, w_val);
 u = subs(uw, w, w_val);
 u_traj = subs(u_trajw, w, w_val);
+uhsq_traj = subs(uhsq_trajw, w, w_val);
+u_traj = uhsq_traj;
 
 % closed loop dynamics
 vdot = [0; -g_val] + u * q;
@@ -34,54 +51,118 @@ xdot = simplify([v; vdot]);
 % xdot = - 1 * [q;v];
 
 % barrier function
-[B, state, nu, du] = captureHeightControlSOS(xdot, u, q, v, g_val, zf_val);
+% [B, state, nu, du] = captureHeightControlSOS(xdot, u, q, v, g_val, zf_val);
 
-z0_val = zf_val;
-zd0_val = 0;
+% gui setup
+h_fig = orbitalEnergyGUI();
+data = guidata(h_fig);
+ax = data.axes1;
+handles = guihandles(h_fig);
+axes_callback = @(src, eventdata) plotTrajectory(src, eventdata, handles, f, u_traj, u, xdot, q, v, q0, v0, g_val);
+set(ax,'ButtonDownFcn', axes_callback);
+font_size = 16;
+set(ax, 'FontSize', font_size);
+set(findall(h_fig, 'type', 'Text'), 'FontSize', font_size);
+slider_callback = @() plotStateSpaceSliceAndSetButtonDowns(handles, ax, u, u_traj, q, v, q0, v0, g_val, zf_val, w_val);
+handles.z0slider.Callback = @(hObject, eventdata) slider_callback();
+handles.zd0slider.Callback = @(hObject, eventdata) slider_callback();
+end
 
-B_fig_num = 4;
-figure(B_fig_num);
-clf;
+function plotStateSpaceSliceAndSetButtonDowns(handles, ax, u, u_traj, q, v, q0, v0, g_val, zf_val, w_val)
+plotStateSpaceSlice(ax, u, u_traj, q, v, q0, v0, g_val, zf_val, handles.z0slider.Value, handles.zd0slider.Value, w_val);
+h = get(ax, 'children');
+set(h, 'HitTest', 'off');
+end
+
+function plotTrajectory(src, eventdata, handles, f, u_traj, u, xdot, q, v, q0, v0, g_val)
+x0 = eventdata.IntersectionPoint(1);
+xd0 = eventdata.IntersectionPoint(2);
+z0 = handles.z0slider.Value;
+zd0 = handles.zd0slider.Value;
+q0_val = [x0; z0];
+v0_val = [xd0; zd0];
+
+[xs, xds, feasible] = evaluateTrajectory(f, u_traj, u, xdot, q, v, q0, v0, q0_val, v0_val, g_val);
+
+while ~isa(src, 'matlab.graphics.axis.Axes')
+  src = src.Parent;
+end
+axes(src);
+hold on;
+if feasible
+  color = 'g';
+else
+  color = 'r';
+end
+plot(xs(1), xds(1), [color 'x']);
+
+[verified, g_X0, x_xd_spot] = captureHeightTrajectoryRegionSOS(u_traj, q(1), [q0; v0], q0_val(1), q0_val(2), v0_val(1), v0_val(2), g_val);
+if verified
+  color = 'g';
+else
+  color = 'r';
+end
+V = axis(src);
+x_range = V(1 : 2);
+xd_range = V(3 : 4);
+contourSpotless(g_X0, x_xd_spot(1), x_xd_spot(2), x_range, xd_range, [], [], 0, {color});
+hold off;
+
+end
+
+function plotStateSpaceSlice(ax, u, u_traj, q, v, q0, v0, g_val, zf_val, z0_val, zd0_val, w_val)
+
+
+cla(ax);
+axes(ax);
+hold on;
+
+x = q(1);
+z = q(2);
+xd = v(1);
+zd = v(2);
+
 omega = sqrt(g_val / zf_val);
-hold on
-x_range = [-4, 4];
-xd_range = [0, max(x_range) * omega];
-contourSpotless(subs(B, [state(2); state(4)], [z0_val; zd0_val]), state(1), state(3), x_range, xd_range, [], [], 0, {'b'});
-% contourSpotless(subs(nu, [state(2); state(4)], [z0_val; zd0_val]), state(1), state(3), x_range, xd_range, [], [], 0, {'b'});
+x_range = [-2, 2];
+xd_range = x_range * omega;
+axis([x_range, xd_range]);
+axis manual
+xs = linspace(x_range(1), x_range(2), 500);
+xds = linspace(xd_range(1), xd_range(2), 500);
+
+u_fun = matlabFunction(subs(u, [z; zd],[z0_val; zd0_val]), 'Vars', [x; xd]);
+[Xs, Xds] = meshgrid(xs, xds);
+Us = -u_fun(Xs, Xds);
+[~, h_u] = contourf(Xs, Xds, Us, [0 0]);
+
+% contourSpotless(subs(B, [state(2); state(4)], [z0_val; zd0_val]), state(1), state(3), x_range, xd_range, [], [], 0, {'b'});
+% contourSpotless(subs(-nu * du, [state(2); state(4)], [z0_val; zd0_val]), state(1), state(3), x_range, xd_range, [], [], 0, {'b'});
 % contourSpotless(subs(du, [state(2); state(4)], [z0_val; zd0_val]), state(1), state(3), x_range, xd_range, [], [], 0, {'r'});
-xs = linspace(x_range(1), 0, 100);
 icp_line = -omega * xs;
-plot(xs, icp_line, 'r');
-xlabel('q_x');
-ylabel('v_x');
+h_icp = plot(xs, icp_line, 'b--');
 
-while true
-  % evaluate resulting trajectory
-  figure(B_fig_num);
-  [x0_val, xd0_val, button] = ginput(1);
-  if button == 27 % escape
-    break;
-  end
-
-  q0_val = [x0_val; z0_val];
-  v0_val = [xd0_val; zd0_val];
-  [xs, xds, feasible] = evaluateTrajectory(f, u_traj, u, xdot, q, v, q0, v0, q0_val, v0_val, g_val);
-  
-  figure(B_fig_num)
-  hold on;
-  if feasible
-    color = 'g';
-  else
-    color = 'r';
-  end
-  plot(xs, xds, color);
-  axis([x_range, xd_range]);
-  hold off;
+if all(w_val == 0)
+  [nu, du] = numden(u);
+  syms a real;
+  nu_a = simplify(subs(nu, xd, a * x));
+  nu_a = nu_a / (a * x^5);
+  nu_a = subs(nu_a, [z, zd], [z0_val, zd0_val]);
+  a_sols = roots(sym2poly(nu_a));
+  plot(xs, min(a_sols) * xs, 'r');
+%   plot(xs, max(a_sols) * xs, 'g');
 end
 
+% [verified, g_X0, x0] = captureHeightTrajectoryRegionSOS(u_traj, q(1), [q0; v0], z0_val, zd0_val, g_val);
+% if verified
+%   contourSpotless(g_X0, x0(1), x0(2), x_range, xd_range, [], [], 0, {'g'});
+% end
+
+xlabel('$$x$$', 'Interpreter', 'latex');
+ylabel('$$\dot{x}$$', 'Interpreter', 'latex');
+legend([h_u, h_icp], {'$$u = 0$$', '$$x + \sqrt{\frac{z_f}{g}} \dot{x} = 0$$'}, 'Location', 'NorthEast', 'Interpreter', 'latex')
 end
 
-function [height_traj, u_traj, controller, w] = captureHeightTrajectory(g, q, v, q0, v0, zf, n)
+function [height_traj, u_traj, controller, w, uhsq] = captureHeightTrajectory(g, q, v, q0, v0, zf, n)
 x = q(1);
 z = q(2);
 xd = v(1);
@@ -118,7 +199,7 @@ b = [...
 
 w = sym('w', [length(a) - size(A, 1), 1], 'real');
 
-a_sol = A \ b + null(A) * w;
+a_sol = A \ b + null(A) * w; % A \ b and null(A) seem to be computed using rref; A \ b is not a minimum norm solution!
 
 h = f - fp * x;
 fint = int(f * x, x);
@@ -132,6 +213,8 @@ controller = simplify(subs(u, [x0; z0; xd0; zd0], [x; z; xd; zd]));
 xd_squared = simplify(2 * (3 * g * fint - g * x^2 * f) / h^2);
 u_traj = simplify((g + fpp * xd_squared) / (f - fp * x));
 u_traj = simplify(subs(u_traj, a, a_sol));
+
+uhsq = simplify(subs(simplify(g * h + fpp * g * 2 * int(h * x, x) / h), a, a_sol));
 
 end
 
@@ -193,74 +276,236 @@ sol = prog.minimize(cost, solver, spot_options);
 ret = sol.status == spotsolstatus.STATUS_PRIMAL_AND_DUAL_FEASIBLE;
 end
 
+function [verified, g_X0, x0, x0_sym] = captureHeightTrajectoryRegionSOS(utraj_sym, q_x_sym, x0_sym, x0_val, z0_val, xd0_val, zd0_val, g_val)
+checkDependency('spotless');
+checkDependency('mosek');
+
+% utraj_sym = simplify(subs(utraj_sym, [x0_sym(2), x0_sym(4)], [z0_val, zd0_val]));
+% x0_sym = [x0_sym(1); x0_sym(3)];
+xc = [x0_val; xd0_val];
+
+% syms a real;
+% utraj_sym = simplify(partfrac(subs(utraj_sym, x0_sym(3), a * x0_sym(1))));
+% a_val = xd0_val / x0_val;
+% x0_sym = [x0_sym(1); a];
+% xc = [x0_val; a_val];
+
+prog = spotsosprog;
+[prog, x] = prog.newIndeterminate('x');
+x0 = msspoly('xi', length(x0_sym));
+% [prog, x0] = prog.newIndeterminate('xi', length(x0_sym));
+
+[n_sym, d_sym] = numden(utraj_sym);
+% n_sym = simplify(n_sym / x0_sym(1)^4); % NOTE: IMPORTANT FOR UTRAJ
+
+n = sym2msspoly([q_x_sym; x0_sym], [x; x0], n_sym);
+% d = sym2msspoly([q_x_sym; x0_sym], [x; x0], d_sym);
+
+n = subs(n, [x0(2); x0(4)], [z0_val; zd0_val]);
+% d = subs(d, [x0(2); x0(4)], [z0_val; zd0_val]);
+x0 = [x0(1); x0(3)];
+
+[prog, delta] = prog.newIndeterminate('d', length(x0));
+n = subs(n, x0, xc + delta);
+% d = subs(d, x0, xc + delta);
+
+% [~, ~, coefs] = decomp(n);
+% scale = max(max(abs(coefs)));
+% n = n / scale;
+
+% [n, d] = scaleQuotient(n, d);
+
+% g_X0_degree = 2;
+% sos_degree = 18;
+% [prog, g_X0] = prog.newFreePoly(monomials(delta, 0 : g_X0_degree));
+% [prog, R] = prog.newFree(1);
+% g_X0 = R - delta' * delta;
+% g_X0 = 0.2^2 - delta' * delta;
+
+g_X = x * (xc(1) + delta(1) - x);
+
+% % n positive and g in [x0, 0] implies g_X0 < epsilon
+% epsilon = 0; %1e-5;
+% g_X0_sos_1 = -epsilon - g_X0;
+% [prog, g_X0_sos_1] = spotless_add_sprocedure(prog, g_X0_sos_1, n, [x; delta], sos_degree - even_degree(n, [x; delta]));
+% [prog, g_X0_sos_1] = spotless_add_sprocedure(prog, g_X0_sos_1, g_X, [x; delta], sos_degree - even_degree(g_X, [x; delta]));
+% [prog, g_X0_sos_1] = spotless_add_sprocedure(prog, g_X0_sos_1, 1 - [x; delta]' * [x; delta], [x; delta], sos_degree - 2);
+% % [prog, g_X0_sos_1] = spotless_add_sprocedure(prog, g_X0_sos_1, -d, [x; x0], sos_degree - even_degree(d, [x; x0]));
+% prog = prog.withSOS(g_X0_sos_1);
+
+% g_X0_sos_2 = g_X0;
+% [prog, g_X0_sos_2] = spotless_add_sprocedure(prog, g_X0_sos_2, g_X, [x; x0], sos_degree - even_degree(n, [x; x0]));
+% [prog, g_X0_sos_2] = spotless_add_sprocedure(prog, g_X0_sos_2, -n, [x; x0], sos_degree - even_degree(n, [x; x0]));
+% [prog, g_X0_sos_2] = spotless_add_sprocedure(prog, g_X0_sos_2, d, [x; x0], sos_degree - even_degree(d, [x; x0]));
+% prog = prog.withSOS(g_X0_sos_2);
+
+% cost = -R;
+cost = 0;
+% cost = subs(g_X0, x0, xc);
+% R_diag = ones(size(delta))';
+% [prog, w] = prog.newSOSPoly(monomials(delta, 0 : g_X0_degree));
+% prog = prog.withSOS(w - g_X0 - 1);
+% cost = spotlessIntegral(prog, w, delta, R_diag, [], []);
+
+% works:
+radius = 0.2;
+g_X0 = radius^2 - delta' * delta;
+
+% scale = abs(double(subs(n, [x0; x], [xc; xc(1)])));
+% n = n / scale;
+n_sos = n;
+[prog, n_sos] = spotless_add_sprocedure(prog, n_sos, g_X0, [x; delta], even_degree(n_sos, [x; delta]) - even_degree(g_X0, delta));
+[prog, n_sos] = spotless_add_sprocedure(prog, n_sos, g_X, [x; delta], even_degree(n_sos, [x; delta]) - even_degree(g_X, delta));
+prog = prog.withSOS(n_sos);
+
+% d_sos = d;
+% [prog, d_sos] = spotless_add_sprocedure(prog, d_sos, g_X0, [x; x0], even_degree(n_sos, [x; x0]) - even_degree(g_X0, x0));
+% [prog, d_sos] = spotless_add_sprocedure(prog, d_sos, g_X, [x; x0], even_degree(n_sos, [x; x0]) - even_degree(g_X, x0));
+% prog = prog.withSOS(d_sos);
+
+% % x and xd should have opposite sign:
+% x_xd_sos = -g_X0;
+% sos_degree = 10;
+% [prog, x_xd_sos] = spotless_add_sprocedure(prog, x_xd_sos, prod(xc + delta), delta, sos_degree - 2);
+% prog = prog.withSOS(x_xd_sos);
+
+% solve
+spot_options = spotprog.defaultOptions;
+spot_options.verbose = true;
+spot_options.do_fr = true;
+solver = @spot_mosek;
+sol = prog.minimize(cost, solver, spot_options);
+
+verified = sol.status == spotsolstatus.STATUS_PRIMAL_AND_DUAL_FEASIBLE;
+if verified
+  g_X0 = clean(sol.eval(g_X0));
+end
+g_X0 = subs(g_X0, delta, x0 - xc);
+
+
+end
+
 function [B, x, nu, du] = captureHeightControlSOS(xdot_sym, u_sym, q_sym, v_sym, g_val, zf_val)
 checkDependency('spotless');
 checkDependency('mosek');
+
+
+% reparameterize to have the origin correspond to z = zf:
+syms dz real;
+xdot_sym = subs(xdot_sym, q_sym(2), zf_val + dz);
+u_sym = subs(u_sym, q_sym(2), zf_val + dz);
+q_sym = [q_sym(1); dz];
+
+xdot_sym = xdot_sym - 10 * [q_sym; v_sym];
+
 
 prog = spotsosprog;
 [prog, x] = prog.newIndeterminate('x', length(q_sym) + length(v_sym));
 q = x(1 : length(q_sym));
 v = x(length(q_sym) + 1 : end);
-[prog, vd] = prog.newIndeterminate('vd', length(v_sym));
-xd = [v; vd];
+
+% state constraint
+R_diag = 1 * ones(length(x), 1)';
+A = diag(1./(R_diag.^2));
+g_X = 1 - x'*A*x;
 
 [nu_sym, du_sym] = numden(u_sym);
-du_sym = du_sym / q_sym(1)^4; 
+% du_sym = du_sym / q_sym(1)^4; 
 nu = sym2msspoly([q_sym; v_sym], x, nu_sym);
 du = sym2msspoly([q_sym; v_sym], x, du_sym);
 [nu, du] = scaleQuotient(nu, du);
 
+% xf = [0.5; 2; 0.5; 0];
+% nu = 1 - (x - xf)' * (x - xf) / 0.1^2;
+% du = 1;
+
 nvd = zeros(length(v_sym), 1) * msspoly(0);
 dvd = zeros(length(v_sym), 1) * msspoly(0);
 for i = 1 : length(v_sym)
-  [nf_sym_i, df_sym_i] = numden(xdot_sym(i + length(q_sym)));
-  nvd(i) = sym2msspoly([q_sym; v_sym], x, nf_sym_i);
-  dvd(i) = sym2msspoly([q_sym; v_sym], x, df_sym_i);
+  [nvd_sym_i, dvd_sym_i] = numden(xdot_sym(i + length(q_sym)));
+  nvd(i) = sym2msspoly([q_sym; v_sym], x, nvd_sym_i);
+  dvd(i) = sym2msspoly([q_sym; v_sym], x, dvd_sym_i);
   [nvd(i), dvd(i)] = scaleQuotient(nvd(i), dvd(i));
 end
-% dvd(1) = dvd(1) * x(1); nvd(1) = nvd(1) * x(1);
 
-B_degree = 12;
-epsilon = 1e-5;
-[prog, B] = prog.newFreePoly(monomials(x, 0 : B_degree));
-
-% B >= epsilon whenever nu >= 0 and du <= 0
-B_unsafe_sos_1 = B - epsilon;
-[prog, B_unsafe_sos_1] = spotless_add_sprocedure(prog, B_unsafe_sos_1, nu, x, B_degree - even_degree(nu, x));
-[prog, B_unsafe_sos_1] = spotless_add_sprocedure(prog, B_unsafe_sos_1, -du, x, B_degree - even_degree(du, x));
-prog = prog.withSOS(B_unsafe_sos_1);
-
-% B >= epsilon whenever nu <= 0 and du >= 0
-B_unsafe_sos_2 = B - epsilon;
-[prog, B_unsafe_sos_2] = spotless_add_sprocedure(prog, B_unsafe_sos_2, -nu, x, B_degree - even_degree(nu, x));
-[prog, B_unsafe_sos_2] = spotless_add_sprocedure(prog, B_unsafe_sos_2, du, x, B_degree - even_degree(du, x));
-prog = prog.withSOS(B_unsafe_sos_2);
-
-% TODO:
+% B_degree = 4;
+sos_degree = 12;
+% epsilon = 1e-5;
+% [prog, B] = prog.newFreePoly(monomials(x, 0 : B_degree));
+% B = x' * x - 0.01;
 omega = sqrt(g_val / zf_val);
-x0 = 1 * [-1; 1; omega; 0];
-prog = prog.withPolyEqs(subs(B, x, x0) + 1);
+x0 = 1 * [-0.5; 0; 0.5 * omega; 0];
+B = (x - x0)' * (x - x0) / 0.1^2 - 1;
+
+
+% % B >= epsilon whenever nu >= 0 and du <= 0
+% B_unsafe_sos_1 = B - epsilon;
+% [prog, B_unsafe_sos_1] = spotless_add_sprocedure(prog, B_unsafe_sos_1, nu, x, sos_degree - even_degree(nu, x));
+% [prog, B_unsafe_sos_1] = spotless_add_sprocedure(prog, B_unsafe_sos_1, -du, x, sos_degree - even_degree(du, x));
+% prog = prog.withSOS(B_unsafe_sos_1);
+% 
+% % B >= epsilon whenever nu <= 0 and du >= 0
+% B_unsafe_sos_2 = B - epsilon;
+% [prog, B_unsafe_sos_2] = spotless_add_sprocedure(prog, B_unsafe_sos_2, -nu, x, sos_degree - even_degree(nu, x));
+% [prog, B_unsafe_sos_2] = spotless_add_sprocedure(prog, B_unsafe_sos_2, du, x, sos_degree - even_degree(du, x));
+% prog = prog.withSOS(B_unsafe_sos_2);
+
+% % B >= epsilon outside of ball
+% B_X = B - epsilon;
+% [prog, B_X] = spotless_add_sprocedure(prog, B_X, -g_X, x, sos_degree - even_degree(g_X, x));
+% prog = prog.withSOS(B_X);
+% 
+% % B >= epsilon when denominator is positive
+% B_dvd = B - epsilon;
+% [prog, B_dvd] = spotless_add_sprocedure(prog, B_dvd, dvd, x, sos_degree - even_degree(dvd, x));
+% prog = prog.withSOS(B_dvd);
+
+% Initial condition:
+% omega = sqrt(g_val / zf_val);
+% x0 = 1 * [-0.5; 0; 0.5 * omega; 0];
+% prog = prog.withPolyEqs(subs(B, x, x0) + 1);
 
 % g_X0 = 1 - (x - x0)' * (x - x0) / 0.01^2;
-% [prog, X0_sos] = spotless_add_sprocedure(prog, -B, g_X0, x, B_degree - even_degree(g_X0, x));
+% [prog, X0_sos] = spotless_add_sprocedure(prog, -B, g_X0, x, sos_degree - even_degree(g_X0, x));
 % prog = prog.withSOS(X0_sos);
 
 % Bdot <=0
-Bdot_sos = -diff(B, x) * xd;
-% [prog, Bdot_sos] = spotless_add_sprocedure(prog, Bdot_sos, -q(1) * v(1), [x; vd], B_degree - 2);
-% [prog, Bdot_sos] = spotless_add_sprocedure(prog, Bdot_sos, q(2), [x; vd], B_degree - 2);
-% [prog, Bdot_sos] = spotless_add_sprocedure(prog, Bdot_sos, x' * x / 0.1^2 - 1, [x; vd], B_degree - 2);
-for i = 1 : length(vd)
-  dynamics_eq = dvd(i) * vd(i) - nvd(i);
-  [prog, Bdot_sos] = spotless_add_eq_sprocedure(prog, Bdot_sos, dynamics_eq, [x; vd], B_degree - even_degree(dynamics_eq, [x; vd]));
-end
-prog = prog.withSOS(Bdot_sos);
+% vd as indeterminate version
+% [prog, vd] = prog.newIndeterminate('vd', length(v_sym));
+% xd = [v; vd];
+% Bdot_sos = -diff(B, x) * xd;
+% for i = 1 : length(vd)
+%   dynamics_eq = dvd(i) * vd(i) - nvd(i);
+%   [prog, Bdot_sos] = spotless_add_eq_sprocedure(prog, Bdot_sos, dynamics_eq, [x; vd], sos_degree - even_degree(dynamics_eq, [x; vd]));
+% end
+% prog = prog.withSOS(Bdot_sos);
+
+% clear denominator version
+dvd(1) = dvd(1) * x(1); nvd(1) = nvd(1) * x(1);
+valuecheck(double(dvd(1) - dvd(2)), 0)
+dvd = dvd(1);
+Bdot_sos = diff(B, q) * v * dvd - diff(B, v) * nvd; % assuming dvd is negative
+
+
+% [prog, Bdot_sos1] = spotless_add_sprocedure(prog, Bdot_sos, dvd, x, even_degree(Bdot_sos, x) - even_degree(dvd, x));
+% [prog, Bdot_sos1] = spotless_add_sprocedure(prog, Bdot_sos1, -g_X, x, sos_degree - even_degree(g_X, x));
+% prog = prog.withSOS(Bdot_sos1);
+% 
+% [prog, Bdot_sos2] = spotless_add_sprocedure(prog, -Bdot_sos, -dvd, x, even_degree(Bdot_sos, x) - even_degree(dvd, x));
+% [prog, Bdot_sos2] = spotless_add_sprocedure(prog, Bdot_sos2, -g_X, x, sos_degree - even_degree(g_X, x));
+% prog = prog.withSOS(Bdot_sos2);
+
+[prog, Bdot_sos1] = spotless_add_sprocedure(prog, Bdot_sos, -B, x, sos_degree - even_degree(g_X, x));
+[prog, Bdot_sos1] = spotless_add_sprocedure(prog, Bdot_sos1, -x(1) * x(3), x, sos_degree - 2);
+prog = prog.withSOS(Bdot_sos1);
+
+% [prog, Bdot_sos2] = spotless_add_sprocedure(prog, -Bdot_sos, -dvd, x, even_degree(Bdot_sos, x) - even_degree(dvd, x));
+% [prog, Bdot_sos2] = spotless_add_sprocedure(prog, Bdot_sos2, -g_X, x, sos_degree - even_degree(g_X, x));
+% prog = prog.withSOS(Bdot_sos2);
 
 cost = 0;
 % [prog, W] = prog.newSOSPoly(monomials(x, 0 : B_degree));
 % prog = prog.withSOS(W - B - 1);
-% 
-% R_diag = 2 * ones(length(x), 1)';
 % cost = spotlessIntegral(prog, W, x, R_diag, [], []);
 
 spot_options = spotprog.defaultOptions;
@@ -272,9 +517,9 @@ B = sol.eval(B);
 end
 
 function [xs, xds, feasible] = evaluateTrajectory(f, u_traj, u, xdot, q, v, q0, v0, q0_val, v0_val, g_val)
-u_traj_val = subs(u_traj, [q0; v0], [q0_val; v0_val]);
-feasible = captureHeightTrajectorySOS(u_traj_val, q(1), q0_val(1), inf);
-disp(['feasible: ' num2str(feasible)])
+% u_traj_val = subs(u_traj, [q0; v0], [q0_val; v0_val]);
+% feasible = q0_val(1) * v0_val(1) < 0 && captureHeightTrajectorySOS(u_traj_val, q(1), q0_val(1), inf);
+% disp(['feasible: ' num2str(feasible)])
 
 f_val = subs(f, [q0; v0], [q0_val; v0_val]);
 xs = linspace(q0_val(1), 0, 100);
@@ -283,43 +528,64 @@ xds = horizontalVelocities(f_val, g_val, v0_val(1), xs);
 dzdxs = polyval(sym2poly(diff(f_val, q(1))), xs);
 zds = dzdxs .* xds;
 f_legs = legForce(u, q, v, xs, zs, xds, zds);
+nfun = matlabFunction(numden(u), 'Vars', [q; v]);
+ns = nfun(xs, zs, xds, zds);
+feasible = q0_val(1) * v0_val(1) < 0 && all(f_legs(1 : end - 1) > 0);
 
-half_index = floor(length(xs) / 2);
-f_half_val = subs(f, [q0; v0], [xs(half_index); zs(half_index); xds(half_index); zds(half_index)]);
-valuecheck(sym2poly(f_val), sym2poly(f_half_val));
+% half_index = floor(length(xs) / 2);
+% f_half_val = subs(f, [q0; v0], [xs(half_index); zs(half_index); xds(half_index); zds(half_index)]);
+% valuecheck(sym2poly(f_val), sym2poly(f_half_val), 1e-3);
 
 xdot_fun = matlabFunction(xdot, 'Vars', [q; v]);
-omega0 = sqrt(g_val / q0_val(2));
+zf = double(subs(f_val, q(1), 0));
+omega0 = sqrt(g_val / zf);
 T = 3 / omega0;
 x_init = [q0_val; v0_val];
-[~, xtraj] = ode45(@(t, x) xdot_fun(x(1), x(2), x(3), x(4)), [0, T], x_init);
+[ttraj, xtraj] = ode45(@(t, x) xdot_fun(x(1), x(2), x(3), x(4)), [0, T], x_init);
 
-figure(1);
+h_fig = figure(1);
 clf;
 
-subplot(3, 1, 1);
+subplot(4, 1, 1);
 hold on;
 plot(xs, zs, 'b');
-plot(xtraj(:, 1), xtraj(:, 2), 'r');
-xlabel('q_x'); ylabel('q_z');
+plot(xtraj(:, 1), xtraj(:, 2), 'r--');
+xlabel('$$x$$', 'Interpreter', 'latex');
+ylabel('$$z$$', 'Interpreter', 'latex');
 legend({'trajectory', 'simulation'}, 'Location', 'Best');
 % axis(1.2 * [min(x0, 0), max(x0, 0), 0, max([z'; xtraj(:, 2)])]);
 hold off;
 
-subplot(3, 1, 2);
-plot(xs, f_legs);
-xlabel('q_x'); ylabel('f_{leg}');
-
-subplot(3, 1, 3);
+subplot(4, 1, 2);
 plot(xs, xds);
-xlabel('q_x'); ylabel('v_x');
+xlabel('$$x$$', 'Interpreter', 'latex');
+ylabel('$$\dot{x}$$', 'Interpreter', 'latex');
+
+subplot(4, 1, 3);
+hold on
+plot(xs, f_legs);
+% plot(xs, ns, 'r');
+hold off
+xlabel('$$x$$', 'Interpreter', 'latex');
+ylabel('$$\frac{f_{l}}{m}$$', 'Interpreter', 'latex');
+
+subplot(4, 1, 4);
+hold on
+plot(xs, ns, 'r');
+hold off
+xlabel('$$x$$', 'Interpreter', 'latex');
+ylabel('$$n(x)$$', 'Interpreter', 'latex');
+
+font_size = 12;
+set(findall(h_fig, 'type', 'Axes'), 'FontSize', font_size);
+
 end
 
 function [num, den] = scaleQuotient(num, den)
 [~, ~, coefs] = decomp(den);
-vd_scale = max(max(abs(coefs)));
-num = num / vd_scale;
-den = den / vd_scale;
+scale = max(max(abs(coefs)));
+num = num / scale;
+den = den / scale;
 end
 
 function spot_poly = sym2msspoly(sym_vars, spot_vars, sym_poly)
