@@ -10,7 +10,7 @@ q = [x; z];
 v = [xd; zd];
 q0 = [x0; z0];
 v0 = [xd0; zd0];
-n = 3;
+n = 4;
 
 % find trajectory
 [fw, u_trajw, uw, w, uhsq_trajw] = captureHeightTrajectory(g, q, v, q0, v0, zf, n);
@@ -26,9 +26,15 @@ nu_a = numden(simplify(subs(uw, x, a * xd)));
 % assumeAlso(zf > 0);
 % a_roots = solve(nu_a == 0, a, 'MaxDegree', 4);
 
+if n == 3
+  syms c real;
+  valuecheck(simplify(subs(fw, [x0; xd0; x], c * [x0; xd0; x]) - fw), sym(0));
+  valuecheck(simplify(subs(uw, [x; xd], c * [x; xd]) - uw), sym(0));
+  valuecheck(simplify(u_trajw - subs(u_trajw, [x0; xd0; x], c * [x0; xd0; x])), sym(0));
+end
 
 % plug in g and zf
-g_val = 1; %9.8;
+g_val = 9.8;
 zf_val = 1;
 fw = subs(fw, [g; zf], [g_val; zf_val]);
 uw = subs(uw, [g; zf], [g_val; zf_val]);
@@ -38,12 +44,11 @@ nu_a = subs(nu_a, [g; zf], [g_val; zf_val]);
 % nu_a_discriminant = subs(nu_a_discriminant, [g; zf], [g_val; zf_val]);
 
 % plug in w
-w_val = 1 * ones(size(w));
+w_val = -1 * ones(size(w));
 f = subs(fw, w, w_val);
 u = subs(uw, w, w_val);
 u_traj = subs(u_trajw, w, w_val);
 uhsq_traj = subs(uhsq_trajw, w, w_val);
-u_traj = uhsq_traj;
 
 % closed loop dynamics
 vdot = [0; -g_val] + u * q;
@@ -58,7 +63,7 @@ h_fig = orbitalEnergyGUI();
 data = guidata(h_fig);
 ax = data.axes1;
 handles = guihandles(h_fig);
-axes_callback = @(src, eventdata) plotTrajectory(src, eventdata, handles, f, u_traj, u, xdot, q, v, q0, v0, g_val);
+axes_callback = @(src, eventdata) plotTrajectory(src, eventdata, handles, f, u_traj, uhsq_traj, u, xdot, q, v, q0, v0, g_val);
 set(ax,'ButtonDownFcn', axes_callback);
 font_size = 16;
 set(ax, 'FontSize', font_size);
@@ -74,7 +79,7 @@ h = get(ax, 'children');
 set(h, 'HitTest', 'off');
 end
 
-function plotTrajectory(src, eventdata, handles, f, u_traj, u, xdot, q, v, q0, v0, g_val)
+function plotTrajectory(src, eventdata, handles, f, u_traj, uhsq_traj, u, xdot, q, v, q0, v0, g_val)
 x0 = eventdata.IntersectionPoint(1);
 xd0 = eventdata.IntersectionPoint(2);
 z0 = handles.z0slider.Value;
@@ -96,17 +101,17 @@ else
 end
 plot(xs(1), xds(1), [color 'x']);
 
-[verified, g_X0, x_xd_spot] = captureHeightTrajectoryRegionSOS(u_traj, q(1), [q0; v0], q0_val(1), q0_val(2), v0_val(1), v0_val(2), g_val);
-if verified
-  color = 'g';
-else
-  color = 'r';
-end
-V = axis(src);
-x_range = V(1 : 2);
-xd_range = V(3 : 4);
-contourSpotless(g_X0, x_xd_spot(1), x_xd_spot(2), x_range, xd_range, [], [], 0, {color});
-hold off;
+% [verified, g_X0, x_xd_spot] = captureHeightTrajectoryRegionSOS(u_traj, q(1), [q0; v0], q0_val(1), q0_val(2), v0_val(1), v0_val(2), g_val);
+% if verified
+%   color = 'g';
+% else
+%   color = 'r';
+% end
+% V = axis(src);
+% x_range = V(1 : 2);
+% xd_range = V(3 : 4);
+% contourSpotless(g_X0, x_xd_spot(1), x_xd_spot(2), x_range, xd_range, [], [], 0, {color});
+% hold off;
 
 end
 
@@ -130,10 +135,14 @@ axis manual
 xs = linspace(x_range(1), x_range(2), 500);
 xds = linspace(xd_range(1), xd_range(2), 500);
 
-u_fun = matlabFunction(subs(u, [z; zd],[z0_val; zd0_val]), 'Vars', [x; xd]);
 [Xs, Xds] = meshgrid(xs, xds);
+u_fun = matlabFunction(subs(u, [z; zd],[z0_val; zd0_val]), 'Vars', [x; xd]);
 Us = -u_fun(Xs, Xds);
 [~, h_u] = contourf(Xs, Xds, Us, [0 0]);
+valids = validTrajectory(g_val, zf_val, Xs, repmat(z0_val, size(Xs)), Xds, repmat(zd0_val, size(Xs)));
+if any(any(valids))
+  [~, h_valid] = contourf(Xs, Xds, valids, [0.5 inf]);
+end
 
 % contourSpotless(subs(B, [state(2); state(4)], [z0_val; zd0_val]), state(1), state(3), x_range, xd_range, [], [], 0, {'b'});
 % contourSpotless(subs(-nu * du, [state(2); state(4)], [z0_val; zd0_val]), state(1), state(3), x_range, xd_range, [], [], 0, {'b'});
@@ -141,16 +150,21 @@ Us = -u_fun(Xs, Xds);
 icp_line = -omega * xs;
 h_icp = plot(xs, icp_line, 'b--');
 
-if all(w_val == 0)
-  [nu, du] = numden(u);
-  syms a real;
-  nu_a = simplify(subs(nu, xd, a * x));
-  nu_a = nu_a / (a * x^5);
-  nu_a = subs(nu_a, [z, zd], [z0_val, zd0_val]);
-  a_sols = roots(sym2poly(nu_a));
-  plot(xs, min(a_sols) * xs, 'r');
-%   plot(xs, max(a_sols) * xs, 'g');
-end
+% if all(w_val == 0)
+%   if zd0_val == 0
+%     a_crit = (-1/2).*5.^(-1/2).*(g_val.*z0_val.^(-2).*(7.*z0_val+3.*zf_val+3.^(1/2).*(3.*z0_val.^2+14.*z0_val.*zf_val+3.*zf_val.^2).^(1/2))).^(1/2);
+%   else
+%     [nu, du] = numden(u);
+%     syms a real;
+%     nu_a = simplify(subs(nu, xd, a * x));
+%     nu_a = nu_a / (a * x^5);
+%     nu_a = subs(nu_a, [z, zd], [z0_val, zd0_val]);
+%     a_sols = roots(sym2poly(nu_a));
+%     a_crit = min(a_sols);
+%   end
+%   plot(xs, a_crit * xs, 'r');
+% %   plot(xs, max(a_sols) * xs, 'g');
+% end
 
 % [verified, g_X0, x0] = captureHeightTrajectoryRegionSOS(u_traj, q(1), [q0; v0], z0_val, zd0_val, g_val);
 % if verified
@@ -206,6 +220,7 @@ fint = int(f * x, x);
 % orbital_energy = simplify(1/2 * xd^2 * h^2 + g * x^2 * f - 3 * g * fint);
 
 height_traj = simplify(subs(f, a, a_sol));
+% u = (g + fpp * xd^2) / (z - fp * x);
 u = (g + fpp * xd^2) / (z - fp * x);
 u = simplify(subs(u, a, a_sol));
 controller = simplify(subs(u, [x0; z0; xd0; zd0], [x; z; xd; zd]));
@@ -282,32 +297,36 @@ checkDependency('mosek');
 
 % utraj_sym = simplify(subs(utraj_sym, [x0_sym(2), x0_sym(4)], [z0_val, zd0_val]));
 % x0_sym = [x0_sym(1); x0_sym(3)];
-xc = [x0_val; xd0_val];
+xc = [xd0_val / x0_val; z0_val; zd0_val];
 
-% syms a real;
-% utraj_sym = simplify(partfrac(subs(utraj_sym, x0_sym(3), a * x0_sym(1))));
+% utraj_sym = simplify(partfrac(subs(utraj_sym, x0_sym(1), a * x0_sym(3))));
 % a_val = xd0_val / x0_val;
 % x0_sym = [x0_sym(1); a];
 % xc = [x0_val; a_val];
+% xc = [x0_val; z0_val; xd0_val; zd0_val];
+syms a b real;
+utraj_sym = simplify(subs(utraj_sym, [x0_sym(1); x0_sym(3); q_x_sym], [1; a; b]));
+x0_sym(3) = a;
+x0_sym(1) = [];
+q_x_sym = b;
 
 prog = spotsosprog;
 [prog, x] = prog.newIndeterminate('x');
-x0 = msspoly('xi', length(x0_sym));
+[prog, x0] = prog.newIndeterminate('xi', length(x0_sym));
 % [prog, x0] = prog.newIndeterminate('xi', length(x0_sym));
 
+
 [n_sym, d_sym] = numden(utraj_sym);
-% n_sym = simplify(n_sym / x0_sym(1)^4); % NOTE: IMPORTANT FOR UTRAJ
+% n_sym = simplify(n_sym / x0_sym(1)^4); % NOTE: IMPORTANT when using UTRAJ
 
 n = sym2msspoly([q_x_sym; x0_sym], [x; x0], n_sym);
-% d = sym2msspoly([q_x_sym; x0_sym], [x; x0], d_sym);
+d = sym2msspoly([q_x_sym; x0_sym], [x; x0], d_sym);
 
-n = subs(n, [x0(2); x0(4)], [z0_val; zd0_val]);
-% d = subs(d, [x0(2); x0(4)], [z0_val; zd0_val]);
-x0 = [x0(1); x0(3)];
+% n = subs(n, x0(3), zd0_val);
+% d = subs(d, x0(3), zd0_val);
+% x0 = [x0(1); x0(2)];
 
-[prog, delta] = prog.newIndeterminate('d', length(x0));
-n = subs(n, x0, xc + delta);
-% d = subs(d, x0, xc + delta);
+g_X = x * (1 - x);
 
 % [~, ~, coefs] = decomp(n);
 % scale = max(max(abs(coefs)));
@@ -315,32 +334,31 @@ n = subs(n, x0, xc + delta);
 
 % [n, d] = scaleQuotient(n, d);
 
-% g_X0_degree = 2;
-% sos_degree = 18;
-% [prog, g_X0] = prog.newFreePoly(monomials(delta, 0 : g_X0_degree));
+% sos_degree = 16;
+% % g_X0_degree = 2;
+% % [prog, g_X0] = prog.newFreePoly(monomials(delta, 0 : g_X0_degree));
 % [prog, R] = prog.newFree(1);
 % g_X0 = R - delta' * delta;
-% g_X0 = 0.2^2 - delta' * delta;
-
-g_X = x * (xc(1) + delta(1) - x);
-
-% % n positive and g in [x0, 0] implies g_X0 < epsilon
+% % g_X0 = 0.2^2 - delta' * delta;
+% 
+% 
+% % n negative, d positive, and g in [x0, 0] implies g_X0 < epsilon
 % epsilon = 0; %1e-5;
 % g_X0_sos_1 = -epsilon - g_X0;
-% [prog, g_X0_sos_1] = spotless_add_sprocedure(prog, g_X0_sos_1, n, [x; delta], sos_degree - even_degree(n, [x; delta]));
+% [prog, g_X0_sos_1] = spotless_add_sprocedure(prog, g_X0_sos_1, -n, [x; delta], sos_degree - even_degree(n, [x; delta]));
 % [prog, g_X0_sos_1] = spotless_add_sprocedure(prog, g_X0_sos_1, g_X, [x; delta], sos_degree - even_degree(g_X, [x; delta]));
 % [prog, g_X0_sos_1] = spotless_add_sprocedure(prog, g_X0_sos_1, 1 - [x; delta]' * [x; delta], [x; delta], sos_degree - 2);
-% % [prog, g_X0_sos_1] = spotless_add_sprocedure(prog, g_X0_sos_1, -d, [x; x0], sos_degree - even_degree(d, [x; x0]));
+% [prog, g_X0_sos_1] = spotless_add_sprocedure(prog, g_X0_sos_1, d, [x; delta], sos_degree - even_degree(d, [x; delta]));
 % prog = prog.withSOS(g_X0_sos_1);
-
-% g_X0_sos_2 = g_X0;
-% [prog, g_X0_sos_2] = spotless_add_sprocedure(prog, g_X0_sos_2, g_X, [x; x0], sos_degree - even_degree(n, [x; x0]));
-% [prog, g_X0_sos_2] = spotless_add_sprocedure(prog, g_X0_sos_2, -n, [x; x0], sos_degree - even_degree(n, [x; x0]));
-% [prog, g_X0_sos_2] = spotless_add_sprocedure(prog, g_X0_sos_2, d, [x; x0], sos_degree - even_degree(d, [x; x0]));
-% prog = prog.withSOS(g_X0_sos_2);
-
+% 
+% % g_X0_sos_2 = g_X0;
+% % [prog, g_X0_sos_2] = spotless_add_sprocedure(prog, g_X0_sos_2, g_X, [x; x0], sos_degree - even_degree(n, [x; x0]));
+% % [prog, g_X0_sos_2] = spotless_add_sprocedure(prog, g_X0_sos_2, -n, [x; x0], sos_degree - even_degree(n, [x; x0]));
+% % [prog, g_X0_sos_2] = spotless_add_sprocedure(prog, g_X0_sos_2, d, [x; x0], sos_degree - even_degree(d, [x; x0]));
+% % prog = prog.withSOS(g_X0_sos_2);
+% 
 % cost = -R;
-cost = 0;
+
 % cost = subs(g_X0, x0, xc);
 % R_diag = ones(size(delta))';
 % [prog, w] = prog.newSOSPoly(monomials(delta, 0 : g_X0_degree));
@@ -348,14 +366,16 @@ cost = 0;
 % cost = spotlessIntegral(prog, w, delta, R_diag, [], []);
 
 % works:
-radius = 0.2;
+cost = 0;
+radius = 0.1;
+delta = x0 - xc;
 g_X0 = radius^2 - delta' * delta;
 
 % scale = abs(double(subs(n, [x0; x], [xc; xc(1)])));
 % n = n / scale;
 n_sos = n;
-[prog, n_sos] = spotless_add_sprocedure(prog, n_sos, g_X0, [x; delta], even_degree(n_sos, [x; delta]) - even_degree(g_X0, delta));
-[prog, n_sos] = spotless_add_sprocedure(prog, n_sos, g_X, [x; delta], even_degree(n_sos, [x; delta]) - even_degree(g_X, delta));
+[prog, n_sos] = spotless_add_sprocedure(prog, n_sos, g_X0, [x; x0], even_degree(n_sos, [x; x0]) - even_degree(g_X0, x0));
+[prog, n_sos] = spotless_add_sprocedure(prog, n_sos, g_X, [x; x0], even_degree(n_sos, [x; x0]) - even_degree(g_X, x0));
 prog = prog.withSOS(n_sos);
 
 % d_sos = d;
@@ -380,7 +400,7 @@ verified = sol.status == spotsolstatus.STATUS_PRIMAL_AND_DUAL_FEASIBLE;
 if verified
   g_X0 = clean(sol.eval(g_X0));
 end
-g_X0 = subs(g_X0, delta, x0 - xc);
+% g_X0 = subs(g_X0, delta, x0 - xc);
 
 
 end
@@ -600,4 +620,16 @@ for i = 1 : length(coefficients)
   end
   spot_poly = spot_poly + term;
 end
+end
+
+function ret = validTrajectory(g, zf, x0, z0, xd0, zd0)
+a = xd0 ./ x0;
+y = zd0 - a .* z0;
+
+ret = ((3.*g.*zf)<(10.*y.^2))&((((xd0)>(0))&((x0)<(0)))|(((x0)>(0))&(( ...
+  xd0)<(0))))&((((2.*a)>=(g.*(7.*y.*((-10).*y.^2+3.*g.*zf).^(-1)+ ...
+  3.^(1/2).*((10.*y.^2+(-3).*g.*zf).^(-2).*(3.*y.^2+4.*g.*zf)).^( ...
+  1/2))))&((y)<(0)))|(((y)>(0))&((2.*a+3.^(1/2).*g.*((10.*y.^2+(-3) ...
+  .*g.*zf).^(-2).*(3.*y.^2+4.*g.*zf)).^(1/2))<=(7.*g.*y.*((-10).* ...
+  y.^2+3.*g.*zf).^(-1)))));
 end
