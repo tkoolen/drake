@@ -10,7 +10,7 @@ q = [x; z];
 v = [xd; zd];
 q0 = [x0; z0];
 v0 = [xd0; zd0];
-n = 4;
+n = 3;
 
 % find trajectory
 [fw, u_trajw, uw, w, uhsq_trajw] = captureHeightTrajectory(g, q, v, q0, v0, zf, n);
@@ -44,7 +44,7 @@ nu_a = subs(nu_a, [g; zf], [g_val; zf_val]);
 % nu_a_discriminant = subs(nu_a_discriminant, [g; zf], [g_val; zf_val]);
 
 % plug in w
-w_val = -1 * ones(size(w));
+w_val = randn(size(w));
 f = subs(fw, w, w_val);
 u = subs(uw, w, w_val);
 u_traj = subs(u_trajw, w, w_val);
@@ -128,7 +128,7 @@ xd = v(1);
 zd = v(2);
 
 omega = sqrt(g_val / zf_val);
-x_range = [-2, 2];
+x_range = [-1, 1];
 xd_range = x_range * omega;
 axis([x_range, xd_range]);
 axis manual
@@ -566,7 +566,7 @@ x_init = [q0_val; v0_val];
 h_fig = figure(1);
 clf;
 
-subplot(4, 1, 1);
+subplot(3, 1, 1);
 hold on;
 plot(xs, zs, 'b');
 plot(xtraj(:, 1), xtraj(:, 2), 'r--');
@@ -576,12 +576,12 @@ legend({'trajectory', 'simulation'}, 'Location', 'Best');
 % axis(1.2 * [min(x0, 0), max(x0, 0), 0, max([z'; xtraj(:, 2)])]);
 hold off;
 
-subplot(4, 1, 2);
+subplot(3, 1, 2);
 plot(xs, xds);
 xlabel('$$x$$', 'Interpreter', 'latex');
 ylabel('$$\dot{x}$$', 'Interpreter', 'latex');
 
-subplot(4, 1, 3);
+subplot(3, 1, 3);
 hold on
 plot(xs, f_legs);
 % plot(xs, ns, 'r');
@@ -589,12 +589,12 @@ hold off
 xlabel('$$x$$', 'Interpreter', 'latex');
 ylabel('$$\frac{f_{l}}{m}$$', 'Interpreter', 'latex');
 
-subplot(4, 1, 4);
-hold on
-plot(xs, ns, 'r');
-hold off
-xlabel('$$x$$', 'Interpreter', 'latex');
-ylabel('$$n(x)$$', 'Interpreter', 'latex');
+% subplot(4, 1, 4);
+% hold on
+% plot(xs, ns, 'r');
+% hold off
+% xlabel('$$x$$', 'Interpreter', 'latex');
+% ylabel('$$n(x)$$', 'Interpreter', 'latex');
 
 font_size = 12;
 set(findall(h_fig, 'type', 'Axes'), 'FontSize', font_size);
@@ -626,10 +626,7 @@ function ret = validTrajectory(g, zf, x0, z0, xd0, zd0)
 a = xd0 ./ x0;
 y = zd0 - a .* z0;
 
-ret = ((3.*g.*zf)<(10.*y.^2))&((((xd0)>(0))&((x0)<(0)))|(((x0)>(0))&(( ...
-  xd0)<(0))))&((((2.*a)>=(g.*(7.*y.*((-10).*y.^2+3.*g.*zf).^(-1)+ ...
-  3.^(1/2).*((10.*y.^2+(-3).*g.*zf).^(-2).*(3.*y.^2+4.*g.*zf)).^( ...
-  1/2))))&((y)<(0)))|(((y)>(0))&((2.*a+3.^(1/2).*g.*((10.*y.^2+(-3) ...
-  .*g.*zf).^(-2).*(3.*y.^2+4.*g.*zf)).^(1/2))<=(7.*g.*y.*((-10).* ...
-  y.^2+3.*g.*zf).^(-1)))));
+ret = ((y)>(0))&((3.*g.*zf)<(10.*y.^2))&((2.*a+3.^(1/2).*g.*((10.*y.^2+( ...
+  -3).*g.*zf).^(-2).*(3.*y.^2+4.*g.*zf)).^(1/2))<=(7.*g.*y.*((-10).* ...
+  y.^2+3.*g.*zf).^(-1)));
 end
