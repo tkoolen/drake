@@ -70,11 +70,12 @@ classdef VariableHeightPointMass2D < NStepCapturabilitySOSSystem
 %       end
       
 %       ret = (obj.f_max - obj.f_min)^2 - 4 *(u*z - (obj.f_max + obj.f_min)/2)^2;
-      [u_min,u_max] = obj.simpleInputLimits();
-      u_avg = (u_max+u_min)/2;
-      u_div = u_max - u_avg;
-      
-      ret = [u_div.^2 - (u - u_avg).^2];      
+%       [u_min,u_max] = obj.simpleInputLimits();
+%       u_avg = (u_max+u_min)/2;
+%       u_div = u_max - u_avg;
+%       
+%       ret = [u_div.^2 - (u - u_avg).^2];
+      ret = u;
     end
     
     function[umin,umax,A] = simpleInputLimits(obj,x)
@@ -132,7 +133,28 @@ classdef VariableHeightPointMass2D < NStepCapturabilitySOSSystem
       % 3d plot for t = 0, zdot = 0
       hFig = figure(n * 10 + 3);
       clf;
+      hold on;
       contourSpotless3D(subs(Vsol, [x(4); t], [0; 0]), [x(1); x(3); x(2)], 0, [R_diag(1); R_diag(3); R_diag(2)]);
+      grid_size = 100;
+      [xs, xds, zs] = meshgrid(...
+        linspace(-R_diag(1), R_diag(1), grid_size),...
+        linspace(-R_diag(3), R_diag(3), grid_size),...
+        linspace(-R_diag(2), R_diag(2), grid_size));
+      u_valid_vals = obj.validInputTrajectory(obj.g, obj.z_nom, xs, zs + obj.z_nom, xds, zeros(size(xs)));
+%       patch(isosurface(xs, xds, zs, u_valid_vals, 0), 'FaceColor', 'r', 'EdgeColor', 'none', 'FaceAlpha', 0.5);
+      height_valid_vals = obj.validHeightTrajectory(obj.g, obj.z_nom, xs, zs + obj.z_nom, xds, zeros(size(xs)), 2);
+%       height_valid_vals = smooth3(double(height_valid_vals));
+%       patch(isosurface(xs, xds, zs, height_valid_vals, 0.5), 'FaceColor', 'r', 'EdgeColor', 'none', 'FaceAlpha', 0.5);
+%       patch_poly_caps = patch(isocaps(xs, xds, zs, vals, 0.5), 'FaceColor', 'r', 'EdgeColor', 'none', 'FaceAlpha', 0.5);
+      
+      vals = u_valid_vals > 0 & height_valid_vals;
+      p1 = patch(isosurface(xs, xds, zs, vals, 0), 'FaceColor', 'r', 'EdgeColor', 'none', 'FaceAlpha', 0.5);
+      isonormals(smooth3(double(vals), 'gaussian', 7), p1);
+      p2 = patch(isocaps(xs, xds, zs, vals, 0), 'FaceColor', 'r', 'EdgeColor', 'none', 'FaceAlpha', 0.5);
+
+
+
+      hold off;
       xlabel('q_1'); ylabel('v_1'); zlabel('q_2');
 
       % video of rotating ROA
@@ -140,6 +162,47 @@ classdef VariableHeightPointMass2D < NStepCapturabilitySOSSystem
       if create_video
         createRotatingVideo(hFig,[class(obj) '_V' num2str(n)]);
       end
+    end
+    
+    function ret = validInputTrajectory(obj, g, zf, x0, z0, xd0, zd0)
+      a = xd0 ./ x0;
+      y = zd0 - a .* z0;
+      
+      ret = ((a)<(0)) .* ((7.*a.^(-1).*g+20.*y) - (3.^(1/2).*(g.*(3.*a.^(-2).*g+ ...
+        40.*zf)).^(1/2)));
+    end
+    
+    function ret = validHeightTrajectory(obj, g, zf, x0, z0, xd0, zd0, zmax)
+      a = xd0 ./ x0;
+      y = zd0 - a .* z0;
+      
+      c0 = zf;
+      c1 = (1/2).*a.^(-1).*g.^(-1).*x0.^(-1).*(10.*a.*y.^2+g.*(y+2.*zd0+( ...
+        -9).*a.*zf));
+      c2 = a.^(-1).*g.^(-1).*x0.^(-2).*((-2).*y.*(2.*g+5.*a.*y)+ ...
+        6.*a.*g.*zf);
+      c3 = (5/2).*a.^(-1).*g.^(-1).*x0.^(-3).*(y.*(g+2.*a.*y)+( ...
+        -1).*a.*g.*zf);
+      
+      extremum_1 = (1/3).*c3.^(-1).*((-1).*c2+(-1).*(c2.^2+(-3).*c1.*c3).^(1/2));
+      extremum_2 = (1/3).*c3.^(-1).*((-1).*c2+(c2.^2+(-3).*c1.*c3).^(1/2));
+      
+      extreme_value_1 = (1/27).*c3.^(-2).*(2.*c2.^3+(-9).*c1.*c2.*c3+27.*c0.*c3.^2+2.* ...
+        c2.^2.*(c2.^2+(-3).*c1.*c3).^(1/2)+(-6).*c1.*c3.*(c2.^2+(-3).*c1.* ...
+        c3).^(1/2));
+      extreme_value_2 = (1/27).*c3.^(-2).*(2.*c2.^3+(-9).*c1.*c2.*c3+27.*c0.* ...
+        c3.^2+(-2).*c2.^2.*(c2.^2+(-3).*c1.*c3).^(1/2)+6.*c1.*c3.*(c2.^2+( ...
+        -3).*c1.*c3).^(1/2));
+
+%       ret = double(extremum_1 < max(zeros(size(x0)), x0) .* extremum_1 > min(zeros(size(x0)), x0)) .* extreme_value_1;
+%       ret = max(ret, double(extremum_2 < max(zeros(size(x0)), x0) .* extremum_2 > min(zeros(size(x0)), x0)) .* extreme_value_2);
+%       ret = max(ret, z0);
+%       ret = max(ret, zf);
+%       ret = ret - zmax;
+
+      ret = (z0 < zmax) & (zf < zmax);
+      ret = ret & (extremum_1 < min(cat(4, zeros(size(x0)), x0), [], 4) | extremum_1 > max(cat(4, zeros(size(x0)), x0), [], 4) | extreme_value_1 < zmax);
+      ret = ret & (extremum_2 < min(cat(4, zeros(size(x0)), x0), [], 4) | extremum_2 > max(cat(4, zeros(size(x0)), x0), [], 4) | extreme_value_2 < zmax);
     end
     
     function draw(obj,t,x)
