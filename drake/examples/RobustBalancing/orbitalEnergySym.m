@@ -577,9 +577,12 @@ legend({'trajectory', 'simulation'}, 'Location', 'Best');
 hold off;
 
 subplot(3, 1, 2);
+hold on;
 plot(xs, xds);
 xlabel('$$x$$', 'Interpreter', 'latex');
 ylabel('$$\dot{x}$$', 'Interpreter', 'latex');
+box off
+hold off;
 
 subplot(3, 1, 3);
 hold on
@@ -587,7 +590,7 @@ plot(xs, f_legs);
 % plot(xs, ns, 'r');
 hold off
 xlabel('$$x$$', 'Interpreter', 'latex');
-ylabel('$$\frac{f_{l}}{m}$$', 'Interpreter', 'latex');
+ylabel('$$\frac{||\mathbf{f}_{l}||}{m}$$', 'Interpreter', 'latex');
 
 % subplot(4, 1, 4);
 % hold on
