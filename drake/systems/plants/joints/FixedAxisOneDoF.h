@@ -21,12 +21,12 @@ class FixedAxisOneDoF : public JointType<J> {
 
   FixedAxisOneDoF(const SpatialVector<J>& joint_axis) : JointType<J>(1, 1), joint_axis(joint_axis), damping(0), coulomb_friction(0), coulomb_window(0) { };
 
-  inline virtual std::string getPositionNamePostfix(int index) const override {
+  virtual std::string getPositionNamePostfix(int index) const override {
     if (index != 0) throw std::runtime_error("bad index");
     return "";
   }
 
-  inline virtual Eigen::VectorXd randomConfiguration(std::default_random_engine &generator) const override {
+  virtual Eigen::VectorXd randomConfiguration(std::default_random_engine &generator) const override {
     Eigen::VectorXd q(getNumPositions());
     const auto& joint_limit_min = getJointLimitMin();
     const auto& joint_limit_max = getJointLimitMax();

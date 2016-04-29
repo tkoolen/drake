@@ -14,11 +14,11 @@ class Fixed : public JointType<J> {
   Fixed() : JointType<J>(0, 0) { }
 
 
-  inline virtual Eigen::VectorXd randomConfiguration(std::default_random_engine &generator) const override {
+  virtual Eigen::VectorXd randomConfiguration(std::default_random_engine &generator) const override {
     return Eigen::VectorXd::Zero(getNumPositions());
   }
 
-  inline virtual std::string getPositionNamePostfix(int index) const override {
+  virtual std::string getPositionNamePostfix(int index) const override {
     throw std::runtime_error("bad index");
   }
 

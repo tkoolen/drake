@@ -14,13 +14,13 @@ class QuaternionFloating : public JointType<J> {
 
   QuaternionFloating() : JointType<J>(7, 6) { };
 
-  virtual inline Eigen::VectorXd zeroConfiguration() const override {
+  virtual Eigen::VectorXd zeroConfiguration() const override {
     Eigen::VectorXd ret(getNumPositions());
     ret << 0, 0, 0, 1, 0, 0, 0;
     return ret;
   }
 
-  virtual inline Eigen::VectorXd randomConfiguration(std::default_random_engine &generator) const override {
+  virtual Eigen::VectorXd randomConfiguration(std::default_random_engine &generator) const override {
     Eigen::VectorXd q(getNumPositions());
     std::normal_distribution<double> normal;
 
@@ -38,7 +38,7 @@ class QuaternionFloating : public JointType<J> {
     return q;
   }
 
-  virtual inline std::string getPositionNamePostfix(int index) const override {
+  virtual std::string getPositionNamePostfix(int index) const override {
     switch (index) {
       case 0:
         return "_x";
@@ -59,7 +59,7 @@ class QuaternionFloating : public JointType<J> {
     }
   }
 
-  virtual inline std::string getVelocityNamePostfix(int index) const override {
+  virtual std::string getVelocityNamePostfix(int index) const override {
     switch (index) {
       case 0:
         return "_wx";
@@ -78,7 +78,7 @@ class QuaternionFloating : public JointType<J> {
     }
   }
 
-  virtual inline bool isFloating() const override { return true; }
+  virtual bool isFloating() const override { return true; }
 
   template <typename DerivedQ>
   Transform3D<Promote<J, typename DerivedQ::Scalar>> jointTransform(const Eigen::MatrixBase<DerivedQ> &q) const {

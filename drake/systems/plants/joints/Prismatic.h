@@ -26,7 +26,7 @@ class Prismatic : public FixedAxisOneDoF<J> {
   }
 
  private:
-  static inline SpatialVector<J> createSpatialAxis(const Eigen::Matrix<J, 3, 1>& translation_axis) {
+  static SpatialVector<J> createSpatialAxis(const Eigen::Matrix<J, 3, 1>& translation_axis) {
     auto ret = SpatialVector<J>::Zero().eval();
     ret.template bottomRows<3>() = translation_axis;
     return ret;

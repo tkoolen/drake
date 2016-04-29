@@ -13,7 +13,7 @@ class RollPitchYawFloating : public JointType<J> {
 
   RollPitchYawFloating() : JointType<J>(6, 6) { };
 
-  virtual inline Eigen::VectorXd randomConfiguration(std::default_random_engine& generator) const override {
+  virtual Eigen::VectorXd randomConfiguration(std::default_random_engine& generator) const override {
     Eigen::VectorXd q(getNumPositions());
     std::normal_distribution<double> normal;
 
@@ -27,7 +27,7 @@ class RollPitchYawFloating : public JointType<J> {
     return q;
   }
 
-  virtual inline std::string getPositionNamePostfix(int index) const override {
+  virtual std::string getPositionNamePostfix(int index) const override {
     switch (index) {
       case 0:
         return "_x";
@@ -46,7 +46,7 @@ class RollPitchYawFloating : public JointType<J> {
     }
   }
 
-  virtual inline bool isFloating() const override { return true; }
+  virtual bool isFloating() const override { return true; }
 
   template <typename DerivedQ>
   Transform3D<Promote<J, typename DerivedQ::Scalar>> jointTransform(const Eigen::MatrixBase<DerivedQ> &q) const {

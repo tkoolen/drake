@@ -45,13 +45,13 @@ class JointType {
   }
   virtual ~JointType() {};
 
-  inline int getNumPositions() const { return num_positions; };
+  int getNumPositions() const { return num_positions; };
 
-  inline int getNumVelocities() const { return num_velocities; };
+  int getNumVelocities() const { return num_velocities; };
 
-  inline const Eigen::Matrix<J, Eigen::Dynamic, 1> &getJointLimitMin() const { return joint_limit_min;}
+  const Eigen::Matrix<J, Eigen::Dynamic, 1> &getJointLimitMin() const { return joint_limit_min;}
 
-  inline const Eigen::Matrix<J, Eigen::Dynamic, 1> &getJointLimitMax() const { return joint_limit_max;}
+  const Eigen::Matrix<J, Eigen::Dynamic, 1> &getJointLimitMax() const { return joint_limit_max;}
 
   virtual Eigen::VectorXd zeroConfiguration() const { return Eigen::VectorXd::Zero(num_positions); };
 

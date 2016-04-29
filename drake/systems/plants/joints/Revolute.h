@@ -24,7 +24,7 @@ class Revolute : public FixedAxisOneDoF<J> {
   }
 
  private:
-  static inline SpatialVector<J> createSpatialAxis(const Eigen::Matrix<J, 3, 1>& rotation_axis) {
+  static SpatialVector<J> createSpatialAxis(const Eigen::Matrix<J, 3, 1>& rotation_axis) {
     auto ret = SpatialVector<J>::Zero().eval();
     ret.template topRows<3>() = rotation_axis;
     return ret;

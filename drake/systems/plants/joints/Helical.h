@@ -26,7 +26,7 @@ class Helical : public FixedAxisOneDoF<J> {
   }
 
  private:
-  static inline SpatialVector<J> createSpatialAxis(const Eigen::Matrix<J, 3, 1>& axis, const J& pitch) {
+  static SpatialVector<J> createSpatialAxis(const Eigen::Matrix<J, 3, 1>& axis, const J& pitch) {
     auto ret = SpatialVector<J>();
     ret.template topRows<3>() = axis;
     ret.template bottomRows<3>() = pitch * axis;
