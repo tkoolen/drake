@@ -7,12 +7,6 @@ namespace Drake {
 
 template <typename J>
 class FixedAxisOneDoF : public JointType<J> {
- protected:
-  SpatialVector<J> joint_axis;
-  J damping;
-  J coulomb_friction;
-  J coulomb_window;
-
  public:
   using JointType<J>::getNumPositions;
   using JointType<J>::getNumVelocities;
@@ -111,7 +105,18 @@ class FixedAxisOneDoF : public JointType<J> {
     this->JointType<J>::joint_limit_max[0] = joint_limit_max;
   }
 
+
+  const SpatialVector <J> &getJointAxis() const {
+    return joint_axis;
+  }
+
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW_IF((sizeof(SpatialVector<J>)%16)==0)
+
+ private:
+  SpatialVector<J> joint_axis;
+  J damping;
+  J coulomb_friction;
+  J coulomb_window;
 };
 
 }

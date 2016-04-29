@@ -20,6 +20,7 @@ class Prismatic : public FixedAxisOneDoF<J> {
 
     Transform3D<T> ret;
     ret.linear().setIdentity();
+    const auto& joint_axis = getJointAxis();
     ret.translation() = Convert<T>()(q[0]) * ConvertMatrix<T>()(joint_axis.template bottomRows<3>());
     ret.makeAffine();
     return ret;

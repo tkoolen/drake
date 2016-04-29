@@ -18,6 +18,7 @@ class Helical : public FixedAxisOneDoF<J> {
     using Q = typename DerivedQ::Scalar;
     using T = Promote<J, Q>;
 
+    const auto& joint_axis = getJointAxis();
     auto rotation = Eigen::AngleAxis<T>(Convert<T>()(q[0]), ConvertMatrix<T>()(joint_axis.template topRows<3>()));
     auto translation = Eigen::Translation<T, 3>(Convert<T>()(q[0]) * ConvertMatrix<T>()(joint_axis.template bottomRows<3>()));
     Transform3D<T> ret(rotation * translation);

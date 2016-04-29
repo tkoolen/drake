@@ -20,30 +20,26 @@ class KinematicsCacheElement {
    */
   Eigen::Transform<Scalar, SPACE_DIMENSION, Eigen::Isometry> transform_to_world;
   Eigen::Matrix<Scalar, TWIST_SIZE, Eigen::Dynamic, 0, TWIST_SIZE,
-                Drake::MAX_NUM_JOINT_VELOCITIES>
-      motion_subspace_in_body;  // gradient w.r.t. q_i only
+                Drake::kMaxNumJointVelocities>
+      motion_subspace_in_body;
   Eigen::Matrix<Scalar, TWIST_SIZE, Eigen::Dynamic, 0, TWIST_SIZE,
-                Drake::MAX_NUM_JOINT_VELOCITIES>
-      motion_subspace_in_world;  // gradient w.r.t. q
+                Drake::kMaxNumJointVelocities>
+      motion_subspace_in_world;
   Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic, 0,
-                Drake::MAX_NUM_JOINT_VELOCITIES,
-                Drake::MAX_NUM_JOINT_POSITIONS> qdot_to_v;  // gradient w.r.t. q
+                Drake::kMaxNumJointVelocities,
+                Drake::kMaxNumJointPositions> qdot_to_v;
   Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic, 0,
-                Drake::MAX_NUM_JOINT_POSITIONS,
-                Drake::MAX_NUM_JOINT_VELOCITIES> v_to_qdot;  // gradient w.r.t. q
+                Drake::kMaxNumJointPositions,
+                Drake::kMaxNumJointVelocities> v_to_qdot;
   Eigen::Matrix<Scalar, TWIST_SIZE, TWIST_SIZE> inertia_in_world;
   Eigen::Matrix<Scalar, TWIST_SIZE, TWIST_SIZE> crb_in_world;
 
   /*
    * Configuration and velocity dependent
    */
-  Eigen::Matrix<Scalar, TWIST_SIZE, 1>
-      twist_in_world;  // gradient w.r.t. q only; gradient w.r.t. v is
-                       // motion_subspace_in_world
-  Eigen::Matrix<Scalar, TWIST_SIZE, 1>
-      motion_subspace_in_body_dot_times_v;  // gradient w.r.t. q_i and v_i only
-  Eigen::Matrix<Scalar, TWIST_SIZE, 1>
-      motion_subspace_in_world_dot_times_v;  // gradient w.r.t. q and v
+  Eigen::Matrix<Scalar, TWIST_SIZE, 1> twist_in_world;
+  Eigen::Matrix<Scalar, TWIST_SIZE, 1> motion_subspace_in_body_dot_times_v;
+  Eigen::Matrix<Scalar, TWIST_SIZE, 1> motion_subspace_in_world_dot_times_v;
 
  public:
   KinematicsCacheElement(int num_positions_joint, int num_velocities_joint)

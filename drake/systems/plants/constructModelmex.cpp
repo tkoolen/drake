@@ -18,24 +18,24 @@ bool isMxArrayVector(const mxArray* array) {
 
 template <typename T>
 void setDynamics(const mxArray* pBodies, int i,
-                 FixedAxisOneDoF<T>* fixed_axis_one_dof_joint) {
+                 FixedAxisOneDoF<T>& fixed_axis_one_dof_joint) {
   double damping = mxGetScalar(mxGetPropertySafe(pBodies, i, "damping"));
   double coulomb_friction =
       mxGetScalar(mxGetPropertySafe(pBodies, i, "coulomb_friction"));
   double coulomb_window =
       mxGetScalar(mxGetPropertySafe(pBodies, i, "coulomb_window"));
-  fixed_axis_one_dof_joint->setDynamics(damping, coulomb_friction,
+  fixed_axis_one_dof_joint.setDynamics(damping, coulomb_friction,
                                         coulomb_window);
 }
 
 template <typename T>
 void setLimits(const mxArray* pBodies, int i,
-               FixedAxisOneDoF<T>* fixed_axis_one_dof_joint) {
+               FixedAxisOneDoF<T>& fixed_axis_one_dof_joint) {
   double joint_limit_min =
       mxGetScalar(mxGetPropertySafe(pBodies, i, "joint_limit_min"));
   double joint_limit_max =
       mxGetScalar(mxGetPropertySafe(pBodies, i, "joint_limit_max"));
-  fixed_axis_one_dof_joint->setJointLimits(joint_limit_min, joint_limit_max);
+  fixed_axis_one_dof_joint.setJointLimits(joint_limit_min, joint_limit_max);
 }
 
 void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
@@ -135,31 +135,31 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
 
       double pitch = mxGetScalar(mxGetPropertySafe(pBodies, i, "pitch"));
 
-      JointType<double>* jointType;
+      unique_ptr<JointType<double>> jointType;
 
       switch (floating) {
         case 0: {
           if (pitch == 0.0) {
-            FixedAxisOneDoF<double>* revolute_joint = new Revolute<double>(joint_axis);
-            jointType = revolute_joint;
-            setLimits(pBodies, i, revolute_joint);
-            setDynamics(pBodies, i, revolute_joint);
+            unique_ptr<Revolute<double>> revolute_joint(new Revolute<double>(joint_axis));
+            setLimits(pBodies, i, *revolute_joint);
+            setDynamics(pBodies, i, *revolute_joint);
+            jointType.reset(revolute_joint.release());
           } else if (std::isinf(pitch)) {
-            FixedAxisOneDoF<double>* prismatic_joint = new Prismatic<double>(joint_axis);
-            jointType = prismatic_joint;
-            setLimits(pBodies, i, prismatic_joint);
-            setDynamics(pBodies, i, prismatic_joint);
+            unique_ptr<Prismatic<double>> prismatic_joint(new Prismatic<double>(joint_axis));
+            setLimits(pBodies, i, *prismatic_joint);
+            setDynamics(pBodies, i, *prismatic_joint);
+            jointType.reset(prismatic_joint.release());
           } else {
-            jointType = new Helical<double>(joint_axis, pitch);
+            jointType.reset(new Helical<double>(joint_axis, pitch));
           }
           break;
         }
         case 1: {
-          jointType = new RollPitchYawFloating<double>();
+          jointType.reset(new RollPitchYawFloating<double>());
           break;
         }
         case 2: {
-          jointType = new QuaternionFloating<double>();
+          jointType.reset(new QuaternionFloating<double>());
           break;
         }
         default: {
@@ -168,8 +168,7 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
           throw std::runtime_error(stream.str());
         }
       }
-      std::unique_ptr<Joint<double>> joint(new Joint<double>(joint_name, transform_to_parent_body, unique_ptr<JointType<double>>(jointType)));
-      b->setJoint(move(joint));
+      b->setJoint(std::unique_ptr<Joint<double>>(new Joint<double>(joint_name, transform_to_parent_body, jointType)));
     }
 
     // DEBUG

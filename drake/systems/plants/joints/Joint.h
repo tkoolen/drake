@@ -17,12 +17,7 @@ namespace Drake {
 template <typename J>
 class Joint {
  public:
-  enum FloatingBaseType { FIXED = 0, ROLLPITCHYAW = 1, QUATERNION = 2 };
-
- private:
-  const std::string name;
-  const Transform3D<J> transform_to_parent_body;
-  const std::unique_ptr<JointType<J>> type;
+  enum FloatingBaseType { FIXED = 0, ROLLPITCHYAW = 1, QUATERNION = 2 }; // TODO: rename to kFixed, kRollPitchYaw, kQuaternion
 
  public:
   Joint(const std::string &name, const Transform3D<J> &transform_to_parent_body, std::unique_ptr<JointType<J>> type) :
@@ -191,6 +186,11 @@ class Joint {
   }
 
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW_IF((sizeof(Transform3D<J>)%16)==0)
+
+ private:
+  const std::string name;
+  const Transform3D<J> transform_to_parent_body;
+  const std::unique_ptr<JointType<J>> type;
 };
 
 }
