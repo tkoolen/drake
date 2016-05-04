@@ -8,7 +8,7 @@ namespace Drake {
 template <typename J>
 class Revolute : public FixedAxisOneDoF<J> {
  public:
-  using FixedAxisOneDoF<J>::joint_axis;
+  using FixedAxisOneDoF<J>::getJointAxis;
 
   Revolute(const Eigen::Matrix<J, 3, 1>& rotation_axis) : FixedAxisOneDoF<J>(createSpatialAxis(rotation_axis)) { }
 

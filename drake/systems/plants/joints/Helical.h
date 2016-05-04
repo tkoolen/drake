@@ -9,7 +9,7 @@ namespace Drake {
 template <typename J>
 class Helical : public FixedAxisOneDoF<J> {
  public:
-  using FixedAxisOneDoF<J>::joint_axis;
+  using FixedAxisOneDoF<J>::getJointAxis;
 
   Helical(const Eigen::Matrix<J, 3, 1>& axis, const J& pitch) : FixedAxisOneDoF<J>(createSpatialAxis(axis, pitch)) { }
 

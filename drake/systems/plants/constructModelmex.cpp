@@ -168,7 +168,7 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
           throw std::runtime_error(stream.str());
         }
       }
-      b->setJoint(std::unique_ptr<Joint<double>>(new Joint<double>(joint_name, transform_to_parent_body, jointType)));
+      b->setJoint(move(unique_ptr<Joint<double>>(new Joint<double>(joint_name, transform_to_parent_body, move(jointType)))));
     }
 
     // DEBUG

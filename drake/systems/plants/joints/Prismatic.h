@@ -9,7 +9,7 @@ namespace Drake {
 template <typename J>
 class Prismatic : public FixedAxisOneDoF<J> {
  public:
-  using FixedAxisOneDoF<J>::joint_axis;
+  using FixedAxisOneDoF<J>::getJointAxis;
 
   Prismatic(const Eigen::Matrix<J, 3, 1>& translation_axis) : FixedAxisOneDoF<J>(createSpatialAxis(translation_axis)) { }
 
