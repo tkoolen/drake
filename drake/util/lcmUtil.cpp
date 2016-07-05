@@ -1,7 +1,34 @@
 #include "drake/util/lcmUtil.h"
 #include "drake/util/drakeUtil.h"
+#include "drake/util/drakeGeometryUtil.h"
 
 using namespace Eigen;
+
+void encodeVector3d(
+    const Eigen::Ref<const Eigen::Vector3d>& vec, bot_core::vector_3d_t& msg) {
+  msg.x = vec[0];
+  msg.y = vec[1];
+  msg.z = vec[2];
+}
+
+void encodeQuaternion(
+    const Eigen::Ref<const Eigen::Vector4d>& vec, bot_core::quaternion_t& msg) {
+  msg.w = vec[0];
+  msg.x = vec[0];
+  msg.y = vec[0];
+  msg.z = vec[0];
+}
+
+void encodePose(const Eigen::Isometry3d& pose, bot_core::position_3d_t& msg) {
+  auto rotation = rotmat2quat(pose.linear());
+  encodeQuaternion(rotation, msg.rotation);
+  encodeVector3d(pose.translation(), msg.translation);
+}
+
+void encodeTwist(const Eigen::Ref<const Eigen::Matrix<double, 6, 1>>& twist,
+    bot_core::twist_t& msg) {
+
+}
 
 void encodePolynomial(const Polynomial<double>& polynomial,
                       drake::lcmt_polynomial& msg) {

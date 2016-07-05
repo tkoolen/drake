@@ -5,6 +5,7 @@
 #include "drake/systems/plants/BotVisualizer.h"
 #include "drake/systems/LCMSystem.h"
 #include "drake/util/drakeAppUtil.h"
+#include "drake/systems/robotInterfaces/robot_state_publisher.h"
 
 using Drake::SimulationOptions;
 using Drake::BotVisualizer;
