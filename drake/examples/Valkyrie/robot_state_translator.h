@@ -22,8 +22,6 @@ class RobotStateTranslator : public systems::lcm::LcmAndVectorBaseTranslator {
       std::vector<uint8_t>* lcm_message_bytes) const override;
 
  private:
-  static const RigidBody* GetFloatingBody(const RigidBodyTree& tree);
-
   // TODO: move to better place.
   template <typename DestScalar, typename Derived>
   static void EigenVectorToStdVector(std::vector<DestScalar> &dest,
@@ -51,6 +49,7 @@ class RobotStateTranslator : public systems::lcm::LcmAndVectorBaseTranslator {
   const RigidBody* const floating_body_;
   mutable bot_core::robot_state_t message_;
 
+  const RigidBodyTree &CheckPreConditions(const RigidBodyTree &tree);
 };
 
 }  // drake

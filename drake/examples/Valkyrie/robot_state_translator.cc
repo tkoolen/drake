@@ -12,11 +12,19 @@ namespace drake {
 RobotStateTranslator::RobotStateTranslator(const RigidBodyTree& tree)
     : LcmAndVectorBaseTranslator(tree.number_of_positions() +
                                  tree.number_of_velocities()),
-      tree_(tree),
-      floating_body_(GetFloatingBody(tree)) {
-  message_.num_joints = static_cast<int16_t>(tree_.number_of_velocities() -
-      num_floating_joint_velocities());
+      tree_(CheckPreConditions(tree)),
+      floating_body_(tree.bodies[1]->getJoint().isFloating() ? tree.bodies[1]
+          .get() : nullptr) {
+  // TODO: set joint_names
 
+//  for (const auto& body : tree_.bodies) {
+//    if (body->hasParent()) {
+//      const DrakeJoint &joint = body->getJoint();
+//      if (!joint.isFloating()) {
+//        joint.getPositionName()
+//      }
+//    }
+//  }
 }
 
 void RobotStateTranslator::TranslateLcmToVectorBase(
@@ -42,10 +50,8 @@ void RobotStateTranslator::TranslateVectorBaseToLcm(
   auto q_non_floating = q.tail(q.size() - num_floating_joint_positions());
   EigenVectorToStdVector(message_.joint_position, q_non_floating);
 
-  int num_floating_joint_velocities =
   auto v_non_floating = v.tail(v.size() - num_floating_joint_velocities());
   EigenVectorToStdVector(message_.joint_velocity, v_non_floating);
-
 
   const int lcm_message_length = message_.getEncodedSize();
   lcm_message_bytes->resize(static_cast<size_t>(lcm_message_length));
@@ -102,35 +108,45 @@ Eigen::Isometry3d RobotStateTranslator::EvalFloatingBodyPose(
   return pose;
 }
 
-const RigidBody* RobotStateTranslator::GetFloatingBody(
+const RigidBodyTree& RobotStateTranslator::CheckPreConditions(
     const RigidBodyTree& tree) {
-  int floating_joint_count = 0;
-  const RigidBody* ret = nullptr;
+  if (tree.get_number_of_bodies() < 2) {
+    DRAKE_ABORT_MSG("This class assumes at least one non-world body.");
+  }
+
+  bool floating_joint_found = false;
   for (const auto& body_ptr : tree.bodies) {
-    if (body_ptr->hasParent() && body_ptr->getJoint().isFloating()) {
-      floating_joint_count++;
-      ret = body_ptr.get();
+    if (body_ptr->hasParent()) {
+      const auto& joint = body_ptr->getJoint();
+      if (joint.isFloating()) {
+        if (floating_joint_found) {
+          DRAKE_ABORT_MSG("robot_state_t assumes at most one floating joint.");
+        }
+        floating_joint_found = true;
+
+        if (body_ptr != tree.bodies[1]) {
+          DRAKE_ABORT_MSG(
+              "This class assumes that the first non-world body is the "
+              "floating body.");
+        }
+
+        if (body_ptr->get_position_start_index() != 0 ||
+            body_ptr->get_velocity_start_index() != 0) {
+          DRAKE_ABORT_MSG(
+              "This class assumes that floating joint positions and are at the "
+              "head of the position and velocity vectors.");
+        }
+      } else {
+        if (joint.getNumPositions() > 1 || joint.getNumVelocities() > 1) {
+          DRAKE_ABORT_MSG(
+              "robot_state_t assumes non-floating joints to be "
+              "1-DoF or fixed.");
+        }
+      }
     }
   }
 
-  // Make sure that there's not more than one floating joint.
-  if (floating_joint_count > 1) {
-    DRAKE_ABORT_MSG(
-        "Can't handle robots with more than one floating joint due to the "
-        "constraints imposed by the robot_state_t LCM type.");
-  }
-
-  // Make sure the floating joint positions and velocities are at the start
-  // of the position and velocity vectors.
-  if (ret) {
-    if (ret->get_position_start_index() != 0 ||
-        ret->get_velocity_start_index() != 0) {
-      DRAKE_ABORT_MSG(
-          "Floating joint positions and velocities must be at the head of the "
-          "position and velocity vectors.");
-    }
-  }
-  return ret;
+  return tree;
 }
 
 }  // drake
