@@ -13,16 +13,17 @@ RobotStateTranslator::RobotStateTranslator(const RigidBodyTree& tree)
     : LcmAndVectorBaseTranslator(tree.number_of_positions() +
                                  tree.number_of_velocities()),
       tree_(CheckPreConditions(tree)),
-      floating_body_(tree.bodies[1]->getJoint().isFloating() ? tree.bodies[1]
-          .get() : nullptr) {
+      floating_body_(tree.bodies[1]->getJoint().isFloating()
+                         ? tree.bodies[1].get()
+                         : nullptr) {
   InitializeMessage();
 }
 void RobotStateTranslator::InitializeMessage() const {
   // To match usage of robot_state_t throughout OpenHumanoids code, set
   // joint_names field to position coordinate names.
   int non_floating_joint_position_start_index = num_floating_joint_positions();
-  for (int i = non_floating_joint_position_start_index; i < tree_
-      .number_of_positions(); i++) {
+  for (int i = non_floating_joint_position_start_index;
+       i < tree_.number_of_positions(); i++) {
     message_.joint_name.push_back(tree_.getPositionName(i));
   }
   message_.num_joints = static_cast<int16_t>(message_.joint_name.size());
@@ -118,15 +119,15 @@ TwistVector<double> RobotStateTranslator::EvalFloatingBodyTwistInBodyFrame(
 
 TwistVector<double>
 RobotStateTranslator::TransformTwistFromBodyFrameToWorldAlignedBodyFrame(
-    Isometry3d &floating_body_to_world,
-    const TwistVector<double> &twist_in_body) const {
+    Isometry3d& floating_body_to_world,
+    const TwistVector<double>& twist_in_body) const {
   Isometry3d floating_body_to_world_aligned_floating_body;
-  floating_body_to_world_aligned_floating_body.linear() = floating_body_to_world
-      .linear();
+  floating_body_to_world_aligned_floating_body.linear() =
+      floating_body_to_world.linear();
   floating_body_to_world_aligned_floating_body.translation().setZero();
   floating_body_to_world_aligned_floating_body.makeAffine();
-  TwistVector<double> twist_in_world_aligned_body = transformSpatialMotion
-      (floating_body_to_world_aligned_floating_body, twist_in_body);
+  TwistVector<double> twist_in_world_aligned_body = transformSpatialMotion(
+      floating_body_to_world_aligned_floating_body, twist_in_body);
   return twist_in_world_aligned_body;
 }
 

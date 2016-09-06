@@ -1,16 +1,16 @@
 
 #include <memory>
 
-#include "drake/systems/framework/primitives/constant_vector_source.h"
-#include "drake/systems/analysis/simulator.h"
 #include "drake/common/drake_path.h"
-#include "drake/systems/framework/diagram_builder.h"
 #include "drake/common/text_logging.h"
+#include "drake/examples/Valkyrie/robot_state_translator.h"
+#include "drake/systems/analysis/simulator.h"
+#include "drake/systems/framework/diagram_builder.h"
+#include "drake/systems/framework/primitives/constant_vector_source.h"
 #include "drake/systems/lcm/lcm_publisher_system.h"
 #include "drake/systems/lcm/lcm_subscriber_system.h"
 #include "drake/systems/plants/parser_urdf.h"
 #include "drake/systems/plants/rigid_body_system/rigid_body_plant.h"
-#include "drake/examples/Valkyrie/robot_state_translator.h"
 
 namespace drake {
 namespace examples {
@@ -25,7 +25,6 @@ int do_main(int argc, const char* argv[]) {
   using drake::RobotStateTranslator;
   using Eigen::VectorXd;
   using drake::systems::DiagramContext;
-
 
   drake::log()->set_level(spdlog::level::trace);
 
@@ -47,21 +46,21 @@ int do_main(int argc, const char* argv[]) {
 
   // Set up LCM communication.
   auto lcm = std::make_unique<lcm::LCM>();
-  const RobotStateTranslator robot_state_translator(plant.get_multibody_world());
-  auto robot_state_publisher = make_unique<LcmPublisherSystem>
-      ("EST_ROBOT_STATE", robot_state_translator, lcm.get());
+  const RobotStateTranslator robot_state_translator(
+      plant.get_multibody_world());
+  auto robot_state_publisher = make_unique<LcmPublisherSystem>(
+      "EST_ROBOT_STATE", robot_state_translator, lcm.get());
 
   // Wire things up.
   // TODO: use syntactic sugar from cars-simulator2 branch
   auto builder = std::make_unique<systems::DiagramBuilder<double>>();
   builder->Connect(torque_source.get_output_port(0), plant.get_input_port(0));
-  builder->Connect(plant.get_output_port(0), robot_state_publisher
-      ->get_input_port(0));
+  builder->Connect(plant.get_output_port(0),
+                   robot_state_publisher->get_input_port(0));
   auto diagram = builder->Build();
 
-  auto lcm_receive_thread = std::make_unique<systems::lcm::LcmReceiveThread>(
-      lcm.get());
-
+  auto lcm_receive_thread =
+      std::make_unique<systems::lcm::LcmReceiveThread>(lcm.get());
 
   // Create simulator.
   auto simulator = std::make_unique<systems::Simulator<double>>(*diagram);
