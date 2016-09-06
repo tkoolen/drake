@@ -10,6 +10,15 @@ endif()
 
 drake_add_matlab_test(NAME examples/Valkyrie/runValkyrieVisualize OPTIONAL bullet gurobi snopt COMMAND runValkyrieVisualize)
 
+add_library_with_exports(LIB_NAME drakeRobotStatePublisher SOURCE_FILES
+    robot_state_publisher.cc)
+add_dependencies(drakeLCMSystem2 drake_lcmtypes_hpp)
+target_link_libraries(drakeRobotStatePublisher
+    drakeLCMSystem2
+    drakeLCMUtil
+    drakeRBM)
+drake_install_headers(robot_state_publisher.h)
+
 add_library(robot_state_translator robot_state_translator.cc)
 pods_install_libraries(robot_state_translator)
 drake_install_headers(robot_state_translator.h)
