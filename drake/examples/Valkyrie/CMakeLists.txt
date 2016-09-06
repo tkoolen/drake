@@ -16,16 +16,10 @@ add_dependencies(drakeLCMSystem2 drake_lcmtypes_hpp)
 target_link_libraries(drakeRobotStatePublisher
     drakeLCMSystem2
     drakeLCMUtil
-    drakeRBM)
+    drakeRBM
+    drakeSide)
+pods_install_libraries(drakeRobotStatePublisher)
 drake_install_headers(robot_state_publisher.h)
-
-add_library(robot_state_translator robot_state_translator.cc)
-pods_install_libraries(robot_state_translator)
-drake_install_headers(robot_state_translator.h)
-target_link_libraries(robot_state_translator
-    drakeLCMSystem2
-    drakeLCMUtil
-    drakeRBM)
 
 add_executable(valkyrie_simulation valkyrie_simulation.cc)
 add_dependencies(valkyrie_simulation drake_lcmtypes_hpp)
