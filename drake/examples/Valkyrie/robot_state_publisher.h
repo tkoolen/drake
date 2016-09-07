@@ -14,6 +14,7 @@ namespace examples {  // TODO: right namespace?
 
 class DRAKEROBOTSTATEPUBLISHER_EXPORT RobotStatePublisher
     : public systems::LeafSystem<double> {
+ public:
   /**
    * Constructor.
    *

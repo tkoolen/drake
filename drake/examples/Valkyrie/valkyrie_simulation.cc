@@ -4,7 +4,6 @@
 
 #include "drake/common/drake_path.h"
 #include "drake/common/text_logging.h"
-#include "drake/examples/Valkyrie/robot_state_translator.h"
 #include "drake/systems/analysis/simulator.h"
 #include "drake/systems/framework/diagram_builder.h"
 #include "drake/systems/framework/primitives/constant_vector_source.h"
@@ -13,6 +12,9 @@
 #include "drake/systems/lcm/translator_between_lcmt_drake_signal.h"
 #include "drake/systems/plants/parser_urdf.h"
 #include "drake/systems/plants/rigid_body_system/rigid_body_plant.h"
+#include "drake/examples/valkyrie/robot_state_publisher.h"
+
+// TODO: use syntactic sugar for connections from cars-simulator2 branch
 
 namespace drake {
 namespace examples {
@@ -29,6 +31,7 @@ int do_main(int argc, const char* argv[]) {
   using Eigen::VectorXd;
 
   drake::log()->set_level(spdlog::level::trace);
+  auto builder = std::make_unique<systems::DiagramBuilder<double>>();
 
   // Create RigidBodyTree.
   auto tree_ptr = make_unique<RigidBodyTree>();
@@ -53,18 +56,19 @@ int do_main(int argc, const char* argv[]) {
 
   // Placeholder for actuator dynamics.
   systems::PassThrough<double> actuators(plant.get_input_size());
-
-  // Create robot_state_t publisher.
-  const RobotStateTranslator robot_state_translator(
-      plant.get_multibody_world());
-  auto robot_state_publisher = make_unique<LcmPublisherSystem>(
-      "EST_ROBOT_STATE", robot_state_translator, lcm.get());
-
-  // Wire things up.
-  // TODO: use syntactic sugar from cars-simulator2 branch
-  auto builder = std::make_unique<systems::DiagramBuilder<double>>();
   builder->Connect(torque_command_source->get_output_port(0), actuators
       .get_input_port(0));
+
+  // Create robot_state_t publisher.
+  RobotStatePublisher robot_state_publisher(plant.get_multibody_world(),
+                                            plant.get_input_size(),
+                                            "EST_ROBOT_STATE", lcm.get());
+  builder->Connect(actuators.get_output_port(0), robot_state_publisher
+      .get_effort_port());
+  builder->Connect(plant.get_output_port(0), robot_state_publisher
+      .get_state_port());
+  // TODO: connect wrench ports.
+
   builder->Connect(actuators.get_output_port(0), plant.get_input_port(0));
   builder->Connect(plant.get_output_port(0),
                    robot_state_publisher->get_input_port(0));
