@@ -1,6 +1,6 @@
 #include "robot_state_publisher.h"
-#include "drake/util/lcmUtil.h"
 #include "drake/common/constants.h"
+#include "drake/util/lcmUtil.h"
 
 using Eigen::Dynamic;
 using Eigen::Index;
@@ -13,10 +13,16 @@ using drake::systems::kContinuousSampling;
 namespace drake {
 namespace examples {
 
-RobotStatePublisher::RobotStatePublisher(const RigidBodyTree& tree, int
-num_actuators, const std::string &channel, lcm::LCM *lcm) :
-    tree_(CheckPreConditions(tree)), floating_body_(tree.bodies[1]->getJoint().isFloating() ? tree.bodies[1].get() : nullptr), channel_(channel), lcm_(lcm) {
-
+RobotStatePublisher::RobotStatePublisher(const RigidBodyTree& tree,
+                                         int num_actuators,
+                                         const std::string& channel,
+                                         lcm::LCM* lcm)
+    : tree_(CheckPreConditions(tree)),
+      floating_body_(tree.bodies[1]->getJoint().isFloating()
+                         ? tree.bodies[1].get()
+                         : nullptr),
+      channel_(channel),
+      lcm_(lcm) {
   int num_states = tree_.number_of_positions() + tree_.number_of_velocities();
 
   int input_num = 0;
@@ -32,20 +38,20 @@ num_actuators, const std::string &channel, lcm::LCM *lcm) :
   InitializeMessage();
 }
 
-RobotStatePublisher::~RobotStatePublisher() { }
+RobotStatePublisher::~RobotStatePublisher() {}
 
 std::string RobotStatePublisher::get_name() const {
   return "RobotStatePublisher::" + channel_;
 }
 
-void RobotStatePublisher::DoPublish(const systems::ContextBase<double> &context) const {
-
-  const VectorBase<double>* const state_vector = context.get_vector_input
-      (state_port_index_);
+void RobotStatePublisher::DoPublish(
+    const systems::ContextBase<double>& context) const {
+  const VectorBase<double>* const state_vector =
+      context.get_vector_input(state_port_index_);
 
   // TODO: message.utime
 
-  auto x = state_vector->get_value(); // TODO: need to check for nullness?
+  auto x = state_vector->get_value();  // TODO: need to check for nullness?
   auto q = x.head(tree_.number_of_positions());
   auto v = x.tail(tree_.number_of_velocities());
 
