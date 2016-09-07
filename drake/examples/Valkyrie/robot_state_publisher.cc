@@ -22,19 +22,23 @@ RobotStatePublisher::RobotStatePublisher(const RigidBodyTree& tree,
                          ? tree.bodies[1].get()
                          : nullptr),
       channel_(channel),
-      lcm_(lcm) {
-  int num_states = tree_.number_of_positions() + tree_.number_of_velocities();
+      lcm_(lcm),
+      state_port_(DeclareInputPort(
+          kVectorValued,
+          tree.number_of_positions() + tree.number_of_velocities(),
+          kContinuousSampling)),
+      effort_port_(
+          DeclareInputPort(kVectorValued, num_actuators, kContinuousSampling)),
+      left_foot_wrench_port_(
+          DeclareInputPort(kVectorValued, kTwistSize, kContinuousSampling)),
+      right_foot_wrench_port_(
+          DeclareInputPort(kVectorValued, kTwistSize, kContinuousSampling)),
+      left_hand_wrench_port_(
+          DeclareInputPort(kVectorValued, kTwistSize, kContinuousSampling)),
+      right_hand_wrench_port_(
+          DeclareInputPort(kVectorValued, kTwistSize, kContinuousSampling))
 
-  int input_num = 0;
-  DeclareInputPort(kVectorValued, num_states, kContinuousSampling);
-  state_port_index_ = input_num++;
-  DeclareInputPort(kVectorValued, num_actuators, kContinuousSampling);
-  torque_port_index_ = input_num++;
-  DeclareInputPort(kVectorValued, kTwistSize, kContinuousSampling);
-  foot_wrench_port_indices_[Side::LEFT] = input_num++;
-  DeclareInputPort(kVectorValued, kTwistSize, kContinuousSampling);
-  foot_wrench_port_indices_[Side::RIGHT] = input_num;
-
+{
   InitializeMessage();
 }
 
@@ -45,13 +49,62 @@ std::string RobotStatePublisher::get_name() const {
 }
 
 void RobotStatePublisher::DoPublish(
-    const systems::ContextBase<double>& context) const {
-  const VectorBase<double>* const state_vector =
-      context.get_vector_input(state_port_index_);
+    const systems::Context<double>& context) const {
+  message_.utime = 0;  // TODO
+  SetState(context);
+  SetEfforts(context);
+  SetForceTorque(context);
+  PublishMessage();
+}
 
-  // TODO: message.utime
+const systems::SystemPortDescriptor<double>&
+RobotStatePublisher::get_state_port() const {
+  return state_port_;
+}
 
-  auto x = state_vector->get_value();  // TODO: need to check for nullness?
+const systems::SystemPortDescriptor<double>&
+RobotStatePublisher::get_effort_port() const {
+  return effort_port_;
+}
+
+const systems::SystemPortDescriptor<double>&
+RobotStatePublisher::get_foot_contact_wrench_port(const Side& side) const {
+  switch (side.underlying()) {
+    case Side::LEFT:
+      return left_foot_wrench_port_;
+    case Side::RIGHT:
+      return right_foot_wrench_port_;
+    default:
+      DRAKE_ABORT_MSG("Side not recognized.");
+  }
+}
+
+const systems::SystemPortDescriptor<double>&
+RobotStatePublisher::get_hand_contact_wrench_port(const Side& side) const {
+  switch (side.underlying()) {
+    case Side::LEFT:
+      return left_hand_wrench_port_;
+    case Side::RIGHT:
+      return right_hand_wrench_port_;
+    default:
+      DRAKE_ABORT_MSG("Side not recognized.");
+  }
+}
+
+void RobotStatePublisher::InitializeMessage() const {
+  // To match usage of robot_state_t throughout OpenHumanoids code, set
+  // joint_names field to position coordinate names.
+  int non_floating_joint_position_start_index = num_floating_joint_positions();
+  for (int i = non_floating_joint_position_start_index;
+       i < tree_.number_of_positions(); i++) {
+    message_.joint_name.push_back(tree_.getPositionName(i));
+  }
+  message_.num_joints = static_cast<int16_t>(message_.joint_name.size());
+}
+
+void RobotStatePublisher::SetState(
+    const systems::Context<double>& context) const {
+  auto x = context.get_vector_input(state_port_.get_index())->get_value();
   auto q = x.head(tree_.number_of_positions());
   auto v = x.tail(tree_.number_of_velocities());
 
@@ -74,24 +127,69 @@ void RobotStatePublisher::DoPublish(
 
   auto v_non_floating = v.tail(v.size() - num_floating_joint_velocities());
   eigenVectorToStdVector(v_non_floating, message_.joint_velocity);
+}
 
-  // TODO: extract out into its own method
+void RobotStatePublisher::SetEfforts(
+    const systems::Context<double>& context) const {
+  auto efforts = context.get_vector_input(
+      effort_port_.get_index())->get_value();
+  eigenVectorToStdVector(efforts, message_.joint_effort);
+}
+
+void RobotStatePublisher::SetForceTorque(
+    const systems::Context<double>& context) const {
+  auto& force_torque = message_.force_torque;
+  const int kTorqueXIndex = 0;
+  const int kTorqueYIndex = 1;
+  const int kForceZIndex = 5;
+  {
+    auto left_foot_wrench =
+        context.get_vector_input(left_foot_wrench_port_.get_index())
+            ->get_value();
+    force_torque.l_foot_force_z =
+        static_cast<float>(left_foot_wrench[kForceZIndex]);
+    force_torque.l_foot_torque_x =
+        static_cast<float>(left_foot_wrench[kTorqueXIndex]);
+    force_torque.l_foot_torque_y =
+        static_cast<float>(left_foot_wrench[kTorqueYIndex]);
+  }
+  {
+    auto right_foot_wrench =
+        context.get_vector_input(right_foot_wrench_port_.get_index())
+            ->get_value();
+    force_torque.r_foot_force_z =
+        static_cast<float>(right_foot_wrench[kForceZIndex]);
+    force_torque.r_foot_torque_x =
+        static_cast<float>(right_foot_wrench[kTorqueXIndex]);
+    force_torque.r_foot_torque_y =
+        static_cast<float>(right_foot_wrench[kTorqueYIndex]);
+  }
+  {
+    auto left_hand_wrench =
+        context.get_vector_input(left_hand_wrench_port_.get_index())
+            ->get_value();
+    eigenVectorToCArray(left_hand_wrench.head<kSpaceDimension>(),
+                        force_torque.l_hand_torque);
+    eigenVectorToCArray(left_hand_wrench.tail<kSpaceDimension>(),
+                        force_torque.l_hand_torque);
+  }
+  {
+    auto right_hand_wrench =
+        context.get_vector_input(right_hand_wrench_port_.get_index())
+            ->get_value();
+    eigenVectorToCArray(right_hand_wrench.head<kSpaceDimension>(),
+                        force_torque.r_hand_torque);
+    eigenVectorToCArray(right_hand_wrench.tail<kSpaceDimension>(),
+                        force_torque.r_hand_torque);
+  }
+}
+
+void RobotStatePublisher::PublishMessage() const {
   const int lcm_message_length = message_.getEncodedSize();
   message_bytes_.resize(static_cast<size_t>(lcm_message_length));
   message_.encode(message_bytes_.data(), 0, lcm_message_length);
   lcm_->publish(channel_, message_bytes_.data(),
                 static_cast<unsigned int>(message_bytes_.size()));
-}
-
-void RobotStatePublisher::InitializeMessage() const {
-  // To match usage of robot_state_t throughout OpenHumanoids code, set
-  // joint_names field to position coordinate names.
-  int non_floating_joint_position_start_index = num_floating_joint_positions();
-  for (int i = non_floating_joint_position_start_index;
-       i < tree_.number_of_positions(); i++) {
-    message_.joint_name.push_back(tree_.getPositionName(i));
-  }
-  message_.num_joints = static_cast<int16_t>(message_.joint_name.size());
 }
 
 int RobotStatePublisher::num_floating_joint_positions() const {
@@ -166,7 +264,7 @@ const RigidBodyTree& RobotStatePublisher::CheckPreConditions(
 
   bool floating_joint_found = false;
   for (const auto& body_ptr : tree.bodies) {
-    if (body_ptr->hasParent()) {
+    if (body_ptr->has_mobilizer_joint()) {
       const auto& joint = body_ptr->getJoint();
       if (joint.isFloating()) {
         if (floating_joint_found) {

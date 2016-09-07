@@ -35,16 +35,31 @@ class DRAKEROBOTSTATEPUBLISHER_EXPORT RobotStatePublisher
    * Takes the VectorBase from the input port of the context and publishes
    * it onto an LCM channel.
    */
-  void DoPublish(const systems::ContextBase<double>& context) const override;
+  void DoPublish(const systems::Context<double>& context) const override;
 
   /**
    * This System has no output ports so EvalOutput() does nothing.
    */
-  void EvalOutput(const systems::ContextBase<double>& context,
+  void EvalOutput(const systems::Context<double>& context,
                   systems::SystemOutput<double>* output) const override {}
+
+  const systems::SystemPortDescriptor<double>& get_state_port() const;
+  const systems::SystemPortDescriptor<double>& get_effort_port() const;
+  const systems::SystemPortDescriptor<double>& get_foot_contact_wrench_port(
+      const Side& side) const;
+  const systems::SystemPortDescriptor<double>& get_hand_contact_wrench_port(
+      const Side& side) const;
 
  private:
   void InitializeMessage() const;
+
+  void SetState(const systems::Context<double>& context) const;
+
+  void SetEfforts(const systems::Context<double>& context) const;
+
+  void SetForceTorque(const systems::Context<double>& context) const;
+
+  void PublishMessage() const;
 
   Eigen::Isometry3d EvalFloatingBodyPose(
       const Eigen::Ref<const Eigen::VectorXd>& q) const;
@@ -67,29 +82,32 @@ class DRAKEROBOTSTATEPUBLISHER_EXPORT RobotStatePublisher
   /// unambiguously represent its state.
   const RigidBodyTree& CheckPreConditions(const RigidBodyTree& tree);
 
-  /// Tree to which message corresponds.
+  // Tree to which message corresponds.
   const RigidBodyTree& tree_;
 
-  /// Pointer to the body in @p tree_ that is attached to the world with a
-  /// floating joint. Null if there is no such body.
+  // Pointer to the body in @p tree_ that is attached to the world with a
+  // floating joint. Null if there is no such body.
   const RigidBody* const floating_body_;
 
-  /// The channel on which to publish LCM messages.
+  // The channel on which to publish LCM messages.
   const std::string channel_;
 
-  /// A pointer to the LCM subsystem.
+  // Pointer to the LCM subsystem.
   ::lcm::LCM* lcm_;
 
-  /// LCM Message.
+  // LCM Message.
   mutable bot_core::robot_state_t message_;
 
-  /// Data to send.
+  // Data to send.
   mutable std::vector<uint8_t> message_bytes_;
 
-  /// Input port indices.
-  int state_port_index_;
-  int torque_port_index_;
-  std::map<Side, int> foot_wrench_port_indices_;
+  // Input ports.
+  const systems::SystemPortDescriptor<double>& state_port_;
+  const systems::SystemPortDescriptor<double>& effort_port_;
+  const systems::SystemPortDescriptor<double>& left_foot_wrench_port_;
+  const systems::SystemPortDescriptor<double>& right_foot_wrench_port_;
+  const systems::SystemPortDescriptor<double>& left_hand_wrench_port_;
+  const systems::SystemPortDescriptor<double>& right_hand_wrench_port_;
 };
 
 }  // examples
