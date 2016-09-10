@@ -281,18 +281,25 @@ initializeAutoDiffTuple(const Eigen::MatrixBase<Deriveds>&... args) {
   return ret;
 }
 
-template <class F, class Arg>
+template <class F, class Arg, class ArgGradient>
 struct GradientReturnType {
-  // Remove references from Arg.
+  // Remove references from Arg and ArgGradient.
   using ArgNoRef = typename std::remove_reference<Arg>::type;
+  using ArgGradientNoRef = typename std::remove_reference<ArgGradient>::type;
 
   // Argument scalar type.
   using ArgScalar = typename ArgNoRef::Scalar;
 
+  // Number and maximum number of derivatives at compile time.
+  static constexpr const int kNumDerivsAtCompileTime =
+      ArgGradientNoRef::ColsAtCompileTime;
+  static constexpr const int kMaxNumDerivsAtCompileTime =
+      ArgGradientNoRef::MaxColsAtCompileTime;
+
   // Argument scalar type corresponding to return value of this function.
-  using ReturnArgDerType =
-      Eigen::Matrix<ArgScalar, ArgNoRef::SizeAtCompileTime, 1, 0,
-                    ArgNoRef::MaxSizeAtCompileTime, 1>;
+  using ReturnArgDerType = Eigen::Matrix<ArgScalar, kNumDerivsAtCompileTime, 1,
+                                         0, kMaxNumDerivsAtCompileTime, 1>;
+
   using ReturnArgAutoDiffScalar = Eigen::AutoDiffScalar<ReturnArgDerType>;
 
   // Return type of the gradient function.
@@ -304,7 +311,7 @@ struct GradientReturnType {
 
 template <int MaxChunkSize = 10, class F, class Arg, class ArgGradient>
 void gradient(F&& f, Arg&& x, ArgGradient&& x_gradient,
-typename GradientReturnType<F, Arg>::type& result) {
+              typename GradientReturnType<F, Arg, ArgGradient>::type& result) {
   using Eigen::AutoDiffScalar;
   using Eigen::Index;
   using Eigen::Matrix;
@@ -368,11 +375,11 @@ typename GradientReturnType<F, Arg>::type& result) {
   }
 }
 template <int MaxChunkSize = 10, class F, class Arg, class ArgGradient>
-typename GradientReturnType<F, Arg>::type gradient(F&& f, Arg&& x, ArgGradient&&
-    x_gradient) {
-  typename GradientReturnType<F, Arg>::type result;
+typename GradientReturnType<F, Arg, ArgGradient>::type gradient(
+    F&& f, Arg&& x, ArgGradient&& x_gradient) {
+  typename GradientReturnType<F, Arg, ArgGradient>::type result;
   gradient<MaxChunkSize>(std::forward<F>(f), std::forward<Arg>(x),
-  std::forward<ArgGradient>(x_gradient), result);
+                         std::forward<ArgGradient>(x_gradient), result);
   return result;
 }
 
@@ -428,10 +435,13 @@ decltype(auto) jacobian(F&& f, Arg&& x) {
 
   // Use the identity matrix as the gradient of x (gradient of x w.r.t. x).
   // Note that the identity *expression* below is left unevaluated (no eval()).
-  // This prevents memory allocation (even when TypeForIdentity below has
-  // dynamic size).
-  using TypeForIdentity = Eigen::Matrix<ArgScalar, ArgNoRef::SizeAtCompileTime,
-                                        ArgNoRef::SizeAtCompileTime>;
+  // This prevents memory allocation, even when TypeForIdentity below has
+  // dynamic size.
+  constexpr const int kNumDerivsAtCompileTime = ArgNoRef::SizeAtCompileTime;
+  constexpr const int kMaxDerivsAtCompileTime = ArgNoRef::MaxSizeAtCompileTime;
+  using TypeForIdentity =
+      Eigen::Matrix<ArgScalar, kNumDerivsAtCompileTime, kNumDerivsAtCompileTime,
+                    0, kMaxDerivsAtCompileTime, kMaxDerivsAtCompileTime>;
   auto identity = TypeForIdentity::Identity(x.size(), x.size());
 
   // Call gradient.
