@@ -383,6 +383,42 @@ typename GradientReturnType<F, Arg, ArgGradient>::type gradient(
   return result;
 }
 
+template <class F, class Arg>
+struct JacobianReturnType {
+  // Remove references from Arg.
+  using ArgNoRef = typename std::remove_reference<Arg>::type;
+
+  // Argument scalar type.
+  using ArgScalar = typename ArgNoRef::Scalar;
+
+  // Number and maximum number of derivatives at compile time.
+  static constexpr const int kNumDerivsAtCompileTime =
+      ArgNoRef::SizeAtCompileTime;
+  static constexpr const int kMaxDerivsAtCompileTime =
+      ArgNoRef::MaxSizeAtCompileTime;
+
+  // Type of gradient of argument.
+  using ArgGradientType =
+      Eigen::Matrix<ArgScalar, kNumDerivsAtCompileTime, kNumDerivsAtCompileTime,
+                    0, kMaxDerivsAtCompileTime, kMaxDerivsAtCompileTime>;
+
+  // Return type.
+  using type = typename GradientReturnType<F, Arg, ArgGradientType>::type;
+};
+
+template <int MaxChunkSize = 10, class F, class Arg>
+void jacobian(F&& f, Arg&& x, typename JacobianReturnType<F, Arg>::type&
+result) {
+  // Use the identity matrix as the gradient of x (gradient of x w.r.t. x).
+  // Note that the identity *expression* below is left unevaluated (no eval()).
+  // This prevents memory allocation, even when TypeForIdentity below has
+  // dynamic size.
+  auto arg_gradient =
+      JacobianReturnType<F, Arg>::ArgGradientType::Identity(x.size(), x.size());
+  return gradient<MaxChunkSize>(std::forward<F>(f), std::forward<Arg>(x),
+                                arg_gradient, result);
+}
+
 /** Computes a matrix of AutoDiffScalars from which both the value and
    the Jacobian of a function
    @f[
@@ -427,25 +463,10 @@ typename GradientReturnType<F, Arg, ArgGradient>::type gradient(
    at x.
  */
 template <int MaxChunkSize = 10, class F, class Arg>
-decltype(auto) jacobian(F&& f, Arg&& x) {
-  using ArgNoRef = typename std::remove_reference<Arg>::type;
-
-  // Argument scalar type.
-  using ArgScalar = typename ArgNoRef::Scalar;
-
-  // Use the identity matrix as the gradient of x (gradient of x w.r.t. x).
-  // Note that the identity *expression* below is left unevaluated (no eval()).
-  // This prevents memory allocation, even when TypeForIdentity below has
-  // dynamic size.
-  constexpr const int kNumDerivsAtCompileTime = ArgNoRef::SizeAtCompileTime;
-  constexpr const int kMaxDerivsAtCompileTime = ArgNoRef::MaxSizeAtCompileTime;
-  using TypeForIdentity =
-      Eigen::Matrix<ArgScalar, kNumDerivsAtCompileTime, kNumDerivsAtCompileTime,
-                    0, kMaxDerivsAtCompileTime, kMaxDerivsAtCompileTime>;
-  auto identity = TypeForIdentity::Identity(x.size(), x.size());
-
-  // Call gradient.
-  return gradient(std::forward<F>(f), std::forward<Arg>(x), identity);
+typename JacobianReturnType<F, Arg>::type jacobian(F&& f, Arg&& x) {
+  typename JacobianReturnType<F, Arg>::type result;
+  jacobian<MaxChunkSize>(std::forward<F>(f), std::forward<Arg>(x), result);
+  return result;
 }
 
 /** Computes a matrix of AutoDiffScalars from which the value, Jacobian,
