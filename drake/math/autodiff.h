@@ -93,7 +93,7 @@ void initializeAutoDiff(const Eigen::MatrixBase<Derived>& val,
  */
 template <typename Derived, int Nq>
 using AutoDiffMatrixType = Eigen::Matrix<
-    Eigen::AutoDiffScalar<Eigen::Matrix<typename Derived::Scalar, Nq, 1> >,
+    Eigen::AutoDiffScalar<Eigen::Matrix<typename Derived::Scalar, Nq, 1>>,
     Derived::RowsAtCompileTime, Derived::ColsAtCompileTime, 0,
     Derived::MaxRowsAtCompileTime, Derived::MaxColsAtCompileTime>;
 
@@ -307,6 +307,21 @@ struct GradientTraits {
       std::declval<Arg>().template cast<ReturnArgAutoDiffScalar>().eval());
   using ReturnType =
       decltype(std::declval<F>()(std::declval<ReturnArgAutoDiffType>()));
+
+  // Type of Chunk arguments.
+  template <int MaxChunkSize>
+  using ChunkArgDerType =
+      Eigen::Matrix<ArgScalar, Eigen::Dynamic, 1, 0, MaxChunkSize, 1>;
+
+  template <int MaxChunkSize>
+  using ChunkArgAutoDiffScalar =
+      Eigen::AutoDiffScalar<ChunkArgDerType<MaxChunkSize>>;
+
+  template <int MaxChunkSize>
+  using ChunkArgType =
+      decltype(std::declval<Arg>()
+                   .template cast<ChunkArgAutoDiffScalar<MaxChunkSize>>()
+                   .eval());
 };
 
 template <class F, class Arg, class ArgGradient>
@@ -320,13 +335,9 @@ void gradient(F&& f, Arg&& x, ArgGradient&& x_gradient,
   using Eigen::Index;
   using Eigen::Matrix;
 
-  // Argument scalar type.
-  using ArgScalar = typename GradientTraits<F, Arg, ArgGradient>::ArgScalar;
-
   // Scalar type of chunk arguments.
-  using ChunkArgDerType =
-      Matrix<ArgScalar, Eigen::Dynamic, 1, 0, MaxChunkSize, 1>;
-  using ChunkArgAutoDiffScalar = AutoDiffScalar<ChunkArgDerType>;
+  using ChunkArgAutoDiffScalar = typename GradientTraits<
+      F, Arg, ArgGradient>::template ChunkArgAutoDiffScalar<MaxChunkSize>;
 
   // Compute derivatives chunk by chunk.
   constexpr Index kMaxChunkSize = MaxChunkSize;
