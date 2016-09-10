@@ -280,6 +280,86 @@ initializeAutoDiffTuple(const Eigen::MatrixBase<Deriveds>&... args) {
   return ret;
 }
 
+template <int MaxChunkSize = 10, class F, class Arg, class ArgGradient>
+decltype(auto) gradient(F &&f, Arg &&x, ArgGradient&& arg_gradient) {
+  using Eigen::AutoDiffScalar;
+  using Eigen::Index;
+  using Eigen::Matrix;
+
+  using ArgNoRef = typename std::remove_reference<Arg>::type;
+
+  // Argument scalar type.
+  using ArgScalar = typename ArgNoRef::Scalar;
+
+  // Argument scalar type corresponding to return value of this function.
+  using ReturnArgDerType = Matrix<ArgScalar, ArgNoRef::SizeAtCompileTime, 1, 0,
+                                  ArgNoRef::MaxSizeAtCompileTime, 1>;
+  using ReturnArgAutoDiffScalar = AutoDiffScalar<ReturnArgDerType>;
+
+  // Return type of this function.
+  using ReturnArgAutoDiffType =
+  decltype(x.template cast<ReturnArgAutoDiffScalar>().eval());
+  using ReturnType = decltype(f(std::declval<ReturnArgAutoDiffType>()));
+
+  // Scalar type of chunk arguments.
+  using ChunkArgDerType =
+  Matrix<ArgScalar, Eigen::Dynamic, 1, 0, MaxChunkSize, 1>;
+  using ChunkArgAutoDiffScalar = AutoDiffScalar<ChunkArgDerType>;
+
+  // Allocate output.
+  ReturnType ret;
+
+  // Compute derivatives chunk by chunk.
+  constexpr Index kMaxChunkSize = MaxChunkSize;
+  Index num_derivs = x.size();
+  bool values_initialized = false;
+  for (Index deriv_num_start = 0; deriv_num_start < num_derivs;
+       deriv_num_start += kMaxChunkSize) {
+    // Compute chunk size.
+    Index num_derivs_to_go = num_derivs - deriv_num_start;
+    Index chunk_size = std::min(kMaxChunkSize, num_derivs_to_go);
+
+    // Initialize chunk argument.
+    auto chunk_arg = x.template cast<ChunkArgAutoDiffScalar>().eval();
+    for (Index i = 0; i < x.size(); i++) {
+      chunk_arg(i).derivatives() = arg_gradient.row(i).transpose()
+          .segment(deriv_num_start, chunk_size);
+    }
+
+    // Compute Jacobian chunk.
+    auto chunk_result = f(chunk_arg);
+
+    // On first chunk, resize output to match chunk and copy values from chunk
+    // to result.
+    if (!values_initialized) {
+      ret.resize(chunk_result.rows(), chunk_result.cols());
+
+      for (Index i = 0; i < chunk_result.size(); i++) {
+        ret(i).value() = chunk_result(i).value();
+        ret(i).derivatives().resize(num_derivs);
+      }
+      values_initialized = true;
+    }
+
+    // Copy derivatives from chunk to result.
+    for (Index i = 0; i < chunk_result.size(); i++) {
+      // Intuitive thing to do, but results in problems with non-matching scalar
+      // types for recursive jacobian calls:
+      // ret(i).derivatives().segment(deriv_num_start, chunk_size) =
+      // chunk_result(i).derivatives();
+
+      // Instead, assign each element individually, making use of conversion
+      // constructors.
+      for (Index j = 0; j < chunk_size; j++) {
+        ret(i).derivatives()(deriv_num_start + j) =
+            chunk_result(i).derivatives()(j);
+      }
+    }
+  }
+
+  return ret;
+}
+
 /** Computes a matrix of AutoDiffScalars from which both the value and
    the Jacobian of a function
    @f[
@@ -325,85 +405,21 @@ initializeAutoDiffTuple(const Eigen::MatrixBase<Deriveds>&... args) {
  */
 template <int MaxChunkSize = 10, class F, class Arg>
 decltype(auto) jacobian(F &&f, Arg &&x) {
-  using Eigen::AutoDiffScalar;
-  using Eigen::Index;
-  using Eigen::Matrix;
-
   using ArgNoRef = typename std::remove_reference<Arg>::type;
 
   // Argument scalar type.
   using ArgScalar = typename ArgNoRef::Scalar;
 
-  // Argument scalar type corresponding to return value of this function.
-  using ReturnArgDerType = Matrix<ArgScalar, ArgNoRef::SizeAtCompileTime, 1, 0,
-                                  ArgNoRef::MaxSizeAtCompileTime, 1>;
-  using ReturnArgAutoDiffScalar = AutoDiffScalar<ReturnArgDerType>;
+  // Use the identity matrix as the gradient of x (gradient of x w.r.t. x).
+  // Note that the identity *expression* below is left unevaluated (no eval()).
+  // This prevents memory allocation (even when TypeForIdentity below has
+  // dynamic size).
+  using TypeForIdentity = Eigen::Matrix<ArgScalar, ArgNoRef::SizeAtCompileTime,
+                                        ArgNoRef::SizeAtCompileTime>;
+  auto identity = TypeForIdentity::Identity(x.size(), x.size());
 
-  // Return type of this function.
-  using ReturnArgAutoDiffType =
-      decltype(x.template cast<ReturnArgAutoDiffScalar>().eval());
-  using ReturnType = decltype(f(std::declval<ReturnArgAutoDiffType>()));
-
-  // Scalar type of chunk arguments.
-  using ChunkArgDerType =
-      Matrix<ArgScalar, Eigen::Dynamic, 1, 0, MaxChunkSize, 1>;
-  using ChunkArgAutoDiffScalar = AutoDiffScalar<ChunkArgDerType>;
-
-  // Allocate output.
-  ReturnType ret;
-
-  // Compute derivatives chunk by chunk.
-  constexpr Index kMaxChunkSize = MaxChunkSize;
-  Index num_derivs = x.size();
-  bool values_initialized = false;
-  for (Index deriv_num_start = 0; deriv_num_start < num_derivs;
-       deriv_num_start += kMaxChunkSize) {
-    // Compute chunk size.
-    Index num_derivs_to_go = num_derivs - deriv_num_start;
-    Index chunk_size = std::min(kMaxChunkSize, num_derivs_to_go);
-
-    // Initialize chunk argument.
-    auto chunk_arg = x.template cast<ChunkArgAutoDiffScalar>().eval();
-    for (Index i = 0; i < x.size(); i++) {
-      chunk_arg(i).derivatives().setZero(chunk_size);
-    }
-    for (Index i = 0; i < chunk_size; i++) {
-      Index deriv_num = deriv_num_start + i;
-      chunk_arg(deriv_num).derivatives()(i) = ArgScalar(1);
-    }
-
-    // Compute Jacobian chunk.
-    auto chunk_result = f(chunk_arg);
-
-    // On first chunk, resize output to match chunk and copy values from chunk
-    // to result.
-    if (!values_initialized) {
-      ret.resize(chunk_result.rows(), chunk_result.cols());
-
-      for (Index i = 0; i < chunk_result.size(); i++) {
-        ret(i).value() = chunk_result(i).value();
-        ret(i).derivatives().resize(num_derivs);
-      }
-      values_initialized = true;
-    }
-
-    // Copy derivatives from chunk to result.
-    for (Index i = 0; i < chunk_result.size(); i++) {
-      // Intuitive thing to do, but results in problems with non-matching scalar
-      // types for recursive jacobian calls:
-      // ret(i).derivatives().segment(deriv_num_start, chunk_size) =
-      // chunk_result(i).derivatives();
-
-      // Instead, assign each element individually, making use of conversion
-      // constructors.
-      for (Index j = 0; j < chunk_size; j++) {
-        ret(i).derivatives()(deriv_num_start + j) =
-            chunk_result(i).derivatives()(j);
-      }
-    }
-  }
-
-  return ret;
+  // Call gradient.
+  return gradient(std::forward<F>(f), std::forward<Arg>(x), identity);
 }
 
 /** Computes a matrix of AutoDiffScalars from which the value, Jacobian,
@@ -434,7 +450,7 @@ decltype(auto) hessian(F &&f, Arg &&x) {
   auto jac_fun = [&](const auto &x_inner) {
     return jacobian<MaxChunkSizeInner>(f, x_inner);
   };
-  return jacobian<MaxChunkSizeOuter>(jac_fun, x);
+  return jacobian<MaxChunkSizeOuter>(jac_fun, std::forward<Arg>(x));
 }
 
 }  // namespace math
