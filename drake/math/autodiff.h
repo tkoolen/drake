@@ -477,14 +477,23 @@ JacobianReturnType<F, Arg> Jacobian(F&& f, Arg&& x) {
 
 template <int MaxChunkSize = 10, class F>
 decltype(auto) JacobianFunction(F&& f) {
+  // TODO(tkoolen) there should be a version of this that takes a reference to
+  // the result, but it's hard to determine the type of the result since the
+  // type of x is not known when JacobianFunction is called.
   return [f_inner = std::forward<F>(f)](const auto& x) {
     return Jacobian<MaxChunkSize>(f_inner, x);
   };
 };
 
 template <class F, class Arg>
-using HessianReturnType =
-    JacobianReturnType<decltype(JacobianFunction(std::declval<F>())), Arg>;
+struct HessianTraits {
+  using JacobianFunctionType = decltype(JacobianFunction(std::declval<F>()));
+
+  using ReturnType = JacobianReturnType<JacobianFunctionType, Arg>;
+};
+
+template <class F, class Arg>
+using HessianReturnType = typename HessianTraits<F, Arg>::ReturnType;
 
 template <int MaxChunkSizeOuter = 10, int MaxChunkSizeInner = 10, class F,
           class Arg>
