@@ -361,7 +361,7 @@ void gradient(F&& f, Arg&& x, ArgGradient&& x_gradient,
     // Copy derivatives from chunk to result.
     for (Index i = 0; i < chunk_result.size(); i++) {
       // Intuitive thing to do, but results in problems with non-matching scalar
-      // types for recursive jacobian calls:
+      // types for recursive Jacobian calls:
       // result(i).derivatives().segment(deriv_num_start, chunk_size) =
       // chunk_result(i).derivatives();
 
@@ -374,6 +374,7 @@ void gradient(F&& f, Arg&& x, ArgGradient&& x_gradient,
     }
   }
 }
+
 template <int MaxChunkSize = 10, class F, class Arg, class ArgGradient>
 typename GradientReturnType<F, Arg, ArgGradient>::type gradient(
     F&& f, Arg&& x, ArgGradient&& x_gradient) {
@@ -407,8 +408,8 @@ struct JacobianReturnType {
 };
 
 template <int MaxChunkSize = 10, class F, class Arg>
-void jacobian(F&& f, Arg&& x, typename JacobianReturnType<F, Arg>::type&
-result) {
+void Jacobian(F&& f, Arg&& x,
+              typename JacobianReturnType<F, Arg>::type& result) {
   // Use the identity matrix as the gradient of x (gradient of x w.r.t. x).
   // Note that the identity *expression* below is left unevaluated (no eval()).
   // This prevents memory allocation, even when TypeForIdentity below has
@@ -465,8 +466,27 @@ result) {
 template <int MaxChunkSize = 10, class F, class Arg>
 typename JacobianReturnType<F, Arg>::type jacobian(F&& f, Arg&& x) {
   typename JacobianReturnType<F, Arg>::type result;
-  jacobian<MaxChunkSize>(std::forward<F>(f), std::forward<Arg>(x), result);
+  Jacobian<MaxChunkSize>(std::forward<F>(f), std::forward<Arg>(x), result);
   return result;
+}
+
+template <int MaxChunkSize = 10, class F>
+decltype(auto) JacobianFunction(F&& f) {
+  return [f_inner = std::forward<F>(f)](const auto& x) {
+    return jacobian<MaxChunkSize>(f_inner, x);
+  };
+};
+
+template <class F, class Arg>
+using HessianReturnType =
+    typename JacobianReturnType<decltype(JacobianFunction(std::declval<F>())),
+                                Arg>::type;
+
+template <int MaxChunkSizeOuter = 10, int MaxChunkSizeInner = 10, class F,
+          class Arg>
+void Hessian(F&& f, Arg&& x, HessianReturnType<F, Arg>& result) {
+  auto jac_fun = JacobianFunction<MaxChunkSizeInner>(std::forward<F>(f));
+  Jacobian<MaxChunkSizeOuter>(jac_fun, x, result);
 }
 
 /** Computes a matrix of AutoDiffScalars from which the value, Jacobian,
@@ -493,11 +513,11 @@ typename JacobianReturnType<F, Arg>::type jacobian(F&& f, Arg&& x) {
  */
 template <int MaxChunkSizeOuter = 10, int MaxChunkSizeInner = 10, class F,
           class Arg>
-decltype(auto) hessian(F&& f, Arg&& x) {
-  auto jac_fun = [&](const auto& x_inner) {
-    return jacobian<MaxChunkSizeInner>(f, x_inner);
-  };
-  return jacobian<MaxChunkSizeOuter>(jac_fun, std::forward<Arg>(x));
+HessianReturnType<F, Arg> Hessian(F&& f, Arg&& x) {
+  HessianReturnType<F, Arg> result;
+  Hessian<MaxChunkSizeOuter, MaxChunkSizeInner>(std::forward<F>(f),
+                                                std::forward<Arg>(x), result);
+  return result;
 }
 
 }  // namespace math

@@ -122,13 +122,13 @@ TEST_F(AutodiffJacobianTest, QuadraticForm) {
   // Ensure that chunk size has no effect on output type.
   static_assert(std::is_same<decltype(jac_chunk_size_default),
                              decltype(jac_chunk_size_1)>::value,
-                "jacobian output type mismatch");
+                "Jacobian output type mismatch");
   static_assert(std::is_same<decltype(jac_chunk_size_default),
                              decltype(jac_chunk_size_3)>::value,
-                "jacobian output type mismatch");
+                "Jacobian output type mismatch");
   static_assert(std::is_same<decltype(jac_chunk_size_default),
                              decltype(jac_chunk_size_6)>::value,
-                "jacobian output type mismatch");
+                "Jacobian output type mismatch");
 
   // Ensure that the results are the same.
   EXPECT_TRUE(jac_chunk_size_default == jac_chunk_size_1);
@@ -183,13 +183,13 @@ TEST_F(AutoDiffHessianTest, QuadraticFunction) {
   VectorXd x(m);
   FillWithNumbersIncreasingFromZero(x);
 
-  auto hess_chunk_size_default = hessian(quadratic_function, x);
-  auto hess_chunk_size_2_4 = hessian<2, 4>(quadratic_function, x);
+  auto hess_chunk_size_default = Hessian(quadratic_function, x);
+  auto hess_chunk_size_2_4 = Hessian<2, 4>(quadratic_function, x);
 
   // Ensure that chunk size has no effect on output type.
   static_assert(std::is_same<decltype(hess_chunk_size_default),
                              decltype(hess_chunk_size_2_4)>::value,
-                "hessian output type mismatch");
+                "Hessian output type mismatch");
 
   // Ensure that the results are the same.
   EXPECT_TRUE(hess_chunk_size_default == hess_chunk_size_2_4);
