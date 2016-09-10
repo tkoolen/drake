@@ -218,7 +218,7 @@ struct InitializeAutoDiffTupleHelper {
                   std::tuple<AutoDiffTypes...>& auto_diffs,
                   Eigen::DenseIndex num_derivatives,
                   Eigen::DenseIndex deriv_num_start) {
-    constexpr size_t tuple_index = sizeof...(AutoDiffTypes)-Index;
+    constexpr size_t tuple_index = sizeof...(AutoDiffTypes) - Index;
     const auto& value = std::get<tuple_index>(values);
     auto& auto_diff = std::get<tuple_index>(auto_diffs);
     auto_diff.resize(value.rows(), value.cols());
@@ -271,17 +271,38 @@ initializeAutoDiffTuple(const Eigen::MatrixBase<Deriveds>&... args) {
   Eigen::DenseIndex dynamic_num_derivs = internal::totalSizeAtRunTime(args...);
   std::tuple<AutoDiffMatrixType<
       Deriveds, internal::totalSizeAtCompileTime<Deriveds...>()>...>
-      ret(AutoDiffMatrixType<Deriveds,
-                             internal::totalSizeAtCompileTime<Deriveds...>()>(
-          args.rows(), args.cols())...);
+  ret(AutoDiffMatrixType<Deriveds,
+                         internal::totalSizeAtCompileTime<Deriveds...>()>(
+      args.rows(), args.cols())...);
   auto values = std::forward_as_tuple(args...);
   internal::InitializeAutoDiffTupleHelper<sizeof...(args)>::run(
       values, ret, dynamic_num_derivs, 0);
   return ret;
 }
 
+template <class F, class Arg>
+struct GradientReturnType {
+  // Remove references from Arg.
+  using ArgNoRef = typename std::remove_reference<Arg>::type;
+
+  // Argument scalar type.
+  using ArgScalar = typename ArgNoRef::Scalar;
+
+  // Argument scalar type corresponding to return value of this function.
+  using ReturnArgDerType =
+      Eigen::Matrix<ArgScalar, ArgNoRef::SizeAtCompileTime, 1, 0,
+                    ArgNoRef::MaxSizeAtCompileTime, 1>;
+  using ReturnArgAutoDiffScalar = Eigen::AutoDiffScalar<ReturnArgDerType>;
+
+  // Return type of this function.
+  using ReturnArgAutoDiffType = decltype(
+      std::declval<Arg>().template cast<ReturnArgAutoDiffScalar>().eval());
+  using type =
+      decltype(std::declval<F>()(std::declval<ReturnArgAutoDiffType>()));
+};
+
 template <int MaxChunkSize = 10, class F, class Arg, class ArgGradient>
-decltype(auto) gradient(F &&f, Arg &&x, ArgGradient&& arg_gradient) {
+decltype(auto) gradient(F&& f, Arg&& x, ArgGradient&& arg_gradient) {
   using Eigen::AutoDiffScalar;
   using Eigen::Index;
   using Eigen::Matrix;
@@ -291,22 +312,13 @@ decltype(auto) gradient(F &&f, Arg &&x, ArgGradient&& arg_gradient) {
   // Argument scalar type.
   using ArgScalar = typename ArgNoRef::Scalar;
 
-  // Argument scalar type corresponding to return value of this function.
-  using ReturnArgDerType = Matrix<ArgScalar, ArgNoRef::SizeAtCompileTime, 1, 0,
-                                  ArgNoRef::MaxSizeAtCompileTime, 1>;
-  using ReturnArgAutoDiffScalar = AutoDiffScalar<ReturnArgDerType>;
-
-  // Return type of this function.
-  using ReturnArgAutoDiffType =
-  decltype(x.template cast<ReturnArgAutoDiffScalar>().eval());
-  using ReturnType = decltype(f(std::declval<ReturnArgAutoDiffType>()));
-
   // Scalar type of chunk arguments.
   using ChunkArgDerType =
-  Matrix<ArgScalar, Eigen::Dynamic, 1, 0, MaxChunkSize, 1>;
+      Matrix<ArgScalar, Eigen::Dynamic, 1, 0, MaxChunkSize, 1>;
   using ChunkArgAutoDiffScalar = AutoDiffScalar<ChunkArgDerType>;
 
   // Allocate output.
+  using ReturnType = typename GradientReturnType<F, Arg>::type;
   ReturnType ret;
 
   // Compute derivatives chunk by chunk.
@@ -322,8 +334,8 @@ decltype(auto) gradient(F &&f, Arg &&x, ArgGradient&& arg_gradient) {
     // Initialize chunk argument.
     auto chunk_arg = x.template cast<ChunkArgAutoDiffScalar>().eval();
     for (Index i = 0; i < x.size(); i++) {
-      chunk_arg(i).derivatives() = arg_gradient.row(i).transpose()
-          .segment(deriv_num_start, chunk_size);
+      chunk_arg(i).derivatives() =
+          arg_gradient.row(i).transpose().segment(deriv_num_start, chunk_size);
     }
 
     // Compute Jacobian chunk.
@@ -404,7 +416,7 @@ decltype(auto) gradient(F &&f, Arg &&x, ArgGradient&& arg_gradient) {
    at x.
  */
 template <int MaxChunkSize = 10, class F, class Arg>
-decltype(auto) jacobian(F &&f, Arg &&x) {
+decltype(auto) jacobian(F&& f, Arg&& x) {
   using ArgNoRef = typename std::remove_reference<Arg>::type;
 
   // Argument scalar type.
@@ -446,8 +458,8 @@ decltype(auto) jacobian(F &&f, Arg &&x) {
  */
 template <int MaxChunkSizeOuter = 10, int MaxChunkSizeInner = 10, class F,
           class Arg>
-decltype(auto) hessian(F &&f, Arg &&x) {
-  auto jac_fun = [&](const auto &x_inner) {
+decltype(auto) hessian(F&& f, Arg&& x) {
+  auto jac_fun = [&](const auto& x_inner) {
     return jacobian<MaxChunkSizeInner>(f, x_inner);
   };
   return jacobian<MaxChunkSizeOuter>(jac_fun, std::forward<Arg>(x));
