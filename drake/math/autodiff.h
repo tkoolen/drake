@@ -282,7 +282,7 @@ initializeAutoDiffTuple(const Eigen::MatrixBase<Deriveds>&... args) {
 }
 
 template <class F, class Arg, class ArgGradient>
-struct GradientReturnType {
+struct GradientTraits {
   // Remove references from Arg and ArgGradient.
   using ArgNoRef = typename std::remove_reference<Arg>::type;
   using ArgGradientNoRef = typename std::remove_reference<ArgGradient>::type;
@@ -305,21 +305,23 @@ struct GradientReturnType {
   // Return type of the gradient function.
   using ReturnArgAutoDiffType = decltype(
       std::declval<Arg>().template cast<ReturnArgAutoDiffScalar>().eval());
-  using type =
+  using ReturnType =
       decltype(std::declval<F>()(std::declval<ReturnArgAutoDiffType>()));
 };
 
+template <class F, class Arg, class ArgGradient>
+using GradientReturnType =
+    typename GradientTraits<F, Arg, ArgGradient>::ReturnType;
+
 template <int MaxChunkSize = 10, class F, class Arg, class ArgGradient>
 void gradient(F&& f, Arg&& x, ArgGradient&& x_gradient,
-              typename GradientReturnType<F, Arg, ArgGradient>::type& result) {
+              GradientReturnType<F, Arg, ArgGradient>& result) {
   using Eigen::AutoDiffScalar;
   using Eigen::Index;
   using Eigen::Matrix;
 
-  using ArgNoRef = typename std::remove_reference<Arg>::type;
-
   // Argument scalar type.
-  using ArgScalar = typename ArgNoRef::Scalar;
+  using ArgScalar = typename GradientTraits<F, Arg, ArgGradient>::ArgScalar;
 
   // Scalar type of chunk arguments.
   using ChunkArgDerType =
@@ -376,16 +378,16 @@ void gradient(F&& f, Arg&& x, ArgGradient&& x_gradient,
 }
 
 template <int MaxChunkSize = 10, class F, class Arg, class ArgGradient>
-typename GradientReturnType<F, Arg, ArgGradient>::type gradient(
-    F&& f, Arg&& x, ArgGradient&& x_gradient) {
-  typename GradientReturnType<F, Arg, ArgGradient>::type result;
+GradientReturnType<F, Arg, ArgGradient> gradient(F&& f, Arg&& x,
+                                                 ArgGradient&& x_gradient) {
+  GradientReturnType<F, Arg, ArgGradient> result;
   gradient<MaxChunkSize>(std::forward<F>(f), std::forward<Arg>(x),
                          std::forward<ArgGradient>(x_gradient), result);
   return result;
 }
 
 template <class F, class Arg>
-struct JacobianReturnType {
+struct JacobianTraits {
   // Remove references from Arg.
   using ArgNoRef = typename std::remove_reference<Arg>::type;
 
@@ -404,18 +406,21 @@ struct JacobianReturnType {
                     0, kMaxDerivsAtCompileTime, kMaxDerivsAtCompileTime>;
 
   // Return type.
-  using type = typename GradientReturnType<F, Arg, ArgGradientType>::type;
+  using ReturnType =
+      typename GradientTraits<F, Arg, ArgGradientType>::ReturnType;
 };
 
+template <class F, class Arg>
+using JacobianReturnType = typename JacobianTraits<F, Arg>::ReturnType;
+
 template <int MaxChunkSize = 10, class F, class Arg>
-void Jacobian(F&& f, Arg&& x,
-              typename JacobianReturnType<F, Arg>::type& result) {
+void Jacobian(F&& f, Arg&& x, JacobianReturnType<F, Arg>& result) {
   // Use the identity matrix as the gradient of x (gradient of x w.r.t. x).
   // Note that the identity *expression* below is left unevaluated (no eval()).
   // This prevents memory allocation, even when TypeForIdentity below has
   // dynamic size.
   auto arg_gradient =
-      JacobianReturnType<F, Arg>::ArgGradientType::Identity(x.size(), x.size());
+      JacobianTraits<F, Arg>::ArgGradientType::Identity(x.size(), x.size());
   return gradient<MaxChunkSize>(std::forward<F>(f), std::forward<Arg>(x),
                                 arg_gradient, result);
 }
@@ -464,8 +469,8 @@ void Jacobian(F&& f, Arg&& x,
    at x.
  */
 template <int MaxChunkSize = 10, class F, class Arg>
-typename JacobianReturnType<F, Arg>::type jacobian(F&& f, Arg&& x) {
-  typename JacobianReturnType<F, Arg>::type result;
+JacobianReturnType<F, Arg> Jacobian(F&& f, Arg&& x) {
+  JacobianReturnType<F, Arg> result;
   Jacobian<MaxChunkSize>(std::forward<F>(f), std::forward<Arg>(x), result);
   return result;
 }
@@ -473,14 +478,13 @@ typename JacobianReturnType<F, Arg>::type jacobian(F&& f, Arg&& x) {
 template <int MaxChunkSize = 10, class F>
 decltype(auto) JacobianFunction(F&& f) {
   return [f_inner = std::forward<F>(f)](const auto& x) {
-    return jacobian<MaxChunkSize>(f_inner, x);
+    return Jacobian<MaxChunkSize>(f_inner, x);
   };
 };
 
 template <class F, class Arg>
 using HessianReturnType =
-    typename JacobianReturnType<decltype(JacobianFunction(std::declval<F>())),
-                                Arg>::type;
+    JacobianReturnType<decltype(JacobianFunction(std::declval<F>())), Arg>;
 
 template <int MaxChunkSizeOuter = 10, int MaxChunkSizeInner = 10, class F,
           class Arg>
