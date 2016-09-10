@@ -1,3 +1,5 @@
+#define EIGEN_RUNTIME_NO_MALLOC
+
 #include "drake/math/autodiff.h"
 
 #include <Eigen/Dense>
@@ -110,10 +112,12 @@ TEST_F(AutodiffJacobianTest, QuadraticForm) {
 
   Vector3d x;
   FillWithNumbersIncreasingFromZero(x);
+  Eigen::internal::set_is_malloc_allowed(false);
   auto jac_chunk_size_default = jacobian(quadratic_form, x);
   auto jac_chunk_size_1 = jacobian<1>(quadratic_form, x);
   auto jac_chunk_size_3 = jacobian<3>(quadratic_form, x);
   auto jac_chunk_size_6 = jacobian<6>(quadratic_form, x);
+  Eigen::internal::set_is_malloc_allowed(true);
 
   // Ensure that chunk size has no effect on output type.
   static_assert(std::is_same<decltype(jac_chunk_size_default),
