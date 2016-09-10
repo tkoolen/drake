@@ -4,6 +4,7 @@
 #pragma once
 
 #include <cmath>
+#include <utility>
 
 #include <Eigen/Dense>
 #include <unsupported/Eigen/AutoDiff>
@@ -294,7 +295,7 @@ struct GradientReturnType {
                     ArgNoRef::MaxSizeAtCompileTime, 1>;
   using ReturnArgAutoDiffScalar = Eigen::AutoDiffScalar<ReturnArgDerType>;
 
-  // Return type of this function.
+  // Return type of the gradient function.
   using ReturnArgAutoDiffType = decltype(
       std::declval<Arg>().template cast<ReturnArgAutoDiffScalar>().eval());
   using type =
@@ -302,7 +303,8 @@ struct GradientReturnType {
 };
 
 template <int MaxChunkSize = 10, class F, class Arg, class ArgGradient>
-decltype(auto) gradient(F&& f, Arg&& x, ArgGradient&& arg_gradient) {
+void gradient(F&& f, Arg&& x, ArgGradient&& x_gradient,
+typename GradientReturnType<F, Arg>::type& result) {
   using Eigen::AutoDiffScalar;
   using Eigen::Index;
   using Eigen::Matrix;
@@ -316,10 +318,6 @@ decltype(auto) gradient(F&& f, Arg&& x, ArgGradient&& arg_gradient) {
   using ChunkArgDerType =
       Matrix<ArgScalar, Eigen::Dynamic, 1, 0, MaxChunkSize, 1>;
   using ChunkArgAutoDiffScalar = AutoDiffScalar<ChunkArgDerType>;
-
-  // Allocate output.
-  using ReturnType = typename GradientReturnType<F, Arg>::type;
-  ReturnType ret;
 
   // Compute derivatives chunk by chunk.
   constexpr Index kMaxChunkSize = MaxChunkSize;
@@ -335,7 +333,7 @@ decltype(auto) gradient(F&& f, Arg&& x, ArgGradient&& arg_gradient) {
     auto chunk_arg = x.template cast<ChunkArgAutoDiffScalar>().eval();
     for (Index i = 0; i < x.size(); i++) {
       chunk_arg(i).derivatives() =
-          arg_gradient.row(i).transpose().segment(deriv_num_start, chunk_size);
+          x_gradient.row(i).transpose().segment(deriv_num_start, chunk_size);
     }
 
     // Compute Jacobian chunk.
@@ -344,11 +342,11 @@ decltype(auto) gradient(F&& f, Arg&& x, ArgGradient&& arg_gradient) {
     // On first chunk, resize output to match chunk and copy values from chunk
     // to result.
     if (!values_initialized) {
-      ret.resize(chunk_result.rows(), chunk_result.cols());
+      result.resize(chunk_result.rows(), chunk_result.cols());
 
       for (Index i = 0; i < chunk_result.size(); i++) {
-        ret(i).value() = chunk_result(i).value();
-        ret(i).derivatives().resize(num_derivs);
+        result(i).value() = chunk_result(i).value();
+        result(i).derivatives().resize(num_derivs);
       }
       values_initialized = true;
     }
@@ -357,19 +355,25 @@ decltype(auto) gradient(F&& f, Arg&& x, ArgGradient&& arg_gradient) {
     for (Index i = 0; i < chunk_result.size(); i++) {
       // Intuitive thing to do, but results in problems with non-matching scalar
       // types for recursive jacobian calls:
-      // ret(i).derivatives().segment(deriv_num_start, chunk_size) =
+      // result(i).derivatives().segment(deriv_num_start, chunk_size) =
       // chunk_result(i).derivatives();
 
       // Instead, assign each element individually, making use of conversion
       // constructors.
       for (Index j = 0; j < chunk_size; j++) {
-        ret(i).derivatives()(deriv_num_start + j) =
+        result(i).derivatives()(deriv_num_start + j) =
             chunk_result(i).derivatives()(j);
       }
     }
   }
-
-  return ret;
+}
+template <int MaxChunkSize = 10, class F, class Arg, class ArgGradient>
+typename GradientReturnType<F, Arg>::type gradient(F&& f, Arg&& x, ArgGradient&&
+    x_gradient) {
+  typename GradientReturnType<F, Arg>::type result;
+  gradient<MaxChunkSize>(std::forward<F>(f), std::forward<Arg>(x),
+  std::forward<ArgGradient>(x_gradient), result);
+  return result;
 }
 
 /** Computes a matrix of AutoDiffScalars from which both the value and
