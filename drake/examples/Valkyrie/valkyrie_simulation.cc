@@ -11,7 +11,7 @@
 #include "drake/systems/lcm/lcm_subscriber_system.h"
 #include "drake/systems/lcm/translator_between_lcmt_drake_signal.h"
 #include "drake/systems/plants/parser_urdf.h"
-#include "drake/systems/plants/rigid_body_system/rigid_body_plant.h"
+#include "drake/systems/plants/rigid_body_plant/rigid_body_plant.h"
 #include "drake/examples/valkyrie/robot_state_publisher.h"
 
 // TODO: use syntactic sugar for connections from cars-simulator2 branch
@@ -29,6 +29,7 @@ int do_main(int argc, const char* argv[]) {
   using systems::lcm::TranslatorBetweenLcmtDrakeSignal;
   using systems::DiagramContext;
   using Eigen::VectorXd;
+  using drake::systems::plants::joints::kRollPitchYaw;
 
   drake::log()->set_level(spdlog::level::trace);
   auto builder = std::make_unique<systems::DiagramBuilder<double>>();
@@ -39,7 +40,7 @@ int do_main(int argc, const char* argv[]) {
       drake::GetDrakePath() +
           "/examples/Valkyrie/urdf/urdf/"
           "valkyrie_A_sim_drake_one_neck_dof_wide_ankle_rom.urdf",
-      DrakeJoint::ROLLPITCHYAW, nullptr /* weld to frame */, tree_ptr.get());
+      kRollPitchYaw, nullptr /* weld to frame */, tree_ptr.get());
 
   // Instantiate a RigidBodyPlant from the RigidBodyTree.
   RigidBodyPlant<double> plant(move(tree_ptr));
@@ -71,7 +72,7 @@ int do_main(int argc, const char* argv[]) {
 
   builder->Connect(actuators.get_output_port(0), plant.get_input_port(0));
   builder->Connect(plant.get_output_port(0),
-                   robot_state_publisher->get_input_port(0));
+                   robot_state_publisher.get_state_port());
   auto diagram = builder->Build();
 
   auto lcm_receive_thread =

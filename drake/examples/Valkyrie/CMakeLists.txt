@@ -33,7 +33,7 @@ add_dependencies(valkyrie_simulation drake_lcmtypes_hpp)
 target_link_libraries(valkyrie_simulation
     drake_rbp
     drakeLCMSystem2
-    robot_state_translator
+    drakeRobotStatePublisher
     drakeSystemAnalysis
     drakeSystemFramework)
 
