@@ -4,6 +4,9 @@
 #include "drake/systems/framework/context.h"
 #include "drake/systems/framework/leaf_system.h"
 
+// credit to Gregory Izatt for the original implementation of most of this in
+// LCM2RosControl
+
 // TODO(tkoolen): namespace
 // TODO(tkoolen): export
 namespace drake {
@@ -24,17 +27,8 @@ class DRAKEROBOTCOMMANDTODESIREDEFFORTCONVERTER_EXPORT
 
   std::string get_name() const override;
 
-  /**
- * Takes the VectorBase from the input port of the context and publishes
- * it onto an LCM channel.
- */
-  void DoPublish(const systems::ContextBase<double>& context) const override;
-
-  /**
-   * This System has no output ports so EvalOutput() does nothing.
-   */
-  void EvalOutput(const systems::ContextBase<double>& context,
-                  systems::SystemOutput<double>* output) const override {}
+  void EvalOutput(const systems::Context<double>& context,
+                  systems::SystemOutput<double>* output) const override;
 };
 
 }  // drake

@@ -1,10 +1,7 @@
 #pragma once
 
-// TODO(tkoolen): this is probably general enough to move to a different
-// namespace/folder.
+// TODO(tkoolen): namespace
 namespace drake {
-namespace examples {
-namespace valkyrie {
 
 enum class Behavior {
   kFreeze,
@@ -17,6 +14,4 @@ struct BehaviorTransition {
   double duration_;
 };
 
-} // valkyrie
-} // examples
 } // drake
