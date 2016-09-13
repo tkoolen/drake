@@ -10,3 +10,8 @@ endif()
 drake_add_matlab_test(NAME examples/Valkyrie/runValkyrieVisualize OPTIONAL bullet gurobi snopt COMMAND runValkyrieVisualize)
 
 add_subdirectory(test)
+
+find_package(lcm)
+if (lcm_FOUND)
+  add_subdirectory(lcmtypes)
+endif()

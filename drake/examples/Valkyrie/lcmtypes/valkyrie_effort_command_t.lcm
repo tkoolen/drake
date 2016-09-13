@@ -1,0 +1,44 @@
+package drake.valkyrie;
+
+/*
+ * Command for Valkyrie's effort controlled joints (those having an
+ * EffortJointInterface in valkyrie_*.urdf) .
+ */
+
+struct valkyrie_effort_command_t
+{
+	int64_t utime;
+
+	// torso
+	double torsoYaw_effort;
+	double torsoPitch_effort;
+	double torsoRoll_effort;
+
+  // left leg
+	double leftHipYaw_effort;
+	double leftHipRoll_effort;
+	double leftHipPitch_effort;
+	double leftKneePitch_effort;
+	double leftAnklePitch_effort;
+	double leftAnkleRoll_effort;
+
+  // right leg
+  double rightHipYaw_effort;
+  double rightHipRoll_effort;
+  double rightHipPitch_effort;
+  double rightKneePitch_effort;
+  double rightAnklePitch_effort;
+  double rightAnkleRoll_effort;
+
+  // left upper arm
+  double leftShoulderPitch_effort;
+  double leftShoulderRoll_effort;
+  double leftShoulderYaw_effort;
+  double leftElbowPitch_effort;
+
+  // right upper arm
+  double rightShoulderPitch_effort;
+  double rightShoulderRoll_effort;
+  double rightShoulderYaw_effort;
+  double rightElbowPitch_effort;
+}
