@@ -28,6 +28,6 @@ struct JointCommand {
   JointGains gains_;
 };
 
-typedef std::map<std::string, JointCommand> RobotCommand;
+typedef std::map<const RigidBodyActuator*, JointCommand> RobotCommand;
 
 } // drake
