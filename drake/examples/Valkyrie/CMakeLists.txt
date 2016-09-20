@@ -31,7 +31,7 @@ drake_install_headers(robot_state_publisher.h)
 add_executable(valkyrie_simulation valkyrie_simulation.cc)
 add_dependencies(valkyrie_simulation drake_lcmtypes_hpp)
 target_link_libraries(valkyrie_simulation
-    drake_rbp
+    drakeRigidBodyPlant
     drakeLCMSystem2
     drakeRobotStatePublisher
     drakeSystemAnalysis

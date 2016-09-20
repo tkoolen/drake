@@ -1,6 +1,7 @@
 #include "robot_state_publisher.h"
 #include "drake/common/constants.h"
 #include "drake/util/lcmUtil.h"
+#include "drake/util/drakeUtil.h"
 
 using Eigen::Dynamic;
 using Eigen::Index;
@@ -264,7 +265,7 @@ const RigidBodyTree& RobotStatePublisher::CheckPreConditions(
 
   bool floating_joint_found = false;
   for (const auto& body_ptr : tree.bodies) {
-    if (body_ptr->has_mobilizer_joint()) {
+    if (body_ptr->has_parent_body()) {
       const auto& joint = body_ptr->getJoint();
       if (joint.isFloating()) {
         if (floating_joint_found) {
