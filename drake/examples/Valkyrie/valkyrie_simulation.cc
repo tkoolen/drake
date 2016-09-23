@@ -62,7 +62,6 @@ int do_main(int argc, const char* argv[]) {
 
   // Create robot_state_t publisher.
   RobotStatePublisher robot_state_publisher(plant.get_multibody_world(),
-                                            plant.get_input_size(),
                                             "EST_ROBOT_STATE", lcm.get());
   builder->Connect(actuators.get_output_port(0), robot_state_publisher
       .get_effort_port());

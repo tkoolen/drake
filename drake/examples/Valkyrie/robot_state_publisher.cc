@@ -15,7 +15,6 @@ namespace drake {
 namespace examples {
 
 RobotStatePublisher::RobotStatePublisher(const RigidBodyTree& tree,
-                                         int num_actuators,
                                          const std::string& channel,
                                          lcm::LCM* lcm)
     : tree_(CheckPreConditions(tree)),
@@ -29,7 +28,7 @@ RobotStatePublisher::RobotStatePublisher(const RigidBodyTree& tree,
           tree.number_of_positions() + tree.number_of_velocities(),
           kContinuousSampling)),
       effort_port_(
-          DeclareInputPort(kVectorValued, num_actuators, kContinuousSampling)),
+          DeclareInputPort(kVectorValued, tree.actuators.size(), kContinuousSampling)),
       left_foot_wrench_port_(
           DeclareInputPort(kVectorValued, kTwistSize, kContinuousSampling)),
       right_foot_wrench_port_(

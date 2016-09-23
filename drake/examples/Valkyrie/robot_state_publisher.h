@@ -20,8 +20,7 @@ class DRAKEROBOTSTATEPUBLISHER_EXPORT RobotStatePublisher
    *
    * TODO
    */
-  RobotStatePublisher(const RigidBodyTree& tree, int num_actuators,
-                      const std::string& channel, lcm::LCM* lcm);
+  RobotStatePublisher(const RigidBodyTree& tree, const std::string& channel, lcm::LCM* lcm);
 
   ~RobotStatePublisher() override;
 
