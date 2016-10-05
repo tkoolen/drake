@@ -33,8 +33,7 @@ void SimpleRobotCommandToDesiredEffortConverter::EvalOutput(
     systems::SystemOutput<double>* output) const {
   using drake::systems::AbstractValue;
 
-  const AbstractValue* input =
-      context.get_abstract_input(robot_command_port_.get_index());
+  const AbstractValue* input = EvalAbstractInput(context, robot_command_port_.get_index());
   const RobotCommand& command = input->GetValue<RobotCommand>();
   auto& efforts =
       *output->GetMutableVectorData(desired_effort_port_.get_index());

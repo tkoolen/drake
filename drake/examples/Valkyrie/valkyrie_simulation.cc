@@ -9,10 +9,10 @@
 #include "drake/systems/framework/primitives/constant_vector_source.h"
 #include "drake/systems/lcm/lcm_publisher_system.h"
 #include "drake/systems/lcm/lcm_subscriber_system.h"
-#include "drake/systems/lcm/translator_between_lcmt_drake_signal.h"
+#include "drake/systems/lcm/lcmt_drake_signal_translator.h"
 #include "drake/systems/plants/parser_urdf.h"
 #include "drake/systems/plants/rigid_body_plant/rigid_body_plant.h"
-#include "drake/examples/valkyrie/robot_state_publisher.h"
+#include "drake/examples/Valkyrie/robot_state_publisher.h"
 
 // TODO: use syntactic sugar for connections from cars-simulator2 branch
 
@@ -26,7 +26,7 @@ int do_main(int argc, const char* argv[]) {
   using systems::RigidBodyPlant;
   using systems::lcm::LcmPublisherSystem;
   using systems::lcm::LcmSubscriberSystem;
-  using systems::lcm::TranslatorBetweenLcmtDrakeSignal;
+  using systems::lcm::LcmtDrakeSignalTranslator;
   using systems::DiagramContext;
   using Eigen::VectorXd;
   using drake::systems::plants::joints::kRollPitchYaw;
@@ -49,7 +49,7 @@ int do_main(int argc, const char* argv[]) {
   auto lcm = std::make_unique<lcm::LCM>();
 
   // Create torque command subscriber.
-  TranslatorBetweenLcmtDrakeSignal torque_translator(plant.get_input_size());
+  LcmtDrakeSignalTranslator torque_translator(plant.get_input_size());
   auto torque_command_source = make_unique<LcmSubscriberSystem>(
       "ROBOT_TORQUE", torque_translator, lcm.get());
 //  VectorXd tau = VectorXd::Zero(plant.get_input_size());
@@ -61,7 +61,7 @@ int do_main(int argc, const char* argv[]) {
       .get_input_port(0));
 
   // Create robot_state_t publisher.
-  RobotStatePublisher robot_state_publisher(plant.get_multibody_world(),
+  RobotStatePublisher robot_state_publisher(plant.get_rigid_body_tree(),
                                             "EST_ROBOT_STATE", lcm.get());
   builder->Connect(actuators.get_output_port(0), robot_state_publisher
       .get_effort_port());

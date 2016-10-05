@@ -1,7 +1,7 @@
 #include "robot_state_publisher.h"
 #include "drake/common/constants.h"
-#include "drake/util/lcmUtil.h"
 #include "drake/util/drakeUtil.h"
+#include "drake/util/lcmUtil.h"
 
 using Eigen::Dynamic;
 using Eigen::Index;
@@ -18,17 +18,16 @@ RobotStatePublisher::RobotStatePublisher(const RigidBodyTree& tree,
                                          const std::string& channel,
                                          lcm::LCM* lcm)
     : tree_(CheckPreConditions(tree)),
-      floating_body_(tree.bodies[1]->getJoint().isFloating()
+      floating_body_(tree.bodies[1]->getJoint().is_floating()
                          ? tree.bodies[1].get()
                          : nullptr),
       channel_(channel),
       lcm_(lcm),
       state_port_(DeclareInputPort(
-          kVectorValued,
-          tree.number_of_positions() + tree.number_of_velocities(),
+          kVectorValued, tree.get_num_positions() + tree.get_num_velocities(),
           kContinuousSampling)),
-      effort_port_(
-          DeclareInputPort(kVectorValued, tree.actuators.size(), kContinuousSampling)),
+      effort_port_(DeclareInputPort(kVectorValued, tree.actuators.size(),
+                                    kContinuousSampling)),
       left_foot_wrench_port_(
           DeclareInputPort(kVectorValued, kTwistSize, kContinuousSampling)),
       right_foot_wrench_port_(
@@ -96,17 +95,17 @@ void RobotStatePublisher::InitializeMessage() const {
   // joint_names field to position coordinate names.
   int non_floating_joint_position_start_index = num_floating_joint_positions();
   for (int i = non_floating_joint_position_start_index;
-       i < tree_.number_of_positions(); i++) {
-    message_.joint_name.push_back(tree_.getPositionName(i));
+       i < tree_.get_num_positions(); i++) {
+    message_.joint_name.push_back(tree_.get_position_name(i));
   }
   message_.num_joints = static_cast<int16_t>(message_.joint_name.size());
 }
 
 void RobotStatePublisher::SetState(
     const systems::Context<double>& context) const {
-  auto x = context.get_vector_input(state_port_.get_index())->get_value();
-  auto q = x.head(tree_.number_of_positions());
-  auto v = x.tail(tree_.number_of_velocities());
+  auto x = EvalVectorInput(context, state_port_.get_index())->get_value();
+  auto q = x.head(tree_.get_num_positions());
+  auto v = x.tail(tree_.get_num_velocities());
 
   Isometry3d floating_body_to_world = EvalFloatingBodyPose(q);
   EncodePose(floating_body_to_world, message_.pose);
@@ -131,8 +130,8 @@ void RobotStatePublisher::SetState(
 
 void RobotStatePublisher::SetEfforts(
     const systems::Context<double>& context) const {
-  auto efforts = context.get_vector_input(
-      effort_port_.get_index())->get_value();
+  auto efforts =
+      EvalVectorInput(context, effort_port_.get_index())->get_value();
   eigenVectorToStdVector(efforts, message_.joint_effort);
 }
 
@@ -144,7 +143,7 @@ void RobotStatePublisher::SetForceTorque(
   const int kForceZIndex = 5;
   {
     auto left_foot_wrench =
-        context.get_vector_input(left_foot_wrench_port_.get_index())
+        EvalVectorInput(context, left_foot_wrench_port_.get_index())
             ->get_value();
     force_torque.l_foot_force_z =
         static_cast<float>(left_foot_wrench[kForceZIndex]);
@@ -155,7 +154,7 @@ void RobotStatePublisher::SetForceTorque(
   }
   {
     auto right_foot_wrench =
-        context.get_vector_input(right_foot_wrench_port_.get_index())
+        EvalVectorInput(context, right_foot_wrench_port_.get_index())
             ->get_value();
     force_torque.r_foot_force_z =
         static_cast<float>(right_foot_wrench[kForceZIndex]);
@@ -166,7 +165,7 @@ void RobotStatePublisher::SetForceTorque(
   }
   {
     auto left_hand_wrench =
-        context.get_vector_input(left_hand_wrench_port_.get_index())
+        EvalVectorInput(context, left_hand_wrench_port_.get_index())
             ->get_value();
     eigenVectorToCArray(left_hand_wrench.head<kSpaceDimension>(),
                         force_torque.l_hand_torque);
@@ -175,7 +174,7 @@ void RobotStatePublisher::SetForceTorque(
   }
   {
     auto right_hand_wrench =
-        context.get_vector_input(right_hand_wrench_port_.get_index())
+        EvalVectorInput(context, right_hand_wrench_port_.get_index())
             ->get_value();
     eigenVectorToCArray(right_hand_wrench.head<kSpaceDimension>(),
                         force_torque.r_hand_torque);
@@ -194,13 +193,13 @@ void RobotStatePublisher::PublishMessage() const {
 
 int RobotStatePublisher::num_floating_joint_positions() const {
   int num_floating_joint_positions =
-      floating_body_ ? floating_body_->getJoint().getNumPositions() : 0;
+      floating_body_ ? floating_body_->getJoint().get_num_positions() : 0;
   return num_floating_joint_positions;
 }
 
 int RobotStatePublisher::num_floating_joint_velocities() const {
   int num_floating_joint_velocities =
-      floating_body_ ? floating_body_->getJoint().getNumVelocities() : 0;
+      floating_body_ ? floating_body_->getJoint().get_num_velocities() : 0;
   return num_floating_joint_velocities;
 }
 
@@ -210,7 +209,7 @@ Eigen::Isometry3d RobotStatePublisher::EvalFloatingBodyPose(
   if (floating_body_) {
     const auto& joint = floating_body_->getJoint();
     int q_start_index = floating_body_->get_position_start_index();
-    auto q_body = q.middleRows(q_start_index, joint.getNumPositions());
+    auto q_body = q.middleRows(q_start_index, joint.get_num_positions());
     pose = joint.jointTransform(q_body);
   } else {
     pose.setIdentity();
@@ -226,9 +225,9 @@ TwistVector<double> RobotStatePublisher::EvalFloatingBodyTwistInBodyFrame(
     const auto& joint = floating_body_->getJoint();
 
     int q_start_index = floating_body_->get_position_start_index();
-    auto q_body = q.middleRows(q_start_index, joint.getNumPositions());
+    auto q_body = q.middleRows(q_start_index, joint.get_num_positions());
     int v_start_index = floating_body_->get_velocity_start_index();
-    auto v_body = v.middleRows(v_start_index, joint.getNumVelocities());
+    auto v_body = v.middleRows(v_start_index, joint.get_num_velocities());
 
     Matrix<double, kTwistSize, Dynamic, 0, kTwistSize,
            DrakeJoint::MAX_NUM_VELOCITIES>
@@ -258,7 +257,7 @@ RobotStatePublisher::TransformTwistFromBodyFrameToWorldAlignedBodyFrame(
 
 const RigidBodyTree& RobotStatePublisher::CheckPreConditions(
     const RigidBodyTree& tree) {
-  if (tree.get_number_of_bodies() < 2) {
+  if (tree.get_num_bodies() < 2) {
     DRAKE_ABORT_MSG("This class assumes at least one non-world body.");
   }
 
@@ -266,7 +265,7 @@ const RigidBodyTree& RobotStatePublisher::CheckPreConditions(
   for (const auto& body_ptr : tree.bodies) {
     if (body_ptr->has_parent_body()) {
       const auto& joint = body_ptr->getJoint();
-      if (joint.isFloating()) {
+      if (joint.is_floating()) {
         if (floating_joint_found) {
           DRAKE_ABORT_MSG("robot_state_t assumes at most one floating joint.");
         }
@@ -285,7 +284,7 @@ const RigidBodyTree& RobotStatePublisher::CheckPreConditions(
               "head of the position and velocity vectors.");
         }
       } else {
-        if (joint.getNumPositions() > 1 || joint.getNumVelocities() > 1) {
+        if (joint.get_num_positions() > 1 || joint.get_num_velocities() > 1) {
           DRAKE_ABORT_MSG(
               "robot_state_t assumes non-floating joints to be "
               "1-DoF or fixed.");

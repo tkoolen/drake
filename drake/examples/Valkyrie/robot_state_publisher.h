@@ -5,7 +5,7 @@
 #include "drake/drakeRobotStatePublisher_export.h"
 #include "drake/systems/framework/context.h"
 #include "drake/systems/framework/leaf_system.h"
-#include "drake/systems/plants/RigidbodyTree.h"
+#include "drake/systems/plants/RigidBodyTree.h"
 #include "drake/systems/robotInterfaces/Side.h"
 #include "lcmtypes/bot_core/robot_state_t.hpp"
 
