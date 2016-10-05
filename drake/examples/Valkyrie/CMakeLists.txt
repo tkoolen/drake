@@ -19,7 +19,7 @@ drake_install_headers(simple_robot_command_to_desired_effort_converter.h)
 
 add_library_with_exports(LIB_NAME drakeRobotStatePublisher SOURCE_FILES
     robot_state_publisher.cc)
-add_dependencies(drakeLCMSystem2 drake_lcmtypes_hpp)
+add_dependencies(drakeRobotStatePublisher drake_lcmtypes_hpp)
 target_link_libraries(drakeRobotStatePublisher
     drakeLCMSystem2
     drakeLCMUtil

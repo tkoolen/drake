@@ -53,7 +53,7 @@ void RobotStatePublisher::DoPublish(
   SetState(context);
   SetEfforts(context);
   SetForceTorque(context);
-  PublishMessage();
+  lcm_->publish(channel_, &message_);
 }
 
 const systems::SystemPortDescriptor<double>&
@@ -181,14 +181,6 @@ void RobotStatePublisher::SetForceTorque(
     eigenVectorToCArray(right_hand_wrench.tail<kSpaceDimension>(),
                         force_torque.r_hand_torque);
   }
-}
-
-void RobotStatePublisher::PublishMessage() const {
-  const int lcm_message_length = message_.getEncodedSize();
-  message_bytes_.resize(static_cast<size_t>(lcm_message_length));
-  message_.encode(message_bytes_.data(), 0, lcm_message_length);
-  lcm_->publish(channel_, message_bytes_.data(),
-                static_cast<unsigned int>(message_bytes_.size()));
 }
 
 int RobotStatePublisher::num_floating_joint_positions() const {

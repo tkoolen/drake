@@ -59,8 +59,6 @@ class DRAKEROBOTSTATEPUBLISHER_EXPORT RobotStatePublisher
 
   void SetForceTorque(const systems::Context<double>& context) const;
 
-  void PublishMessage() const;
-
   Eigen::Isometry3d EvalFloatingBodyPose(
       const Eigen::Ref<const Eigen::VectorXd>& q) const;
 
@@ -97,9 +95,6 @@ class DRAKEROBOTSTATEPUBLISHER_EXPORT RobotStatePublisher
 
   // LCM Message.
   mutable bot_core::robot_state_t message_;
-
-  // Data to send.
-  mutable std::vector<uint8_t> message_bytes_;
 
   // Input ports.
   const systems::SystemPortDescriptor<double>& state_port_;
