@@ -10,6 +10,7 @@
 #include "drake/systems/framework/leaf_system.h"
 #include "drake/systems/lcm/lcm_and_vector_base_translator.h"
 #include "drake/systems/lcm/lcm_translator_dictionary.h"
+#include "drake/systems/lcm/serializer.h"
 
 namespace drake {
 namespace systems {
@@ -23,8 +24,46 @@ namespace lcm {
 class DRAKE_EXPORT LcmSubscriberSystem : public LeafSystem<double>,
     public drake::lcm::DrakeLcmMessageHandlerInterface  {
  public:
+
   /**
-   * A constructor.
+   * Factory method that returns a subscriber System that provides
+   * Value<LcmtMessage> message objects on is sole abstract-valued output port.
+   *
+   * @tparam LcmtMessage message type to deserialize, e.g., lcmt_drake_signal.
+   *
+   * @param[in] channel The LCM channel on which to subscribe.
+   *
+   * @param[in] lcm A non-null pointer to the LCM subsystem to subscribe on.
+   */
+  template <typename LcmtMessage>
+  static std::unique_ptr<LcmSubscriberSystem> Make(
+      const std::string& channel,
+      drake::lcm::DrakeLcmInterface* lcm) {
+    return std::make_unique<LcmSubscriberSystem>(
+        channel, std::unique_ptr<Serializer<LcmtMessage>>(
+            new Serializer<LcmtMessage>()), lcm);
+  }
+
+  /**
+   * Constructor that returns a subscriber System that provides message objects
+   * on is sole abstract-valued output port.  The type of the message object is
+   * determined by the @p serializer.
+   *
+   * @param[in] channel The LCM channel on which to subscribe.
+   *
+   * @param[in] serializer The serializer that converts between byte vectors
+   * and LCM message objects.
+   *
+   * @param[in] lcm A non-null pointer to the LCM subsystem to subscribe on.
+   */
+  LcmSubscriberSystem(const std::string& channel,
+                      std::unique_ptr<SerializerInterface> serializer,
+                      drake::lcm::DrakeLcmInterface* lcm);
+
+  /**
+   * Constructor that returns a subscriber System that provides vector data on
+   * is sole vector-valued output port.  The message contents are mapped to
+   * vector data by the @p translator.
    *
    * @param[in] channel The LCM channel on which to subscribe.
    *
@@ -33,24 +72,23 @@ class DRAKE_EXPORT LcmSubscriberSystem : public LeafSystem<double>,
    * reference must remain valid for the lifetime of this `LcmSubscriberSystem`
    * object.
    *
-   * @param[in] lcm A pointer to the LCM subsystem. This pointer must not be
-   * null and must be valid during the construction of this
-   * `LcmSubscriberSystem`.
+   * @param[in] lcm A non-null pointer to the LCM subsystem to subscribe on.
    */
   LcmSubscriberSystem(const std::string& channel,
                       const LcmAndVectorBaseTranslator& translator,
                       drake::lcm::DrakeLcmInterface* lcm);
 
   /**
-   * A constructor.
+   * Constructor that returns a subscriber System that provides vector data on
+   * is sole vector-valued output port.  The message contents are mapped to
+   * vector data by the a translator found in the @p translator_dictionary.
    *
    * @param[in] channel The LCM channel on which to subscribe.
    *
    * @param[in] translator_dictionary A dictionary for obtaining the appropriate
    * translator for a particular LCM channel.
    *
-   * @param[in] lcm A pointer to the LCM subsystem. This pointer must not be
-   * null.
+   * @param[in] lcm A non-null pointer to the LCM subsystem to subscribe on.
    */
   LcmSubscriberSystem(const std::string& channel,
                       const LcmTranslatorDictionary& translator_dictionary,
@@ -64,6 +102,9 @@ class DRAKE_EXPORT LcmSubscriberSystem : public LeafSystem<double>,
   static std::string get_name(const std::string& channel);
 
   const std::string& get_channel_name() const;
+
+  std::unique_ptr<SystemOutput<double>> AllocateOutput(
+      const Context<double>& context) const override;
 
   void EvalOutput(const Context<double>& context,
                   SystemOutput<double>* output) const override;
@@ -97,14 +138,26 @@ class DRAKE_EXPORT LcmSubscriberSystem : public LeafSystem<double>,
    *
    * When both `LCM` and `SetMessage` are updating the output value, the most
    * recent update wins.
+   *
+   * @pre this system is using a vector-valued port (not abstract-valued).
    */
   void SetMessage(double time, const BasicVector<double>& message_vector);
+
+  // Disable copy and assign.
+  LcmSubscriberSystem(const LcmSubscriberSystem&) = delete;
+  LcmSubscriberSystem& operator=(const LcmSubscriberSystem&) = delete;
 
  protected:
   std::unique_ptr<BasicVector<double>> AllocateOutputVector(
       const SystemPortDescriptor<double>& descriptor) const override;
 
  private:
+  // All constructors delegate to here.
+  LcmSubscriberSystem(const std::string& channel,
+                      const LcmAndVectorBaseTranslator* translator,
+                      std::unique_ptr<SerializerInterface> serializer,
+                      drake::lcm::DrakeLcmInterface* lcm);
+
   // Callback entry point from LCM into this class.
   void HandleMessage(const std::string& channel, const void* message_buffer,
       int message_size) override;
@@ -112,19 +165,19 @@ class DRAKE_EXPORT LcmSubscriberSystem : public LeafSystem<double>,
   // The channel on which to receive LCM messages.
   const std::string channel_;
 
-  // The translator that converts between LCM messages and
-  // drake::systems::VectorBase objects.
-  const LcmAndVectorBaseTranslator& translator_;
+  // Converts LCM message bytes to VectorBase objects.
+  // Will be non-null iff our output port is vector-valued.
+  const LcmAndVectorBaseTranslator* const translator_{};
+
+  // Converts LCM message bytes to Value<LcmtMessage> objects.
+  // Will be non-null iff our output port is abstract-valued.
+  const std::unique_ptr<SerializerInterface> serializer_;
 
   // The mutex that guards received_message_.
   mutable std::mutex received_message_mutex_;
 
   // The bytes of the most recently received LCM message.
   std::vector<uint8_t> received_message_;
-
-  // Disable copy and assign.
-  LcmSubscriberSystem(const LcmSubscriberSystem&) = delete;
-  LcmSubscriberSystem& operator=(const LcmSubscriberSystem&) = delete;
 };
 
 }  // namespace lcm
