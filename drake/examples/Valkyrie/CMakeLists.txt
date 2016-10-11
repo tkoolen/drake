@@ -10,30 +10,31 @@ endif()
 
 drake_add_matlab_test(NAME examples/Valkyrie/runValkyrieVisualize OPTIONAL bullet gurobi snopt COMMAND runValkyrieVisualize)
 
-add_library_with_exports(LIB_NAME drakeRobotCommandToDesiredEffortConverter SOURCE_FILES
-    simple_robot_command_to_desired_effort_converter.cc)
-target_link_libraries(drakeRobotCommandToDesiredEffortConverter
-    drakeLCMSystem2)
-pods_install_libraries(drakeRobotCommandToDesiredEffortConverter)
-drake_install_headers(simple_robot_command_to_desired_effort_converter.h)
+#add_library_with_exports(LIB_NAME drakeRobotCommandToDesiredEffortConverter SOURCE_FILES
+#    simple_robot_command_to_desired_effort_converter.cc)
+#target_link_libraries(drakeRobotCommandToDesiredEffortConverter
+#    drakeLCMSystem2)
+#pods_install_libraries(drakeRobotCommandToDesiredEffortConverter)
+#drake_install_headers(simple_robot_command_to_desired_effort_converter.h)
 
-add_library_with_exports(LIB_NAME drakeRobotStatePublisher SOURCE_FILES
-    robot_state_publisher.cc)
-add_dependencies(drakeRobotStatePublisher drake_lcmtypes_hpp)
-target_link_libraries(drakeRobotStatePublisher
+add_library_with_exports(LIB_NAME drakeRobotStateEncoder SOURCE_FILES
+    robot_state_encoder.cc)
+add_dependencies(drakeRobotStateEncoder drake_lcmtypes_hpp)
+target_link_libraries(drakeRobotStateEncoder
     drakeLCMSystem2
     drakeLCMUtil
-    drakeRBM
-    drakeSide)
-pods_install_libraries(drakeRobotStatePublisher)
-drake_install_headers(robot_state_publisher.h)
+    drakeRigidBodyPlant
+    drakeSide
+    )
+pods_install_libraries(drakeRobotStateEncoder)
+drake_install_headers(robot_state_encoder.h)
 
 add_executable(valkyrie_simulation valkyrie_simulation.cc)
 add_dependencies(valkyrie_simulation drake_lcmtypes_hpp)
 target_link_libraries(valkyrie_simulation
     drakeRigidBodyPlant
     drakeLCMSystem2
-    drakeRobotStatePublisher
+    drakeRobotStateEncoder
     drakeSystemAnalysis
     drakeSystemFramework)
 
