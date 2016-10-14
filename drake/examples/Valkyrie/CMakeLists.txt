@@ -29,7 +29,7 @@ target_link_libraries(drakeRobotStateEncoder
 pods_install_libraries(drakeRobotStateEncoder)
 drake_install_headers(robot_state_encoder.h)
 
-add_executable(valkyrie_simulation valkyrie_simulation.cc)
+add_executable(valkyrie_simulation valkyrie_simulation.cc simple_robot_command_to_desired_effort_converter.cc)
 add_dependencies(valkyrie_simulation drake_lcmtypes_hpp)
 target_link_libraries(valkyrie_simulation
     drakeRigidBodyPlant
@@ -37,5 +37,6 @@ target_link_libraries(valkyrie_simulation
     drakeRobotStateEncoder
     drakeSystemAnalysis
     drakeSystemFramework)
+drake_install_headers(simple_robot_command_to_desired_effort_converter.h)
 
 add_subdirectory(test)

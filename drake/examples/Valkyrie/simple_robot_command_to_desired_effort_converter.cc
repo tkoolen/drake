@@ -1,5 +1,5 @@
 #include "drake/examples/Valkyrie/simple_robot_command_to_desired_effort_converter.h"
-#include "drake/examples/Valkyrie/robot_command.h"
+#include "lcmtypes/bot_core/atlas_command_t.hpp"
 
 namespace drake {
 
@@ -16,7 +16,7 @@ SimpleRobotCommandToDesiredEffortConverter::
       desired_effort_port_(DeclareOutputPort(
           kVectorValued, static_cast<int>(CalcNumEfforts(actuators_in_order)),
           kContinuousSampling)),
-      actuators_in_order_(actuators_in_order) {}
+      name_to_index_(CreateNameToIndexMap(actuators_in_order)) {};
 
 SimpleRobotCommandToDesiredEffortConverter::
     ~SimpleRobotCommandToDesiredEffortConverter() {
@@ -31,36 +31,37 @@ std::string SimpleRobotCommandToDesiredEffortConverter::get_name() const {
 void SimpleRobotCommandToDesiredEffortConverter::EvalOutput(
     const systems::Context<double>& context,
     systems::SystemOutput<double>* output) const {
-  using drake::systems::AbstractValue;
+  using systems::AbstractValue;
+  using bot_core::atlas_command_t;
 
   const AbstractValue* input = EvalAbstractInput(context, robot_command_port_.get_index());
-  const RobotCommand& command = input->GetValue<RobotCommand>();
+  const atlas_command_t& message = input->GetValue<atlas_command_t>();
   auto& efforts =
       *output->GetMutableVectorData(desired_effort_port_.get_index());
 
   // Currently, all RigidBodyActuators are assumed to be one-dimensional.
-  int index = 0;
-  for (const auto& actuator_ptr : actuators_in_order_) {
-    double effort = command.at(actuator_ptr).effort_;
-    efforts.SetAtIndex(index, effort);
-    index++;
+  for (size_t i = 0; i < message.joint_names.size(); i++) {
+    const auto& joint_name = message.joint_names[i];
+    const auto& effort = message.effort[i];
+    efforts.SetAtIndex(name_to_index_.at(joint_name), effort);
   }
-}
-
-const systems::SystemPortDescriptor<double>&
-SimpleRobotCommandToDesiredEffortConverter::get_robot_command_port_() const {
-  return robot_command_port_;
-}
-
-const systems::SystemPortDescriptor<double>&
-SimpleRobotCommandToDesiredEffortConverter::get_desired_effort_port_() const {
-  return desired_effort_port_;
 }
 
 size_t SimpleRobotCommandToDesiredEffortConverter::CalcNumEfforts(
     const std::vector<const RigidBodyActuator*>& actuators) {
   // Currently, all RigidBodyActuators are assumed to be one-dimensional.
   return actuators.size();
+}
+
+std::map<std::string, int>
+SimpleRobotCommandToDesiredEffortConverter::CreateNameToIndexMap(const std::vector<
+    const RigidBodyActuator *> &actuators_in_order) {
+  std::map<std::string, int> ret;
+  int index = 0;
+  for (const auto& actuator_ptr : actuators_in_order) {
+    ret[actuator_ptr->name_] = index++;
+  }
+  return ret;
 }
 
 }  // drake
