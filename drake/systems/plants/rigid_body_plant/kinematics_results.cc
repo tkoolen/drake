@@ -64,9 +64,23 @@ void KinematicsResults<T>::UpdateFromContext(const Context<T> &context) {
   tree_.doKinematics(kinematics_cache_, false);
 }
 
+template <typename T>
+Eigen::VectorBlock<const VectorX<T>> KinematicsResults<T>::get_joint_position(
+    const RigidBody& body) const {
+  return kinematics_cache_.getQ().segment(body.get_position_start_index(),
+                                          body.getJoint().get_num_positions());
+}
+
+template <typename T>
+Eigen::VectorBlock<const VectorX<T>> KinematicsResults<T>::get_joint_velocity(
+    const RigidBody& body) const {
+  return kinematics_cache_.getV().segment(body.get_velocity_start_index(),
+                                          body.getJoint().get_num_velocities());
+}
+
+
 // Explicitly instantiates on the most common scalar types.
 template class DRAKE_EXPORT KinematicsResults<double>;
 
 }  // namespace systems
 }  // namespace drake
-
