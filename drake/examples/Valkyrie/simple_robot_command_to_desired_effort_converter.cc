@@ -2,66 +2,67 @@
 #include "lcmtypes/bot_core/atlas_command_t.hpp"
 
 namespace drake {
-
-using drake::systems::System;
-using drake::systems::kAbstractValued;
-using drake::systems::kVectorValued;
-using drake::systems::kContinuousSampling;
+namespace systems {
 
 SimpleRobotCommandToDesiredEffortConverter::
     SimpleRobotCommandToDesiredEffortConverter(
-        const std::vector<const RigidBodyActuator*>& actuators_in_order)
+        const std::vector<const RigidBodyActuator*>& actuators)
     : robot_command_port_(
           DeclareInputPort(kAbstractValued, 1, kContinuousSampling)),
-      desired_effort_port_(DeclareOutputPort(
-          kVectorValued, static_cast<int>(CalcNumEfforts(actuators_in_order)),
-          kContinuousSampling)),
-      name_to_index_(CreateNameToIndexMap(actuators_in_order)) {};
-
-SimpleRobotCommandToDesiredEffortConverter::
-    ~SimpleRobotCommandToDesiredEffortConverter() {
-  // empty
-}
-
-std::string SimpleRobotCommandToDesiredEffortConverter::get_name() const {
-  // TODO
-  return System::get_name();
-}
+      desired_effort_ports_(DeclareDesiredEffortOutputPorts(actuators)),
+      name_to_actuator_(CreateNameToActuatorMap(actuators)) {
+  set_name("SimpleRobotCommandToDesiredEffortConverter");
+};
 
 void SimpleRobotCommandToDesiredEffortConverter::EvalOutput(
     const systems::Context<double>& context,
     systems::SystemOutput<double>* output) const {
-  using systems::AbstractValue;
   using bot_core::atlas_command_t;
 
-  const AbstractValue* input = EvalAbstractInput(context, robot_command_port_.get_index());
+  const AbstractValue* input =
+      EvalAbstractInput(context, robot_command_port_.get_index());
   const atlas_command_t& message = input->GetValue<atlas_command_t>();
-  auto& efforts =
-      *output->GetMutableVectorData(desired_effort_port_.get_index());
 
   // Currently, all RigidBodyActuators are assumed to be one-dimensional.
   for (size_t i = 0; i < message.joint_names.size(); i++) {
-    const auto& joint_name = message.joint_names[i];
-    const auto& effort = message.effort[i];
-    efforts.SetAtIndex(name_to_index_.at(joint_name), effort);
+    const std::string& joint_name = message.joint_names[i];
+    const double& effort = message.effort[i];
+    const RigidBodyActuator* actuator = name_to_actuator_.at(joint_name);
+    int port_index = desired_effort_ports_.at(actuator)->get_index();
+    output->get_mutable_port(port_index)
+        ->GetMutableVectorData<double>()
+        ->SetAtIndex(0, effort);
   }
 }
 
-size_t SimpleRobotCommandToDesiredEffortConverter::CalcNumEfforts(
-    const std::vector<const RigidBodyActuator*>& actuators) {
-  // Currently, all RigidBodyActuators are assumed to be one-dimensional.
-  return actuators.size();
+const SystemPortDescriptor<double>&
+SimpleRobotCommandToDesiredEffortConverter::get_desired_effort_output_port(
+    const RigidBodyActuator& actuator) const {
+  return *desired_effort_ports_.at(&actuator);
 }
 
-std::map<std::string, int>
-SimpleRobotCommandToDesiredEffortConverter::CreateNameToIndexMap(const std::vector<
-    const RigidBodyActuator *> &actuators_in_order) {
-  std::map<std::string, int> ret;
-  int index = 0;
-  for (const auto& actuator_ptr : actuators_in_order) {
-    ret[actuator_ptr->name_] = index++;
+std::map<const RigidBodyActuator*, const SystemPortDescriptor<double>*>
+SimpleRobotCommandToDesiredEffortConverter::DeclareDesiredEffortOutputPorts(
+    const std::vector<const RigidBodyActuator*>& actuators) {
+  // Currently, all RigidBodyActuators are assumed to be one-dimensional.
+  const int desired_effort_length = 1;
+  std::map<const RigidBodyActuator*, const SystemPortDescriptor<double>*> ret;
+  for (const auto& actuator : actuators) {
+    ret[actuator] = &DeclareOutputPort(kVectorValued, desired_effort_length,
+                                       kContinuousSampling);
   }
   return ret;
 }
 
+std::map<std::string, const RigidBodyActuator*>
+SimpleRobotCommandToDesiredEffortConverter::CreateNameToActuatorMap(
+    const std::vector<const RigidBodyActuator*>& actuators) {
+  std::map<std::string, const RigidBodyActuator*> ret;
+  for (const auto& actuator : actuators) {
+    ret[actuator->name_] = actuator;
+  }
+  return ret;
+}
+
+}  // systems
 }  // drake
