@@ -32,7 +32,7 @@ drake_install_headers(robot_state_encoder.h)
 add_executable(
     valkyrie_simulation valkyrie_simulation.cc
     simple_robot_command_to_desired_effort_converter.cc
-    simple_joint_sensors.cc simple_joint_sensors.h)
+    simple_joint_sensors.cc simple_joint_sensors.h joint_state_encoder.cc joint_state_encoder.h)
 add_dependencies(valkyrie_simulation drake_lcmtypes_hpp)
 target_link_libraries(valkyrie_simulation
     drakeRigidBodyPlant
