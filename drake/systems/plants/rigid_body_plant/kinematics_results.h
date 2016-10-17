@@ -35,6 +35,13 @@ class DRAKE_EXPORT KinematicsResults {
   /// frame.
   Vector3<T> get_body_position(int body_index) const;
 
+  /// Returns the pose of body @p body with respect to the world.
+  Isometry3<T> get_pose_in_world(const RigidBody& body) const;
+
+  /// Returns the twist of @p body with respect to the world, expressed in world
+  /// frame.
+  TwistVector<T> get_twist_with_respect_to_world(const RigidBody& body) const;
+
   /// Returns the joint position vector associated with the joint between
   /// @p body and @p body's parent.
   /// TODO(tkoolen) should pass in joint instead of body, but that's currently

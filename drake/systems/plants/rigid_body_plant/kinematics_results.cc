@@ -44,6 +44,22 @@ Vector3<T> KinematicsResults<T>::get_body_position(int body_index) const {
   return pose.translation();
 }
 
+template <typename T>
+Isometry3<T> KinematicsResults<T>::get_pose_in_world(
+    const RigidBody& body) const {
+  const auto& world = tree_.world();
+  return tree_.relativeTransform(kinematics_cache_, world.get_body_index(),
+                                 body.get_body_index());
+}
+
+template <typename T>
+TwistVector<T> KinematicsResults<T>::get_twist_with_respect_to_world(
+    const RigidBody& body) const {
+  const auto& world = tree_.world();
+  return tree_.relativeTwist(kinematics_cache_, world.get_body_index(),
+                             body.get_body_index(), 0);
+}
+
 template<typename T>
 void KinematicsResults<T>::UpdateFromContext(const Context<T> &context) {
   // TODO(amcastro-tri): provide nicer accessor to an Eigen representation for
