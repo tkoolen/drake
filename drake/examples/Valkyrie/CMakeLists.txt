@@ -17,4 +17,16 @@ target_link_libraries(drakeRobotCommandToDesiredEffortConverter
 pods_install_libraries(drakeRobotCommandToDesiredEffortConverter)
 drake_install_headers(simple_robot_command_to_desired_effort_converter.h)
 
+add_library_with_exports(LIB_NAME drakeRobotStateEncoder SOURCE_FILES
+    robot_state_encoder.cc)
+add_dependencies(drakeRobotStateEncoder drake_lcmtypes_hpp)
+target_link_libraries(drakeRobotStateEncoder
+    drakeLCMSystem2
+    drakeLCMUtil
+    drakeRigidBodyPlant
+    drakeSide
+    )
+pods_install_libraries(drakeRobotStateEncoder)
+drake_install_headers(robot_state_encoder.h)
+
 add_subdirectory(test)
