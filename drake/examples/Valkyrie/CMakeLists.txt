@@ -1,5 +1,7 @@
 # drake_add_matlab_test(NAME examples/Valkyrie/runValkyrieBalancing REQUIRES gurobi COMMAND runValkyrieBalancing)  # FIXME: see #2839
 
+# TODO: if lcm found?
+
 if (NOT ${CMAKE_BUILD_TYPE} STREQUAL "Debug" AND UNIX) # FIXME: see #3147.
   drake_add_matlab_test(NAME examples/Valkyrie/runValkyrieBalancingPerturb REQUIRES gurobi lcm libbot yaml-cpp COMMAND runValkyrieBalancingPerturb)
 endif()
@@ -16,5 +18,27 @@ target_link_libraries(drakeRobotCommandToDesiredEffortConverter
     drakeLCMSystem2)
 pods_install_libraries(drakeRobotCommandToDesiredEffortConverter)
 drake_install_headers(robot_command_to_desired_effort_converter.h)
+
+add_library_with_exports(LIB_NAME drakeRobotStateLcmTypeUtil SOURCE_FILES
+    robot_state_lcmtype_util.cc)
+add_dependencies(drakeRobotStateLcmTypeUtil drake_lcmtypes_hpp)
+target_link_libraries(drakeRobotStateLcmTypeUtil
+    drakeRigidBodyPlant
+    )
+pods_install_libraries(drakeRobotStateLcmTypeUtil)
+drake_install_headers(robot_state_lcmtype_util.h)
+
+add_library_with_exports(LIB_NAME drakeRobotStateEncoder SOURCE_FILES
+    robot_state_encoder.cc)
+add_dependencies(drakeRobotStateEncoder drake_lcmtypes_hpp)
+target_link_libraries(drakeRobotStateEncoder
+    drakeLCMSystem2
+    drakeLCMUtil
+    drakeRigidBodyPlant
+    drakeSide
+    drakeRobotStateLcmTypeUtil
+    )
+pods_install_libraries(drakeRobotStateEncoder)
+drake_install_headers(robot_state_encoder.h)
 
 add_subdirectory(test)
