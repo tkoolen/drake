@@ -6,41 +6,38 @@
 namespace drake {
 namespace systems {
 
-template<typename T>
-KinematicsResults<T>::KinematicsResults(const RigidBodyTree &tree) :
-    tree_(tree), kinematics_cache_(tree_.bodies) {
-}
+template <typename T>
+KinematicsResults<T>::KinematicsResults(const RigidBodyTree& tree)
+    : tree_(tree), kinematics_cache_(tree_.bodies) {}
 
-template<typename T>
+template <typename T>
 int KinematicsResults<T>::get_num_bodies() const {
   return tree_.get_num_bodies();
 }
 
-template<typename T>
+template <typename T>
 int KinematicsResults<T>::get_num_positions() const {
   return kinematics_cache_.get_num_positions();
 }
 
-template<typename T>
+template <typename T>
 int KinematicsResults<T>::get_num_velocities() const {
   return kinematics_cache_.get_num_velocities();
 }
 
-template<typename T>
+template <typename T>
 Quaternion<T> KinematicsResults<T>::get_body_orientation(int body_index) const {
-  Isometry3<T>
-      pose = tree_.relativeTransform(kinematics_cache_, 0, body_index);
+  Isometry3<T> pose = tree_.relativeTransform(kinematics_cache_, 0, body_index);
   Vector4<T> quat_vector = drake::math::rotmat2quat(pose.linear());
   // Note that Eigen quaternion elements are not laid out in memory in the
   // same way Drake currently aligns them. See issue #3470.
-  return Quaternion<T>(
-      quat_vector[0], quat_vector[1], quat_vector[2], quat_vector[3]);
+  return Quaternion<T>(quat_vector[0], quat_vector[1], quat_vector[2],
+                       quat_vector[3]);
 }
 
-template<typename T>
+template <typename T>
 Vector3<T> KinematicsResults<T>::get_body_position(int body_index) const {
-  Isometry3<T>
-      pose = tree_.relativeTransform(kinematics_cache_, 0, body_index);
+  Isometry3<T> pose = tree_.relativeTransform(kinematics_cache_, 0, body_index);
   return pose.translation();
 }
 
@@ -60,12 +57,13 @@ TwistVector<T> KinematicsResults<T>::get_twist_with_respect_to_world(
                              body.get_body_index(), 0);
 }
 
-template<typename T>
-void KinematicsResults<T>::UpdateFromContext(const Context<T> &context) {
+template <typename T>
+void KinematicsResults<T>::UpdateFromContext(const Context<T>& context) {
   // TODO(amcastro-tri): provide nicer accessor to an Eigen representation for
   // LeafSystems.
-  auto x = dynamic_cast<const BasicVector<T> &>(
-      context.get_continuous_state()->get_state()).get_value();
+  auto x = dynamic_cast<const BasicVector<T>&>(
+               context.get_continuous_state()->get_state())
+               .get_value();
 
   const int nq = tree_.get_num_positions();
   const int nv = tree_.get_num_velocities();
@@ -93,7 +91,6 @@ Eigen::VectorBlock<const VectorX<T>> KinematicsResults<T>::get_joint_velocity(
   return kinematics_cache_.getV().segment(body.get_velocity_start_index(),
                                           body.getJoint().get_num_velocities());
 }
-
 
 // Explicitly instantiates on the most common scalar types.
 template class DRAKE_EXPORT KinematicsResults<double>;
