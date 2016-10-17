@@ -10,4 +10,11 @@ endif()
 
 drake_add_matlab_test(NAME examples/Valkyrie/runValkyrieVisualize OPTIONAL bullet gurobi snopt COMMAND runValkyrieVisualize)
 
+add_library_with_exports(LIB_NAME drakeRobotCommandToDesiredEffortConverter SOURCE_FILES
+    simple_robot_command_to_desired_effort_converter.cc)
+target_link_libraries(drakeRobotCommandToDesiredEffortConverter
+    drakeLCMSystem2)
+pods_install_libraries(drakeRobotCommandToDesiredEffortConverter)
+drake_install_headers(simple_robot_command_to_desired_effort_converter.h)
+
 add_subdirectory(test)
