@@ -54,25 +54,8 @@ class DRAKE_EXPORT RobotStateEncoder final : public LeafSystem<double> {
   void SetForceTorque(bot_core::robot_state_t& message,
                       const Context<double>& context) const;
 
-  Eigen::Isometry3d EvalFloatingBodyPose(
-      const Eigen::Ref<const Eigen::VectorXd>& q) const;
-
-  TwistVector<double> EvalFloatingBodyTwistInBodyFrame(
-      const Eigen::Ref<const Eigen::VectorXd>& q,
-      const Eigen::Ref<const Eigen::VectorXd>& v) const;
-
-  TwistVector<double> TransformTwistFromBodyFrameToWorldAlignedBodyFrame(
-      Eigen::Isometry3d& floating_body_to_world,
-      const TwistVector<double>& twist_in_body) const;
-
-  /// Number of floating joint positions.
-  int num_floating_joint_positions() const;
-
-  /// Number of floating joint velocities.
-  int num_floating_joint_velocities() const;
-
-  /// Check requirements on the tree, to ensure that robot_state_t can
-  /// unambiguously represent its state.
+  /// Check that robot_state_t can unambiguously represent the RigidBodyTree's
+  /// state.
   const RigidBodyTree& CheckPreConditions(const RigidBodyTree& tree);
 
   // Tree to which message corresponds.
