@@ -59,4 +59,5 @@ target_link_libraries(valkyrie_simulation
     drakeActuatorEffortToRigidBodyPlantInputConverter
     drakeRobotCommandToDesiredEffortConverter)
 
+add_subdirectory(control)
 add_subdirectory(test)
